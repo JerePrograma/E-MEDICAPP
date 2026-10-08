@@ -1,0 +1,16 @@
+.runtime/
+.tools/
+.env
+.env.*
+!.env.example
+backend/target/
+frontend/node_modules/
+frontend/dist/
+frontend/test-results/
+frontend/playwright-report/
+.idea/
+*.iml
+*.log
+Thumbs.db
+
+*.tsbuildinfo

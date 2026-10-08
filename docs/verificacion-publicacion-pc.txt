@@ -1,0 +1,92 @@
+VERIFICACIÓN DE PUBLICACIÓN DESDE PC — 08/10/2026
+
+Resultado técnico: PUBLICADA y verificada por HTTPS el 08/10/2026 a las 16:09:12
+de Argentina en https://tamper-raving-aversion.ngrok-free.dev/.
+El usuario completó la contraseña inicial de forma oculta desde el acceso local.
+Se utilizó su configuración de ngrok, protegida con DPAPI, y no se trasladaron
+credenciales del DEMO. No se creó una contraseña provisional para la cuenta real.
+
+PUBLICACIÓN PREPARADA
+ConfigurarPublicacion.cmd -> scripts/Configure-Public.ps1
+PublicarEMedicapp.cmd -> scripts/Start-Public.ps1
+DetenerPublicacion.cmd -> scripts/Stop-Public.ps1
+Guía: docs/publicacion-pc.txt
+Admin inicial real: softwarescalaris@gmail.com
+MANUAL: loopback 8084, emedicapp_manual, .runtime/documents-Manual.
+DEMO: loopback 8082, base y documentos separados; no se publica con este acceso.
+Ngrok portable 3.39.11, descargado del sitio oficial, firma Authenticode válida
+de ngrok, Inc. Configuración v3 aceptada por el agente. No se instaló un servicio
+de Windows ni se modificaron firewall/router/suspensión.
+
+COMPILACIÓN Y PRUEBAS
+Package completo con Java 25, TypeScript y Vite incluido en el JAR:
+BUILD SUCCESS, 08/10/2026 15:54:45 America/Buenos_Aires.
+109 pruebas backend: 0 fallos, 0 errores, 0 omitidas; integración PostgreSQL real.
+La suite incluye pruebas nuevas del proxy público, cuotas y cargas concurrentes.
+Log: .runtime/public-package.log
+JAR SHA-256: A8AD4FA17F4A6D90D04EE70F2033012844AEAD357D2D554612AA006C3075D8F3
+Todos los scripts pasan análisis sintáctico en Windows PowerShell 5 y conservan
+UTF-8 con BOM. Se verificó la configuración de ngrok sin usar un authtoken ni
+abrir un endpoint. Evidencia: .runtime/public-script-check.json y public-tool.json.
+
+APLICACIÓN EJECUTÁNDOSE
+24 comprobaciones PASS sobre QA aislada, finalizadas 08/10/2026 15:58:51.
+Se ejecutó el mismo JAR en loopback 8085 con modo MANUAL, URL pública de prueba,
+cookies seguras y estrategia NONE. Se enviaron encabezados equivalentes al proxy
+por HTTP local; no se usó ngrok ni se acredita con esta prueba el acceso externo.
+Se verificaron cookie Secure/HttpOnly/SameSite=Lax, HSTS, CSRF, login/me/logout,
+rotación de sesión y rechazo de sesión anterior. Host/protocolo/IP final inválidos
+fueron rechazados. El intento 21 recibió 429 y Retry-After 300; cambiar la IP
+inicial no eludió el límite y otra IP final tuvo una ventana independiente.
+QA: 1 administrador, 0 sucursales/productos/compras/documentos, 6 migraciones.
+Base y tablas pertenecen al rol limitado. Proceso QA detenido, puerto 8085 libre.
+Evidencia sin material de sesión: .runtime/public-runtime-check.json.
+
+BASE REAL Y AISLAMIENTO
+emedicapp_manual creada sin datos DEMO. Usuario emedicapp_manual_app con LOGIN,
+sin SUPERUSER/CREATEDB/CREATEROLE/REPLICATION/BYPASSRLS/INHERIT ni membresías.
+Dueño de base y schema public: rol limitado. Consulta de prueba de lectura en
+DEMO rechazada con SQLSTATE 42501. Credenciales DPAPI protegidas para el usuario
+de Windows, no visibles en este informe. Setup-ManualDatabase.ps1 pasó primera
+ejecución y repetición idempotente; Start.ps1 exige acreditar ese rol al solicitar
+-RestrictedDatabase. Evidencia: .runtime/public-database-check.json.
+
+PRESERVACIÓN DEL DEMO
+Reiniciado después de reemplazar el JAR; readiness UP en loopback 8082.
+6 usuarios, 18 productos, 4 sucursales, 72 stocks, 72 lotes, 4 documentos,
+0 compras, 0 pagos y 6 migraciones. Sin pérdida de datos ni nuevas compras.
+Evidencia: .runtime/public-demo-check.json.
+Los resultados previos de los cuatro recorridos Playwright y Vitest permanecen
+como evidencia de la revisión DEMO en docs/revision-demo-flujos.txt; no se
+presentan aquí como una prueba de acceso público HTTPS.
+
+COMPROBACIÓN HTTPS COMPLETADA
+Start-Public.ps1 confirmó UP a las 16:09:12.985. El túnel anterior a localhost:80
+fue cerrado por el usuario y el dominio apunta ahora a http://127.0.0.1:8084.
+Se comprobó la URL pública a través de ngrok: HTML 200, bootstrap MANUAL,
+HSTS y cookie Secure/HttpOnly/SameSite=Lax. La API privada sin sesión respondió
+401. Los dos assets iniciales del HTML coinciden por SHA-256 con frontend/dist.
+El inspector de ngrok está desactivado; su API escucha sólo en loopback 4041.
+Evidencia: .runtime/public-live-http.json y .runtime/public-session.json.
+Estas son comprobaciones HTTP/HTTPS, no una sesión administradora remota en UI
+ni una prueba desde un segundo dispositivo. No se conoce ni se solicitó por
+chat la contraseña que ingresó el usuario. El plan gratuito conserva su pantalla
+Visit Site para navegación normal, según las reglas de ngrok.
+
+ESTADO REAL Y PRIMER RESPALDO
+SQL de sólo lectura completado a las 16:11:23: 1 usuario y 1 ADMIN activos,
+correo inicial verificado, 0 sucursales/productos/existencias/lotes/compras/pagos/
+documentos y 6 migraciones exitosas. Base, schema, 36 tablas (incluye Flyway) y
+1 vista pertenecen al rol limitado. DEMO coincide con sus 9 conteos anteriores.
+Evidencia: .runtime/public-live-database.json.
+Respaldo MANUAL creado a las 16:10:46 en:
+.runtime/backups/emedicapp-Manual-20261008-161046-586
+pg_restore --list leyó el dump y los dos archivos del manifiesto coinciden por
+SHA-256. No se ejecutó una restauración. Evidencia: .runtime/public-live-backup.json.
+La operación debe cargar y verificar sus farmacias reales antes de recibir pedidos.
+
+OPERACIÓN DIARIA
+Usar PublicarEMedicapp.cmd para volver a iniciar después de apagar o reiniciar.
+Cerrar su ventana de confirmación no detiene Java ni el túnel, que quedan en
+segundo plano. DetenerPublicacion.cmd cierra sólo la publicación y conserva datos.
+La PC debe permanecer encendida y conectada. No se instaló inicio automático.

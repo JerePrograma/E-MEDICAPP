@@ -1,0 +1,276 @@
+E-MEDICAPP — guion de demostración ante una farmacia
+Escenario de Mendoza. Revisión del 8 de octubre de 2026.
+
+El recorrido principal dura entre 10 y 15 minutos y completa una compra con
+retiro. La variante de entrega sustituye el cierre del retiro. El caso de familiar,
+receta y alto valor es otro recorrido opcional de 10 a 15 minutos; conviene elegir
+uno para la presentación y dejar los otros para profundizar.
+
+Todos los registros y archivos de este guion son simulados. No realizar una
+transferencia, dispensar medicamentos ni utilizar las recetas de muestra para
+una operación real. Los nombres, importes y referencias coinciden con los PDF
+del escenario para que la demostración conserve coherencia entre cada etapa.
+
+PREPARACIÓN — 1 minuto
+
+1. Abrir C:\laburo\E-MEDICAPP\E-MEDICAPP\AbrirDemo.cmd.
+   Esperar la pantalla de ingreso en http://127.0.0.1:8082.
+
+2. Utilizar dos sesiones de navegador independientes:
+   - Sesión cliente: Comprador · Lucía Fernández.
+   - Sesión farmacia: Farmacéutico · Valentina Ríos.
+   Pueden ser Chrome y Edge, o perfiles distintos. Dos pestañas normales del mismo
+   perfil comparten sesión. Si se utiliza una sola sesión, pulsar Salir para cambiar
+   de perfil; las compras ya creadas permanecen guardadas.
+
+3. Tener a mano esta carpeta para seleccionar los documentos:
+   C:\laburo\E-MEDICAPP\E-MEDICAPP\frontend\tests\fixtures.
+   Para el retiro normal se usan comprobante-pago.pdf y factura-farmacia.pdf.
+   El selector DEMO completa el ingreso de cada perfil. La contraseña pública,
+   únicamente si se ingresa por correo, es DemoMedicapp2026!.
+
+No renovar el escenario durante una compra. ResetDemo.ps1 se utiliza antes de
+la presentación si se desea empezar nuevamente: respalda y archiva lo anterior.
+La información y los documentos de MANUAL pertenecen a otro entorno.
+
+RECORRIDO PRINCIPAL — retiro en farmacia
+
+A. Lucía solicita una propuesta — minutos 1 a 3
+
+1. En Mis compras, pulsar Nueva compra.
+2. Conservar compra propia. El nombre Lucía Fernández y nacimiento 01/01/1990
+   provienen de la cuenta. No marcar Compro para un familiar adulto.
+3. En Cómo querés recibir la compra, elegir Retiro en farmacia.
+4. En el mapa del escenario, marcar un punto de Ciudad de Mendoza, cerca de
+   Av. España 1185. Verificar el mensaje Punto confirmado en el mapa.
+   Si la ubicación física del equipo corresponde a esa zona, también puede
+   utilizarse Usar mi ubicación actual. Si no corresponde, usar el punto manual.
+5. En Farmacia de preferencia, elegir Nivalis · Ciudad, Av. España 1185.
+6. Buscar Paracetamol Nivalen 500 mg y poner cantidad 1.
+   Presentación: Caja de 16 comprimidos. No requiere receta en este escenario.
+7. Mantener Compra particular en Cómo querés cotizar los medicamentos.
+8. Revisar el resumen y pulsar Solicitar propuesta a la farmacia.
+9. Anotar el identificador de Compra que muestra la pantalla.
+
+Resultado esperado: En revisión de farmacias. El importe todavía está pendiente
+de comprobación y el cliente no ha aceptado ni informado un pago.
+
+Mensaje para presentar: "El cliente pide una presentación concreta. La farmacia
+confirma las condiciones antes de que se reserve stock y se pague."
+
+B. Valentina revisa la solicitud — minutos 3 a 5
+
+1. En la sesión de Farmacéutico · Valentina Ríos, abrir la compra anotada mediante
+   Ver detalle. La lista se actualiza automáticamente; también se puede recargar.
+2. Pulsar Revisar solicitud. Mantener Aprobar propuesta.
+3. En Comprobaciones realizadas y motivo, escribir:
+   "Identidad adulta, existencia física y presentación comprobadas en el escenario."
+4. Marcar Verifiqué personalmente edad, identidad y autorización cuando corresponde.
+5. Marcar Confirmé existencias físicas, precio vigente y presentación solicitada.
+6. Conservar Aporte total de obra social en 0.00.
+7. Pulsar Confirmar registro.
+
+Resultado esperado: Presupuesto disponible. Una caja cuesta ARS 6.420,50,
+cobertura ARS 0,00 y saldo del cliente ARS 6.420,50. Envío y plataforma: sin costo.
+Para esta compra de venta libre no se cargan receta, credencial ni autorización.
+
+C. Lucía acepta e informa el pago — minutos 5 a 7
+
+1. Volver a la sesión del cliente y abrir Revisar y aceptar presupuesto.
+2. Mostrar sucursal, dirección de retiro, presentación, cantidad, cobertura y total.
+3. Marcar la aceptación expresa de las condiciones y pulsar Aceptar presupuesto.
+4. Mostrar el plazo de reserva y las instrucciones de pago directo a la farmacia.
+5. Pulsar Informar pago.
+6. En Referencia del pago realizado, ingresar NV-00874321.
+7. Adjuntar comprobante-pago.pdf en Comprobante del pago a la farmacia.
+8. Esperar Archivo guardado y pulsar Enviar comprobante.
+
+Resultado esperado: se muestra el comprobante enviado, pendiente de comprobación.
+El pedido no está pagado por el solo hecho de adjuntar el archivo.
+
+Mensaje para presentar: "El dinero va a la farmacia. La plataforma conserva el
+comprobante y el responsable confirma los fondos en su medio de pago."
+
+D. Paula comprueba el cobro, factura y prepara — minutos 7 a 10
+
+1. En la sesión de farmacia, pulsar Salir e ingresar como Farmacia · Paula Benítez.
+2. Abrir el mismo identificador de compra y pulsar Verificar pago.
+3. Consultar el comprobante recibido. La referencia NV-00874321 ya está precargada.
+4. Para esta simulación, marcar Comprobé que la farmacia recibió el importe completo.
+5. Pulsar Confirmar registro. El estado pasa a Pago verificado.
+6. Pulsar Adjuntar factura.
+7. En Número/referencia de factura, ingresar 0003-00001847.
+8. Adjuntar factura-farmacia.pdf en Factura emitida por la farmacia.
+9. Esperar Archivo guardado y pulsar Confirmar registro.
+10. Pulsar Preparar y luego Confirmar registro.
+
+Resultado esperado: En preparación, con factura privada accesible al comprador.
+La factura y el comprobante corresponden a una caja y ARS 6.420,50.
+
+Mensaje para presentar: "La farmacia factura y conserva su responsabilidad
+comercial. Si hubiera varias sucursales en la compra, la preparación esperaría
+la comprobación de todos los pagos."
+
+E. Valentina dispensa y confirma el retiro — minutos 10 a 14
+
+1. En la sesión de farmacia, salir e ingresar como Farmacéutico · Valentina Ríos.
+2. Abrir la compra y pulsar Registrar dispensación.
+3. En Condiciones comprobadas, escribir:
+   "Una caja íntegra de 16 comprimidos preparada para retiro; control de muestra."
+4. Marcar Comprobé presentación, cantidad y condiciones; verifiqué la receta
+   cuando corresponde. Pulsar Confirmar registro.
+5. En la sesión del comprador, pulsar Mi código de recepción cuando Lucía está
+   lista para retirar. Mostrar las seis cifras y su vigencia.
+6. En la sesión farmacéutica, pulsar Confirmar retiro e ingresar esas seis cifras
+   en Código de recepción del comprador.
+7. Marcar Verifiqué presencialmente al receptor y su autorización.
+8. En Constancia de recepción, escribir:
+   "Lucía Fernández recibió la presentación completa; identidad comprobada en el escenario."
+9. Pulsar Confirmar registro.
+
+Resultado esperado: Compra Completado y pedido Retirado en la farmacia.
+El código ya no permite completar nuevamente la recepción. El stock y lote
+descuentan la unidad dispensada; la compra, cobro, factura y responsables quedan
+guardados. El comprador puede abrir Ver factura de la farmacia.
+
+El código nuevo reemplaza al anterior. Generarlo una sola vez al recibir y utilizar
+el último mostrado. Si vence, Lucía genera otro antes de volver a confirmar.
+
+F. Cierre — minuto 14 a 15
+
+Mostrar el estado final y la factura desde el cliente. En la sesión de farmacia,
+abrir Stock y precios y consultar Paracetamol Nivalen 500 mg de Nivalis · Ciudad.
+No corregir cantidades durante la compra: cada etapa ya registró su movimiento.
+La demostración termina con un pedido cerrado y evidencia conservada.
+
+VARIANTE — entrega a domicilio con cadete propio
+
+Esta variante usa otra compra de una caja de Paracetamol Nivalen 500 mg y los
+mismos documentos de muestra de ARS 6.420,50. Reemplaza la modalidad y el cierre
+del retiro; no convierte retrospectivamente una compra ya aceptada.
+
+1. En Nueva compra, elegir Entrega a domicilio sin costo. Para el domicilio del
+   escenario, ingresar "Av. España 1185, Ciudad, Mendoza, recepción principal".
+   Confirmar ese punto en el mapa y elegir Nivalis · Ciudad.
+2. Completar revisión, aceptación, comprobante, cobro, factura, preparación y
+   dispensación siguiendo A a D y los primeros cuatro pasos de E.
+3. En la sesión farmacia, pulsar Asignar cadete, elegir Santiago Molina y confirmar.
+4. En otra sesión independiente, o saliendo de la farmacia, ingresar como
+   Cadete · Santiago Molina. En Entregas, abrir la tarea de esa compra.
+5. Pulsar Aceptar tarea y Confirmar.
+6. Pulsar Recibí el paquete de la farmacia. En Condiciones del paquete recibido,
+   escribir "Paquete cerrado recibido de Nivalis Ciudad; una presentación íntegra."
+   Pulsar Confirmar. La tarea queda En camino.
+7. Opcionalmente pulsar Actualizar mi ubicación para esta entrega. La ubicación
+   se informa en ese momento; no es seguimiento continuo. Si el equipo está fuera
+   de Mendoza, omitir ese paso para mantener coherente el mapa del escenario.
+8. Al simular la recepción en el domicilio, Lucía genera Mi código de recepción.
+9. El cadete pulsa Confirmar entrega, ingresa esas seis cifras y escribe en
+   Constancia de entrega: "Lucía Fernández recibió el paquete cerrado y completo."
+10. Marcar Verifiqué que recibe el titular o la persona autorizada y pulsar Confirmar.
+
+Resultado esperado: Entregado en el domicilio y compra Completado.
+No corresponde efectuar otra confirmación de retiro en farmacia.
+
+CASO OPCIONAL — familiar adulto, receta, cobertura y alto valor
+
+Este recorrido parte de una solicitud nueva, dura entre 10 y 15 minutos y termina
+en cancelación anterior a la dispensación con reintegro completo. Permite mostrar
+la revisión doble y la privacidad clínica sin necesitar una factura de alto valor
+ni simular una entrega de un producto especial.
+
+Documentos de muestra de esta carpeta:
+- autorizacion-familiar.pdf y receta-externa.pdf.
+- credencial-cobertura.pdf y autorizacion-cobertura.pdf.
+- control-conservacion.pdf.
+- comprobante-pago-alto-valor.pdf y comprobante-reintegro-alto-valor.pdf.
+
+1. Como Lucía, abrir Nueva compra y marcar Compro para un familiar adulto.
+2. Beneficiaria: Elena Fernández. Nacimiento: 17/05/1962.
+3. Adjuntar autorizacion-familiar.pdf. La nota autoriza a Lucía a comprar y recibir.
+4. Elegir Retiro en farmacia, confirmar punto de Ciudad y preferir Nivalis · Ciudad.
+5. Buscar Adalimumab Immunavia 40 mg y seleccionar cantidad 1.
+   Presentación: Jeringa prellenada de 0,8 ml.
+6. Adjuntar receta-externa.pdf en Receta externa, si corresponde.
+7. En Cómo querés cotizar los medicamentos, elegir Solicitar cobertura de obra
+   social o prepaga. Ingresar Previsión Andina, plan Integral, afiliado 000458721.
+   Adjuntar credencial-cobertura.pdf y solicitar la propuesta.
+
+Primera revisión, como Farmacéutico · Valentina Ríos:
+8. Abrir Revisar solicitud y consultar la nota, receta y credencial privada.
+9. Registrar el motivo y marcar comprobación de identidad/autorización y stock.
+10. Referencia de receta: REC-CU-2026-00914.
+    Emisor: Centro Médico Piedemonte / Profesional simulado.
+    Vigencia: 07/11/2026, 23:59, horario de Mendoza.
+    Marcar Verifiqué el origen en la fuente correspondiente.
+11. Cantidad autorizada en la receta: 1.
+12. Aporte total de obra social: 375000.00, sin separadores de miles.
+    Referencia de autorización: PA-2026-000184.
+    Adjuntar autorizacion-cobertura.pdf en Evidencia de autorización de cobertura.
+13. Adjuntar control-conservacion.pdf en Evidencia de condiciones especiales.
+14. Confirmar registro. Se muestra 1 de 2 profesionales y el cliente todavía no
+    puede aceptar. El rango de muestra registrado es de 2 a 8 °C.
+
+La receta de muestra usa una vigencia de treinta días desde la fecha del escenario.
+Es una condición documental de este ejemplo; la farmacia verifica la vigencia
+de cada receta en su fuente. El sistema no aplica treinta días como regla general.
+
+Segunda revisión, como Segundo farmacéutico · Gabriel Ponce:
+15. Salir de Valentina e ingresar como Gabriel. Abrir la misma compra y revisar.
+16. Comprobar la información precargada: referencia, emisor, vigencia, cantidad y
+    cobertura. Consultar la autorización clínica; conservar aporte 375000.00 y
+    referencia PA-2026-000184. No reemplazar esos datos por cero ni cambiar precio.
+17. Registrar su propia comprobación y marcar identidad, stock y origen verificados.
+    Adjuntar control-conservacion.pdf para respaldar su revisión y confirmar.
+
+Resultado esperado: 2 de 2 profesionales, Presupuesto disponible.
+Bruto ARS 1.875.000,00; aporte comprobado ARS 375.000,00;
+saldo a pagar ARS 1.500.000,00. La credencial no generó sola ese aporte: el
+farmacéutico lo registró después de consultar la autorización de muestra.
+
+Pago y cancelación:
+18. Como Lucía, revisar esos importes y aceptar expresamente el presupuesto.
+19. Informar pago con referencia NV-00874322 y comprobante-pago-alto-valor.pdf.
+20. Como Paula o Valentina, abrir Verificar pago, consultar el comprobante y marcar
+    la comprobación del importe completo. Confirmar. La compra queda Pago verificado.
+21. Antes de preparar o dispensar, como Lucía, pulsar Solicitar cancelación.
+    Motivo: "La titular cancela antes de la dispensación y solicita la devolución
+    completa del cobro registrado." Pulsar Confirmar solicitud.
+22. Mostrar el reintegro solicitado por ARS 1.500.000,00. Las reservas se liberan;
+    pedir un reintegro todavía no acredita la devolución de fondos.
+23. Como Paula o Valentina, pulsar Registrar reintegro. Ingresar NV-00874323,
+    adjuntar comprobante-reintegro-alto-valor.pdf y marcar Comprobé que la farmacia
+    reintegró el importe correspondiente. Confirmar registro.
+
+Resultado esperado: reintegro Verificado, compra Cancelado y reservas liberadas.
+No hubo dispensación ni devolución automática de medicamentos al stock. Se
+conservan el pago y el reintegro documentados, sin un tope arbitrario de importe.
+
+Para mostrar una compra de alto valor particular, omitir la solicitud de cobertura
+y conservar aportes en cero: el total sería ARS 1.875.000,00. Los comprobantes
+de alto valor de esta carpeta corresponden al caso con cobertura y neto
+ARS 1.500.000,00; no utilizarlos para registrar un importe diferente. Un caso
+particular que avance a pago necesita documentos de muestra acordes al importe.
+
+SI ALGO NO COINCIDE
+
+- Si no aparece la compra, esperar la actualización o recargar y comprobar perfil
+  y número. Cambiar un perfil en la misma sesión modifica las demás pestañas.
+- Si no hay disponibilidad, confirmar punto de Mendoza, sucursal y cantidad.
+  El DEMO conserva las operaciones hechas: no debe asumirse stock inicial después
+  de múltiples presentaciones.
+- Si hay conflicto de versión, volver al detalle actualizado y abrir de nuevo la
+  acción. No pulsar varias veces una confirmación que todavía está guardando.
+- Si venció el presupuesto, pedir Buscar una nueva propuesta y revisar otra vez.
+  Si venció la reserva, seguir la resolución y conciliación que ofrece la aplicación.
+- Si falta factura, adjuntarla antes de dispensar. Si faltan pagos de otras farmacias,
+  la preparación permanece bloqueada hasta que se comprueben todos.
+- Si sólo se informó un comprobante antes de cancelar, usar Conciliar pago informado
+  en farmacia: documentar si entraron fondos. Un ingreso comprobado genera solicitud
+  de reintegro; no vuelve a preparar el pedido cancelado.
+- Si no se puede cumplir un pedido dispensado, Informar incidencia y registrar su
+  resolución profesional. No corregir manualmente el stock como sustituto del flujo.
+
+Este guion utiliza únicamente controles visibles de la aplicación y documentos
+simulados existentes. Los recorridos automáticos se ejecutan en otro entorno con
+scripts\Test-Workflow.ps1; no se utilizan para llenar la base de presentación.

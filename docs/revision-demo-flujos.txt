@@ -1,0 +1,240 @@
+E-MEDICAPP — revisión del escenario de demostración y de los flujos
+8 de octubre de 2026. Fechas y horas expresadas en Mendoza, UTC-03:00.
+Proyecto: C:\laburo\E-MEDICAPP\E-MEDICAPP.
+
+Este informe corresponde a la revisión posterior al MVP inicial. El archivo
+verificacion-mvp.txt conserva la evidencia de la primera fase y del escenario
+anterior. Las personas, comercios, marcas, importes, documentos y condiciones
+del DEMO son simulados; la aplicación, la persistencia y los permisos se ejecutan
+realmente. No se efectuaron cobros ni ventas reales, ni conexiones a bancos,
+obras sociales, emisores de recetas, sistemas de farmacia o ARCA.
+
+1. Escenario de presentación
+
+Se reemplazaron productos y nombres genéricos por un escenario coherente de
+Mendoza. La identificación DEMO se concentra en un aviso visible; los documentos
+de muestra conservan su identificación propia como simulaciones.
+
+La fotografía inicial verificada en .runtime\revision-demo-baseline.json contiene:
+- 6 personas: Lucía Fernández, Paula Benítez, Valentina Ríos, Gabriel Ponce,
+  Santiago Molina y Marina Suárez.
+- 4 sucursales: Nivalis · Ciudad, Nivalis · Dorrego, Valnera · Godoy Cruz y
+  Luma Cuyo · Las Heras. Dos cadenas y una alternativa independiente.
+- 18 presentaciones, con nombre, concentración, envase y condiciones simuladas.
+- 72 registros de stock y 72 lotes; las cantidades incluyen faltantes por sucursal.
+- 4 documentos iniciales de capacidades simuladas.
+- 0 compras, 0 pagos y 0 productos con los nombres genéricos de prueba anteriores.
+- 6 migraciones aplicadas.
+
+Los precios varían por sucursal y conservan centavos. El catálogo incluye
+productos de venta libre, con receta, con condiciones especiales, conservación
+en frío y alto valor. Las condiciones de este catálogo son datos del escenario,
+no una validación sanitaria ni una lista de precios del mercado.
+
+La segunda cuenta farmacéutica permite demostrar la revisión por dos personas
+distintas cuando el importe supera el umbral configurado. Los correos terminan
+en demo.invalid y la contraseña pública es sólo para esta demostración.
+La tabla completa de perfiles se encuentra en README.md.
+
+2. Recorrido del cliente
+
+El formulario toma de la cuenta el nombre y nacimiento para compras propias.
+Para familiares adultos se solicitan nombre, nacimiento y autorización firmada.
+Se confirma el domicilio y punto geográfico para entrega; para retiro se utiliza
+la ubicación del comprador. Las presentaciones se agregan con cantidades entre
+1 y 100 y la solicitud admite hasta treinta productos distintos.
+
+Se adjunta una receta cuando los productos la requieren. La compra puede ser
+particular o solicitar cobertura. Esta última exige obra social/prepaga y número
+de afiliado o credencial privada, con plan opcional. Los datos corresponden al
+beneficiario. La solicitud no concede automáticamente cobertura ni descuentos.
+
+Antes de enviar se muestra un resumen de beneficiario, modalidad, medicamentos
+y cobertura solicitada. La farmacia revisa la disponibilidad y presenta el
+presupuesto final. El comprador consulta por presentación el precio unitario,
+cantidad, cobertura, importe y sucursal; una compra dividida muestra cada farmacia.
+
+La aceptación es expresa y queda ligada a la versión de la propuesta. Si cambia
+su versión, se desmarca el consentimiento y se exige revisar nuevamente. Una
+propuesta vencida no se puede aceptar. Se conservan las condiciones aceptadas.
+
+Después de aceptar se informa el plazo de reserva y el pago directo a cada
+farmacia. El comprador puede adjuntar el comprobante y registrar su referencia;
+eso informa una operación, pero no confirma que ingresaron fondos. La farmacia
+debe verificar el cobro externamente. El comprador consulta su progreso y factura
+y obtiene un código temporal para recepción o retiro. Cada código nuevo reemplaza
+al anterior y se muestra su vencimiento. El titular autoriza por nota firmada a
+otra persona que reciba; su identidad y autorización se comprueban manualmente.
+
+Los siguientes pasos se explican según el estado. Se pueden filtrar compras
+en curso y finalizadas y consultar alternativas anteriores sin confundirlas con
+la propuesta vigente. Si no hay disponibilidad, se informa la situación y se
+permite otra búsqueda. Una incidencia se refiere al pedido de la farmacia afectada.
+
+3. Recorrido de la farmacia
+
+La revisión corresponde a un farmacéutico habilitado en esa sucursal. Comprueba
+identidad, mayoría de edad, autorización, receta, origen, vigencia, cantidades,
+stock físico y cobertura. La cobertura positiva exige referencia y evidencia de
+autorización clínica COBERTURA/HEALTH_COVERAGE. No se utiliza un documento OTHER
+comercial ni se calcula a partir del nombre de la obra social. Los datos de
+afiliación y la credencial son clínicos y se limitan al comprador y al farmacéutico
+autorizado de los pedidos asignados. Los roles comerciales, cadete y administración
+no obtienen acceso clínico por sus permisos generales.
+
+Las sucursales deben completar todas las revisiones necesarias antes de emitir
+la propuesta conjunta. En alto valor intervienen dos profesionales distintos.
+Tras la aceptación, la farmacia consulta el comprobante informado por el comprador
+o registra su propia evidencia y comprueba el importe en su medio de pago.
+
+La preparación queda bloqueada hasta que se verifiquen los pagos de todas las
+farmacias. Se adjunta la factura emitida por la farmacia antes de dispensar.
+Se registran los controles físicos y, cuando corresponde, evidencia y temperatura
+dentro del rango conservado en las condiciones del producto. No se presenta una
+observación manual como monitoreo continuo de conservación.
+
+Para retiro, el farmacéutico verifica receptor, autorización y código temporal.
+Para entrega, se asigna un cadete propio habilitado y disponible; éste acepta,
+registra custodia y completa la recepción con el código y las comprobaciones.
+La ubicación del cadete se muestra cuando es informada durante la tarea.
+
+4. Cancelaciones, reintegros y conciliación
+
+Antes de dispensar se liberan reservas y se solicita el reintegro completo de
+los cobros registrados, sin un límite arbitrario de importe. La solicitud no
+acredita una devolución: la farmacia realiza y comprueba el reintegro externo.
+Una cancelación parcial de sucursal bloquea el avance del conjunto para que
+se resuelvan los demás pedidos y sus cobros explícitamente.
+
+Si el cliente informó un pago y el pedido se cerró antes de comprobar los fondos,
+el comprobante queda pendiente de conciliación. La farmacia registra, con motivo
+y evidencia, si recibió el importe completo o no lo recibió. Si lo recibió, el
+circuito registra el cobro y solicita el reintegro íntegro. La compra permanece
+cerrada y las reservas liberadas; no se vuelve a preparar ni dispensar.
+
+Después de la dispensación se registra una incidencia y la evaluación profesional
+define devolución, reintento de cumplimiento o cierre documentado según el caso.
+Los medicamentos no reingresan al stock automáticamente. Las acciones, versiones,
+comprobaciones y condiciones previas quedan conservadas.
+
+5. Conservación del escenario anterior
+
+La renovación se efectuó con scripts\ResetDemo.ps1. Primero se generó el respaldo
+.runtime\backups\emedicapp-Demo-20261008-145024-163. Se detuvo únicamente la aplicación
+DEMO propia y se renombró su base anterior como:
+emedicapp_archive_20261008_145024_118_demo.
+
+Sus documentos se conservaron en:
+.runtime\documents-emedicapp_archive_20261008_145024_118_demo.
+
+La correspondencia del archivo y la nueva emedicapp_demo quedó registrada en
+.runtime\demo-reset.json. No se ejecutó DROP y no se modificaron las bases ni
+documentos MANUAL. Una futura renovación utiliza el mismo script; cada archivo
+anterior y respaldo queda identificado por fecha.
+
+También se respaldó el escenario nuevo limpio a las 15:04:49 en:
+.runtime\backups\emedicapp-Demo-20261008-150449-644.
+Se comprobaron el índice PostgreSQL y los hashes de los cuatro PDF privados.
+Esta comprobación acredita integridad y lectura del respaldo; la restauración
+ejecutada de la fase inicial permanece documentada en verificacion-mvp.txt.
+
+6. Compilación y pruebas de esta revisión
+
+Backend y paquete: APROBADOS.
+Evidencia: .runtime\revision-package.log. Fin: 15:09:50.
+61 pruebas, 0 fallos, 0 errores y 0 casos omitidos; BUILD SUCCESS.
+La ejecución incluyó PostgreSQL real en la base de pruebas, TypeScript y Vite,
+y empaquetó el backend y el frontend dentro de un único JAR. npm ci informó
+0 vulnerabilidades en dependencias; esa salida no reemplaza la revisión de
+los permisos y flujos propios de la aplicación.
+
+Entre los escenarios agregados están el comprobante informado por el comprador,
+sus permisos, la conciliación de un pago informado después de cancelación,
+la idempotencia del registro y el acceso clínico a la credencial de cobertura
+y a la autorización que respalda un aporte positivo.
+Las pruebas de documentos verifican propietario, rechazo de roles comerciales
+y permiso clínico concreto del farmacéutico. La revisión de cobertura no admite
+nuevas evidencias OTHER. Las autorizaciones antiguas ya asociadas se conservan
+como documentos clínicos privados y sólo pueden reutilizarse en ese mismo pedido.
+El acceso a la autorización requiere la relación clínica del pedido y el
+farmacéutico de esa misma sucursal.
+
+Frontend: APROBADO.
+Evidencia: .runtime\revision-frontend.log. Inicio: 15:10:06.
+Vitest: 2 pruebas aprobadas; importes con centavos y reintento de operación con
+la misma clave de idempotencia y un CSRF actualizado.
+
+Navegador: APROBADO.
+scripts\Test-Workflow.ps1 terminó con 4 recorridos aprobados en 1,7 minutos.
+Evidencia: .runtime\revision-workflow-runner.log y .runtime\verification-browser.log.
+Estado: .runtime\workflow-20261008181511018_9305f224.json, testExitCode=0 y stopped=true.
+La ejecución final terminó a las 15:17:22, con la receta y todos los PDF corregidos.
+Los cuatro escenarios ejecutados son retiro completo; entrega con cadete;
+administración mutable y presentación móvil; y familiar adulto con receta,
+cobertura y alto valor, doble revisión, pago y reintegro completo.
+El último caso configura bruto ARS 1.875.000,00, cobertura ARS 375.000,00 y neto
+ARS 1.500.000,00. También comprobó descarga y metadata clínicas y rechazo de
+los accesos comerciales. La instancia QA se detuvo al terminar y conservó su base.
+
+Se ajusta la vigencia documental de la receta de muestra a 07/11/2026, 23:59,
+horario de Mendoza, para usar una duración coherente con el escenario. Ese plazo
+de treinta días es un dato del ejemplo y no una regla legal general del sistema.
+La suite final comprobó esta vigencia, la segunda revisión profesional, la
+cobertura efectiva y el reintegro íntegro de ARS 1.500.000,00.
+
+Documentos del escenario: revisión visual APROBADA de los cuatro PDF privados
+actuales y de las nueve muestras en frontend\tests\fixtures. Las muestras
+incluyen receta, firma familiar, credencial, autorización de cobertura, controles,
+pago común, factura común, pago de alto valor y reintegro de alto valor. Se
+renderizaron y verificaron para comprobar legibilidad y coherencia de importes.
+
+La aplicación DEMO en 8082 se reinició con el paquete de esta revisión y confirmó
+readiness UP. Los recorridos de navegador utilizan la instancia QA de 8083.
+
+La comprobación final de las 15:17:51 confirmó que la presentación conserva
+exactamente su fotografía inicial: 6 usuarios, 18 productos, 4 sucursales,
+72 stocks, 72 lotes, 4 documentos, 0 compras, 0 pagos y 6 migraciones.
+No quedan productos con los nombres genéricos de prueba anteriores. Evidencia:
+.runtime\revision-demo-after-qa.json y .runtime\revision-final-state.json.
+El proceso propio 21748 está disponible sólo en 127.0.0.1:8082; QA 8083 quedó libre.
+SHA-256 del JAR comprobado:
+C9062B94870ED4C8D23E2209C3917AC154DD4C794336E3E39ECC386537B40AAF.
+
+El respaldo limpio de las 15:04:49 conserva el dump, su índice y los cuatro PDF.
+Se comprobaron los seis archivos contra su manifiesto SHA-256, sin diferencias.
+Evidencia: .runtime\revision-backup-check.json. La lectura del índice y los hashes
+no sustituye una prueba de restauración; esta revisión no volvió a ejecutarla.
+
+Se conservaron seis capturas actuales en docs\capturas: cliente con retiro,
+cliente móvil, entrega completa, farmacia en preparación, administración y
+familiar con cobertura y reintegro íntegro. Las capturas provienen de la base QA,
+separada de la presentación que permanece limpia.
+
+El guion-demostracion.txt contiene el recorrido manual de 10 a 15 minutos:
+retiro de una caja por ARS 6.420,50, alternativa de entrega y caso opcional de
+familiar con receta, cobertura y reintegro. Utiliza los mismos PDF de muestra.
+
+7. Separación de las pruebas y presentación
+
+scripts\Test-Workflow.ps1 crea una base QA nueva por invocación y un directorio
+de documentos separado. Comprueba la propiedad del PostgreSQL local, utiliza
+el puerto 8083 sólo si está libre y espera disponibilidad de la aplicación.
+Después ejecuta Playwright y detiene únicamente el proceso Java que inició.
+La base QA y las evidencias se conservan, incluso ante una falla, para revisión.
+
+Los recorridos exigen el nombre de base QA y http://127.0.0.1:8083. La ejecución
+directa de npm test:e2e contra la presentación de 8082 se rechaza. Así las pruebas
+no agregan pedidos, productos temporales ni documentos al DEMO que se presenta
+a las farmacias. El estado de cada ejecución queda en .runtime\workflow-*.json.
+
+8. Límites operativos vigentes
+
+Las comprobaciones de identidad, receta, cobertura, stock físico, cobro, factura,
+capacidades y recepción siguen siendo manuales y registradas con responsables.
+El sistema no sustituye el sistema de mostrador de la farmacia y la reserva local
+requiere conciliación del stock físico. Las distancias son geográficas y la
+ubicación informada por el cadete no constituye seguimiento continuo.
+
+La versión se utiliza en esta PC. El despliegue remoto requiere HTTPS, cuentas
+propias, PostgreSQL y almacenamiento privado persistente, y procedimientos de
+respaldo. No se publicó el servicio ni se modificó el firewall.

@@ -1,0 +1,563 @@
+{
+  "version": "mvp-1",
+  "base": "/api",
+  "notes": [
+    "Importes decimales como strings; el servidor toma precio y cantidad de la propuesta vigente.",
+    "Idempotency-Key obligatorio en crear compra, aceptar, informar pago, verificar pago, conciliar pago de pedido cerrado, cancelar, reintegro, dispensar y recepción; reutilizar la misma clave al reintentar. El efecto permanece único; un replay de compra reconstruye la respuesta con permisos actuales, sin devolver una vista clínica histórica a un rol revocado.",
+    "expectedVersion obligatorio en mutaciones de compra/pedido; 409 exige releer antes de actuar.",
+    "Pago y reintegro son confirmaciones manuales de operaciones externas directas de la farmacia, no cobros ejecutados por la plataforma.",
+    "Los GET devuelven arrays/objetos JSON. Comprador ve sus compras; farmacia sólo sus pedidos; cadete sólo tareas asignadas sin receta/DNI/fecha de nacimiento.",
+    "ROUTING indica revisión pendiente; cada hijo PROPOSED expone reviewApproved/reviewCount/highValueRequired. QUOTED es estado del padre con presupuesto completo.",
+    "Todos los compradores, incluso titular propio, requieren revisión manual de identidad adulta: authorizationChecked=true.",
+    "Frío o restringidos: evidencia propia de custodia obligatoria en hitos. Para frío, temperatura dentro del rango documentado del producto también es obligatoria; estas observaciones manuales no acreditan monitoreo térmico continuo.",
+    "Mostrar un código de recepción genera uno nuevo, revoca el anterior y persiste sólo hash. Cinco fallos bloquean ese código.",
+    "RESOLVED indica cierre profesional de incidencia, no prueba de entrega ni devolución física a stock.",
+    "Cada 30 segundos se revisan reservas vencidas de compras ACCEPTED o PARTIALLY_PAID: cancela el grupo y libera reservas de stock, lotes y receta; cobros ya verificados generan reintegros completos REQUESTED y COMPENSATING hasta comprobación externa. El origen automático es SYSTEM sin usuario humano ficticio.",
+    "GET /purchases lista compras propias del comprador y pedidos de farmacia con permiso exacto vigente; el cadete trabaja desde GET /deliveries. GET individual mantiene una proyección mínima para cadete asignado.",
+    "Las sucursales respetan radio de entrega y horario diario de Mendoza, incluidos intervalos que cruzan medianoche. Ausencia de horario significa disponibilidad confirmada manualmente. Estos datos, nombres, presentación, comercio e instrucciones de pago quedan preservados en el presupuesto.",
+    "Capacidad especial de cadete exige coldChain/restricted según categoría, capabilityEvidenceDocumentId CAPABILITY de la misma sucursal, verifiedAt y verifiedBy. Búsqueda, asignación y hitos vuelven a comprobarlos.",
+    "La respuesta de compra incluye messages desde el snapshot de configuración: unavailable, quoteConsent y paymentPending; el panel cambia nuevas propuestas y conserva el contexto de compras aceptadas.",
+    "Solicitar cobertura es opcional y no concede descuentos. coverageProvider/coveragePlan/coverageMemberNumber/coverageDocumentId pertenecen al beneficiario de esta compra; omitir los cuatro permite compra particular.",
+    "La credencial se carga como COBERTURA, persiste con tipo HEALTH_COVERAGE y es clínica. Debe pertenecer al comprador. Sólo su propietario o un farmacéutico autorizado por pedido y sucursal puede descargarla; ADMIN, PHARMACY y DRIVER no obtienen acceso clínico por su rol comercial.",
+    "payment-report conserva un único paymentSubmission vigente, con historial auditado; no crea payment ni cambia ACCEPTED a PAID. La farmacia comprueba el ingreso externo antes de verificar el cobro.",
+    "Una cancelación con paymentSubmission PENDING requiere conciliación. RECEIVED registra el cobro comprobado y solicita su reintegro completo; NOT_RECEIVED documenta que no ingresaron fondos. Ninguna opción reactiva la reserva ni la preparación.",
+    "El perfil autenticado incluye branchRoles por sucursal. Un rol global y la presencia en branchIds no sustituyen la membresía vigente del rol específico en la sucursal.",
+    "La evidencia que autoriza una cobertura positiva también se adjunta como COBERTURA/HEALTH_COVERAGE clínico. La revisión exige referencia y ese documento privado; ADMIN y PHARMACY no acceden a la autorización por permisos comerciales. Un farmacéutico de otra sucursal no accede a la evidencia del pedido ajeno."
+  ],
+  "operations": [
+    {
+      "method": "POST",
+      "path": "/purchases",
+      "roles": [
+        "BUYER"
+      ],
+      "request": {
+        "beneficiaryName": "Persona adulta",
+        "beneficiaryBirthDate": "1990-01-01",
+        "thirdParty": false,
+        "authorizationDocumentId": null,
+        "mode": "DELIVERY",
+        "destinationLat": -32.8895,
+        "destinationLon": -68.8458,
+        "destinationAddress": "Destino confirmado",
+        "preferredBranchId": "uuid",
+        "prescriptionDocumentId": null,
+        "items": [
+          {
+            "productId": "uuid",
+            "quantity": 1
+          }
+        ]
+      },
+      "response": {
+        "id": "uuid",
+        "version": 1,
+        "status": "ROUTING",
+        "message": "Solicitud enviada a farmacia",
+        "orders": []
+      },
+      "headers": {
+        "Idempotency-Key": "uuid"
+      },
+      "optionalRequestFields": {
+        "coverageProvider": "string <=160; required if any coverage field is informed",
+        "coveragePlan": "string <=160 optional",
+        "coverageMemberNumber": "string <=120 optional; preserves letters and leading zeros; required if no coverageDocumentId",
+        "coverageDocumentId": "uuid optional; owned HEALTH_COVERAGE document; required if no coverageMemberNumber"
+      },
+      "coverageExample": {
+        "coverageProvider": "Cobertura Cuyana",
+        "coveragePlan": "Plan Integral",
+        "coverageMemberNumber": "001284576-02",
+        "coverageDocumentId": "uuid"
+      },
+      "validation": "Persona adulta; identidad propia coincide con la cuenta o familiar con autorización firmada. 1..30 productos, 1..100 unidades por producto. Receta propia requerida si algún producto la exige. Entrega requiere dirección y punto válido; retiro utiliza punto de búsqueda. Datos de cobertura incompletos devuelven COVERAGE_REQUEST_INVALID."
+    },
+    {
+      "method": "GET",
+      "path": "/purchases",
+      "response": [
+        {
+          "id": "uuid",
+          "version": 1,
+          "status": "ROUTING",
+          "mode": "DELIVERY",
+          "total": "0.00",
+          "orders": []
+        }
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/purchases/{id}",
+      "response": {
+        "id": "uuid",
+        "version": 2,
+        "status": "QUOTED",
+        "mode": "DELIVERY",
+        "total": "1500.00",
+        "quoteExpiresAt": "2026-10-08T18:00:00Z",
+        "orders": [
+          {
+            "id": "uuid",
+            "branchId": "uuid",
+            "branchName": "Farmacia ejemplo",
+            "version": 2,
+            "status": "PROPOSED",
+            "reviewApproved": true,
+            "total": "1500.00",
+            "deliveryFee": "0.00",
+            "lines": [
+              {
+                "productId": "uuid",
+                "name": "Producto",
+                "quantity": 1,
+                "unitPrice": "1500.00",
+                "coverageAmount": "0.00",
+                "total": "1500.00"
+              }
+            ],
+            "branchAddress": "Av. España 1185, Ciudad, Mendoza",
+            "merchantName": "Nivalis Cuyo S.R.L.",
+            "accepted": false,
+            "currency": "ARS",
+            "reviewCount": 1,
+            "highValueRequired": false,
+            "paymentSubmission": null,
+            "payments": [],
+            "refunds": []
+          }
+        ],
+        "buyerUserId": "uuid",
+        "createdAt": "2026-10-08T17:30:00Z",
+        "destinationAddress": "Domicilio confirmado para entrega",
+        "currency": "ARS",
+        "reserveExpiresAt": null,
+        "allOrdersPaid": false,
+        "beneficiary": {
+          "name": "Lucía Fernández",
+          "birthDate": "1990-01-01"
+        },
+        "thirdParty": false,
+        "coverageRequest": {
+          "provider": "Cobertura Cuyana",
+          "plan": "Plan Integral",
+          "memberNumber": "001284576-02",
+          "evidenceDocumentId": "uuid"
+        }
+      },
+      "projection": "Ejemplo de comprador propietario. coverageRequest/beneficiary/receta/autorización del padre se omiten para terceros; los campos clínicos por pedido se agregan sólo a un farmacéutico habilitado en esa sucursal."
+    },
+    {
+      "method": "POST",
+      "path": "/orders/{id}/review",
+      "roles": [
+        "PHARMACIST"
+      ],
+      "request": {
+        "expectedVersion": 1,
+        "decision": "APPROVE",
+        "reason": "Existencia y condiciones verificadas",
+        "prescriptionReference": null,
+        "authorizationChecked": true,
+        "conditionEvidenceDocumentId": null,
+        "lines": [
+          {
+            "productId": "uuid",
+            "coverageAmount": "0.00",
+            "coverageReference": null,
+            "coverageEvidenceDocumentId": null,
+            "authorizedQuantity": null
+          }
+        ],
+        "prescriptionIssuer": null,
+        "prescriptionExpiresAt": null,
+        "originVerified": false
+      },
+      "coverageConditions": "coverageAmount positivo requiere coverageReference y coverageEvidenceDocumentId HEALTH_COVERAGE/COBERTURA clínico accesible para el farmacéutico de esa misma sucursal; no se admite OTHER comercial como autorización de cobertura."
+    },
+    {
+      "method": "POST",
+      "path": "/purchases/{id}/accept",
+      "roles": [
+        "BUYER"
+      ],
+      "headers": {
+        "Idempotency-Key": "uuid"
+      },
+      "request": {
+        "expectedVersion": 2
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/orders/{id}/payment-report",
+      "roles": [
+        "BUYER"
+      ],
+      "permission": "Sólo comprador propietario de la compra.",
+      "headers": {
+        "Idempotency-Key": "uuid"
+      },
+      "request": {
+        "expectedVersion": 3,
+        "reference": "NV-00874322",
+        "evidenceDocumentId": "uuid"
+      },
+      "response": "Purchase proyectada con permisos actuales; orders[].paymentSubmission actualizado.",
+      "conditions": [
+        "Pedido ACCEPTED; compra ACCEPTED o PARTIALLY_PAID; total positivo y reservas vigentes.",
+        "Referencia no vacía de hasta 160 caracteres y comprobante PAYMENT_RECEIPT propio obligatorio.",
+        "El estado sigue esperando comprobación del cobro por la farmacia; actualizar el reporte conserva el historial auditado."
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/orders/{id}/payment",
+      "roles": [
+        "PHARMACY",
+        "PHARMACIST"
+      ],
+      "headers": {
+        "Idempotency-Key": "uuid"
+      },
+      "request": {
+        "expectedVersion": 3,
+        "reference": "Transferencia bancaria comprobada",
+        "evidenceDocumentId": "uuid",
+        "verifiedExternally": true
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/orders/{id}/prepare",
+      "roles": [
+        "PHARMACY",
+        "PHARMACIST"
+      ],
+      "request": {
+        "expectedVersion": 4
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/orders/{id}/dispense",
+      "roles": [
+        "PHARMACIST"
+      ],
+      "headers": {
+        "Idempotency-Key": "uuid"
+      },
+      "request": {
+        "expectedVersion": 5,
+        "prescriptionConsumptionReference": null,
+        "conditionEvidenceDocumentId": null,
+        "temperatureC": null,
+        "conditionNote": null
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/orders/{id}/assign-driver",
+      "roles": [
+        "PHARMACY",
+        "PHARMACIST"
+      ],
+      "request": {
+        "expectedVersion": 6,
+        "driverId": "uuid"
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/deliveries",
+      "roles": [
+        "DRIVER",
+        "PHARMACY",
+        "PHARMACIST"
+      ],
+      "response": [
+        {
+          "id": "uuid",
+          "orderId": "uuid",
+          "version": 1,
+          "status": "ASSIGNED",
+          "address": "Destino",
+          "branchName": "Farmacia",
+          "mode": "DELIVERY",
+          "orderVersion": 6,
+          "branchId": "uuid",
+          "coldChain": false,
+          "special": false
+        }
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/deliveries/{id}/accept",
+      "roles": [
+        "DRIVER"
+      ],
+      "request": {
+        "expectedVersion": 1
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/deliveries/{id}/pickup",
+      "roles": [
+        "DRIVER"
+      ],
+      "request": {
+        "expectedVersion": 2,
+        "custodyNote": "Paquete recibido cerrado",
+        "conditionEvidenceDocumentId": null,
+        "temperatureC": null
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/deliveries/{id}/location",
+      "roles": [
+        "DRIVER"
+      ],
+      "request": {
+        "lat": -32.89,
+        "lon": -68.84,
+        "accuracy": 25
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/orders/{id}/receipt-code",
+      "roles": [
+        "BUYER"
+      ],
+      "response": {
+        "code": "123456",
+        "expiresAt": "2026-10-08T20:00:00Z"
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/deliveries/{id}/complete",
+      "roles": [
+        "DRIVER"
+      ],
+      "headers": {
+        "Idempotency-Key": "uuid"
+      },
+      "request": {
+        "expectedVersion": 3,
+        "code": "123456",
+        "recipientVerified": true,
+        "note": "Recepción comprobada",
+        "conditionEvidenceDocumentId": null,
+        "temperatureC": null
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/orders/{id}/pickup-complete",
+      "roles": [
+        "PHARMACIST"
+      ],
+      "headers": {
+        "Idempotency-Key": "uuid"
+      },
+      "request": {
+        "expectedVersion": 6,
+        "code": "123456",
+        "recipientVerified": true,
+        "note": "Identidad y autorización verificadas personalmente",
+        "conditionEvidenceDocumentId": null,
+        "temperatureC": null
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/purchases/{id}/cancel",
+      "roles": [
+        "BUYER"
+      ],
+      "headers": {
+        "Idempotency-Key": "uuid"
+      },
+      "request": {
+        "expectedVersion": 4,
+        "reason": "Cancelación solicitada"
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/orders/{id}/reconcile-payment",
+      "roles": [
+        "PHARMACY",
+        "PHARMACIST"
+      ],
+      "permission": "Rol comercial vigente y membresía activa de ese mismo rol en la sucursal del pedido.",
+      "headers": {
+        "Idempotency-Key": "uuid"
+      },
+      "request": {
+        "expectedVersion": 5,
+        "decision": "RECEIVED",
+        "reference": "NV-00874322",
+        "evidenceDocumentId": "uuid",
+        "verifiedExternally": true,
+        "reason": "Se comprobó el ingreso del importe completo después de cerrar el pedido."
+      },
+      "response": "Purchase proyectada; cobro verificado y reintegro REQUESTED si RECEIVED; paymentSubmission NOT_RECEIVED si no ingresó el pago.",
+      "conditions": [
+        "Pedido CANCELLED o RESOLVED con paymentSubmission PENDING y sin cobro ya registrado.",
+        "decision RECEIVED o NOT_RECEIVED; verifiedExternally=true, motivo y evidencia PAYMENT_RECEIPT u OTHER accesible de la sucursal.",
+        "RECEIVED requiere referencia y comprueba el importe completo; registra el cobro y solicita reintegro íntegro en la misma transacción.",
+        "No reactiva reserva, preparación ni dispensación. Repetir con la misma clave no duplica cobro ni reintegro."
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/orders/{id}/refund",
+      "roles": [
+        "PHARMACY",
+        "PHARMACIST"
+      ],
+      "headers": {
+        "Idempotency-Key": "uuid"
+      },
+      "request": {
+        "expectedVersion": 7,
+        "reference": "Reintegro externo confirmado",
+        "evidenceDocumentId": "uuid",
+        "verifiedExternally": true
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/orders/{id}/incident",
+      "roles": [
+        "BUYER",
+        "PHARMACY",
+        "PHARMACIST",
+        "DRIVER"
+      ],
+      "request": {
+        "expectedVersion": 7,
+        "reason": "Incidencia de conservación o recepción",
+        "evidenceDocumentId": null
+      }
+    },
+    {
+      "method": "POST",
+      "request": {
+        "expectedVersion": 2
+      },
+      "path": "/purchases/{id}/reroute",
+      "roles": [
+        "BUYER"
+      ]
+    },
+    {
+      "method": "POST",
+      "request": {
+        "evidenceDocumentId": "uuid",
+        "expectedVersion": 4,
+        "reference": "Factura externa de farmacia"
+      },
+      "path": "/orders/{id}/invoice",
+      "roles": [
+        "PHARMACY",
+        "PHARMACIST"
+      ]
+    },
+    {
+      "response": [
+        {
+          "available": true,
+          "id": "uuid",
+          "name": "Cadete propio"
+        }
+      ],
+      "method": "GET",
+      "path": "/branches/{id}/drivers",
+      "roles": [
+        "PHARMACY",
+        "PHARMACIST"
+      ]
+    },
+    {
+      "method": "POST",
+      "headers": {
+        "Idempotency-Key": "uuid"
+      },
+      "request": {
+        "expectedVersion": 4,
+        "reason": "Fallo propio, grupo bloqueado hasta resolución del comprador"
+      },
+      "path": "/orders/{id}/cancel",
+      "roles": [
+        "PHARMACY",
+        "PHARMACIST"
+      ]
+    },
+    {
+      "method": "POST",
+      "request": {
+        "evidenceDocumentId": "uuid",
+        "decision": "REFUND",
+        "temperatureC": null,
+        "expectedVersion": 8,
+        "reason": "Resolución farmacéutica documentada"
+      },
+      "path": "/orders/{id}/resolve-incident",
+      "roles": [
+        "PHARMACIST"
+      ]
+    }
+  ],
+  "records": {
+    "CoverageRequest": {
+      "provider": "string",
+      "plan": "string (empty if omitted)",
+      "memberNumber": "string (empty if omitted)",
+      "evidenceDocumentId": "uuid|null"
+    },
+    "PaymentSubmission": {
+      "reference": "string",
+      "evidenceDocumentId": "PAYMENT_RECEIPT uuid",
+      "submittedAt": "ISO instant",
+      "status": "PENDING|VERIFIED|REFUND_REQUESTED|NOT_RECEIVED",
+      "resolvedAt": "ISO instant optional"
+    },
+    "ClinicalOrderExtensions": {
+      "beneficiary": {
+        "name": "string",
+        "birthDate": "YYYY-MM-DD"
+      },
+      "prescriptionDocumentId": "uuid|null",
+      "authorizationDocumentId": "uuid|null",
+      "thirdParty": "boolean",
+      "coverageRequest": "CoverageRequest|null",
+      "prescriptionReview": {
+        "reference": "string|null",
+        "issuer": "string|null",
+        "expiresAt": "ISO instant|null"
+      },
+      "lines[].coverageReference": "string|null",
+      "lines[].coverageEvidenceDocumentId": "HEALTH_COVERAGE uuid|null; evidencia clínica de autorización de cobertura positiva",
+      "lines[].authorizedQuantity": "integer when prescription item exists"
+    },
+    "OrderLineConditions": {
+      "minTemperatureC": "decimal string|number|null from preserved product metadata",
+      "maxTemperatureC": "decimal string|number|null from preserved product metadata"
+    }
+  },
+  "privateProjections": {
+    "buyer": "Comprador propietario: todas las sucursales de su compra y datos clínicos propios del padre; puede consultar sus documentos privados y las facturas de sus pedidos.",
+    "pharmacy": "Membresía PHARMACY o PHARMACIST vigente de la sucursal: sólo hijos asignados a esa sucursal con datos operativos y comerciales. Los comprobantes de pago informados y registrados se relacionan con ese pedido.",
+    "pharmacist": "Rol global PHARMACIST y membresía PHARMACIST activa de la misma sucursal: extensiones clínicas sólo en hijos no CANCELLED. coverageRequest se entrega en el hijo; no en el padre de compras ajenas. La descarga clínica también verifica que la compra no esté CANCELLED ni UNAVAILABLE.",
+    "driver": "Rol DRIVER y membresía vigente de sucursal, con tarea asignada: el hijo de GET /purchases/{id} sólo contiene id/branchId/branchName/version/status. Operación desde /deliveries; sin productos, receta, credencial, identidad clínica ni fecha de nacimiento.",
+    "totals": "Comprador: total de la compra. Otros actores: importe de sus hijos visibles; alternativas CANCELLED sin aceptación previa no incrementan ese total.",
+    "groupReadiness": "allOrdersPaid refleja la condición global sin exponer pedidos privados de otras sucursales. La operación de preparación vuelve a validar estados y permisos en el servidor."
+  }
+}

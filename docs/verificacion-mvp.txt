@@ -1,0 +1,142 @@
+E-MEDICAPP — verificación del MVP local
+Fecha de las ejecuciones: 8 de octubre de 2026, hora de Argentina (UTC-03:00).
+Reporte cerrado con evidencia a las 13:46.
+Repositorio: C:\laburo\E-MEDICAPP\E-MEDICAPP.
+
+El MVP se compiló y verificó sobre esta PC con PostgreSQL real y datos de
+prueba separados. Resultados finales: 52 pruebas backend, 2 pruebas frontend,
+3 recorridos completos de navegador y 1 repetición puntual de administración
+móvil aprobados. También se comprobó arranque MANUAL sin datos DEMO,
+persistencia después del reinicio y recuperación aislada de base y archivos,
+incluyendo descarga HTTP autorizada del documento restaurado. Las comprobaciones
+locales descritas quedaron terminadas; sus límites operativos se detallan al final.
+
+Las compras y documentos de estas pruebas son ficticios. La persistencia es
+real; las pruebas no representan ventas, fondos, recetas ni entregas físicas
+reales, ni acreditan habilitaciones o acuerdos con farmacias.
+
+1. Compilación y pruebas backend — APROBADO
+
+Evidencia: .runtime\verification-package.log; fin 13:36:22.
+Resultado: 52 pruebas, 0 fallos, 0 errores, 0 omitidas; BUILD SUCCESS.
+Incluye PostgreSQL real aislado en emedicapp_test_demo, no H2.
+Se ejecutaron autenticación, catálogo, documentos, ruteo y compras; también las
+2 pruebas nuevas de calendario mensual en America/Argentina/Mendoza.
+
+Cobertura representativa comprobada:
+- Sesión, CSRF, rotación, logout, mayoría de edad y cuenta desactivada.
+- Acceso privado a documentos y permisos clínicos por rol/sucursal concretos.
+- Formatos de archivos, UUID sin sobrescritura y límite operativo de carga.
+- Control de versión de stock, recuento concurrente, reservas y lotes.
+- Capacidades especiales del cadete con evidencia de su propia sucursal.
+- Prioridad de suscripción, cesta completa, división y alternativas verificadas.
+- Horario y radio de operación, y mes contractual según la fecha de Mendoza.
+- Idempotencia y reintentos, cambios que exigen nueva aceptación y última unidad
+  disputada por dos aceptaciones sin reserva duplicada.
+- Reserva vencida sin pago liberada con auditoría de sistema; bloqueo del
+  cumplimiento cuando una compra dividida conserva pagos pendientes.
+- Retiro, código temporal, rechazo de repetición, reintegro documentado sin tope
+  arbitrario e incidencia resuelta sin inventar entrega o reposición de stock.
+- Revisión de alto valor por dos profesionales y permisos actuales al consultar
+  una respuesta de operación repetida.
+Cada prueba acredita su escenario; no certifica todas las combinaciones posibles.
+
+2. Paquete final con frontend incluido — APROBADO
+
+El perfil frontend ejecutó instalación, TypeScript y Vite; el JAR contiene la
+SPA y el backend. El registro también informa 0 vulnerabilidades de dependencias
+npm; esa salida no sustituye una auditoría de seguridad de la aplicación.
+Artefacto: backend\target\emedicapp-0.1.0-SNAPSHOT.jar.
+Fecha: 13:36:22. Tamaño: 31.971.105 bytes.
+SHA-256: DAC3B58B2792B75AD54F57645CDC19ABBF71DA6D3C5241DBFE7B7FBAED6BE7C8.
+Stack fijado: Java 25, Spring Boot 4.1.1, PostgreSQL 18.6, React 19.3.0 y
+TypeScript 6.0.3. La ejecución diaria usa el JAR, bajo un mismo origen local.
+
+3. Pruebas frontend — APROBADO
+
+Vitest: 2 pruebas aprobadas, 1 archivo, ejecución final de las 13:45:31.
+Evidencia persistente: .runtime\verification-frontend.log; escenarios en
+frontend\src\api.test.ts.
+Se verificó conservar centavos/moneda de importes grandes y repetir una operación
+tras corte de conexión con la misma Idempotency-Key y un CSRF renovado.
+
+4. Navegador y presentación — APROBADO
+
+Evidencia: .runtime\verification-browser.log, 13:40:30.
+Playwright/Chromium: 3 passed, duración 44,8 segundos, sin reintentos.
+Recorridos: compra con retiro; entrega con cadete propio y custodia; administración
+con creación/modificación real de un producto y presentación móvil. El tercero
+solicita además una cesta sin stock y comprueba UNAVAILABLE.
+Un primer intento falló por selector exacto del campo Nombre; se corrigió el
+test y se repitió toda la suite: antecedente conservado en
+.runtime\verification-browser-before-locator-fix.log.
+
+Evidencia adicional: .runtime\verification-browser-mobile.log.
+Repetición puntual del tercer recorrido: 1 passed, 18,0 segundos.
+Se esperó el contenido móvil y se llevó el panel administrativo al inicio antes
+de capturar. Las capturas finales se inspeccionaron visualmente sin pantalla
+pendiente de carga ni desplazamiento accidental:
+docs\capturas\compra-completada.png, docs\capturas\entrega-completada.png,
+docs\capturas\panel-administracion.png y docs\capturas\comprador-movil.png.
+Es la repetición de un recorrido, no un cuarto escenario independiente.
+
+5. MANUAL aislado sin DEMO — APROBADO
+
+Evidencia: .runtime\verification-manual.json, 13:22:18.
+Base emedicapp_qa_manual: mode MANUAL, readiness UP, 1 usuario administrador,
+0 sucursales, 0 productos, 0 planes y demoCredentialsSeeded=false.
+Acredita arranque y separación de datos; no es un piloto MANUAL con farmacias
+reales cargadas. Las bases de uso diario son emedicapp_demo y emedicapp_manual,
+y sus documentos se guardan en .runtime\documents-Demo y documents-Manual.
+
+6. Reinicio y conservación — APROBADO
+
+Evidencia: .runtime\verification-persistence.json y
+.runtime\verification-persistence-before.json. Resultado PASS, readiness UP.
+Se compararon 7 compras antes y después de un reinicio con proceso distinto:
+ID, estado, versión e importe permanecieron idénticos, ledgerUnchanged=true.
+Una factura se descargó con login del comprador antes y después y conservó
+el mismo SHA-256. El resultado verifica lectura privada autenticada, además de
+persistencia en disco. Después, el recorrido puntual creó otra solicitud sin
+stock: el respaldo final registra 8 compras, no una pérdida ni duplicación del
+conjunto de 7 comparado durante el reinicio.
+
+7. Respaldo y recuperación aislada — APROBADO
+
+Respaldo final: .runtime\backups\emedicapp-Demo-20261008-134249-008.
+Creado a las 13:42:50; incluye dump PostgreSQL custom, índice y manifiesto SHA-256.
+Manifiesto: 18 archivos, de los cuales 16 son documentos privados. Se verificaron
+los hashes de los archivos enumerados: 0 ausentes y 0 diferencias.
+
+Evidencia: .runtime\verification-recovery.json y verification-restore.log.
+Restauración en emedicapp_recovery_20261008_demo, con documentos en
+.runtime\documents-recovery-20261008; se conservaron las bases originales.
+Resultado de comparación DB/archivos: PASS, hashMismatches=0.
+Valores restaurados: 8 compras, 6 pedidos, 16 documentos, 5 migraciones,
+87 unidades de stock agregado y 0 reservadas. Las huellas de compras y documentos
+coinciden con las usadas en la comprobación de recuperación.
+Verificación HTTP restaurada: authorizedHttpDocumentVerification=PASS,
+readiness UP y 8 compras visibles con login del comprador. La factura descargada
+conservó el mismo UUID y SHA-256 que antes del reinicio y de la restauración;
+una descarga anónima respondió 401. Se comprobaron los 16 documentos restaurados
+contra el manifiesto. El proceso temporal de recuperación se detuvo tras validar
+su pertenencia; la base y los documentos restaurados se conservaron.
+DEMO quedó disponible en el puerto local 8082, con readiness UP.
+Las credenciales DPAPI locales no forman parte del respaldo y no se copian en
+este reporte. La recuperación utiliza una conexión propia del destino.
+
+8. Límites de lo comprobado
+
+El MVP coordina comprobaciones manuales: no hay conectores reales a recetas,
+obras sociales, POS/ERP, bancos, pasarelas ni ARCA; no envía WhatsApp, correo o SMS.
+La reserva local no bloquea una venta simultánea de mostrador sin integración
+con el stock de la farmacia: corresponde confirmar y conciliar la existencia.
+La farmacia recibe el dinero directamente, emite la factura y documenta cobros
+reales y reintegros. E-MEDICAPP no ejecuta ni confirma por sí mismo transferencias.
+Las suscripciones necesitan importe/moneda reales; las U.M. son simbólicas.
+El radio geográfico y una franja diaria no garantizan ruta/ETA ni resuelven
+feriados o turnos rotativos. La ubicación del cadete requiere una tarea activa;
+no se acredita seguimiento continuo en segundo plano ni cadena de frío física.
+El acceso remoto requiere HTTPS, cookies seguras y preparación del servidor,
+base, cuentas y almacenamiento persistente. No se publicó este servicio ni se
+modificó el firewall. Las pruebas locales no acreditan un despliegue productivo.

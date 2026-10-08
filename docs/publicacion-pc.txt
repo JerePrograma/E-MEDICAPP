@@ -1,0 +1,92 @@
+PUBLICACIÓN DE E-MEDICAPP DESDE ESTA PC
+
+La operación pública usa el JAR Java 25 con React incluido, PostgreSQL local y
+documentos privados. Ngrok aporta la dirección HTTPS estable asignada a la cuenta.
+La disponibilidad depende de que la PC esté encendida, sin suspensión y con Internet.
+Publicación verificada el 08/10/2026: https://tamper-raving-aversion.ngrok-free.dev/
+Cuenta inicial administradora: softwarescalaris@gmail.com, con contraseña propia.
+
+INICIO
+1. Crear la cuenta de ngrok en https://dashboard.ngrok.com/signup.
+2. Buscar la dirección asignada en Domains y el authtoken en Your Authtoken.
+3. Abrir ConfigurarPublicacion.cmd. Ingresar la URL HTTPS y luego el token en el
+   campo oculto. No compartir el token ni ingresarlo en este chat.
+4. Abrir PublicarEMedicapp.cmd. En el primer inicio se solicita la contraseña
+   administradora, oculta. El correo inicial es softwarescalaris@gmail.com.
+   Usar al menos 12 caracteres; el máximo es 72 bytes UTF-8 por BCrypt.
+5. Compartir la URL únicamente cuando el acceso indique disponibilidad verificada.
+   Al cerrar la ventana de confirmación, Java y ngrok siguen en segundo plano.
+
+No se necesita abrir puertos del router ni cambiar el firewall. La aplicación
+MANUAL escucha en 127.0.0.1:8084; PostgreSQL, en 127.0.0.1:55432. Ngrok establece
+la conexión saliente. El inspector local está limitado a 127.0.0.1:4041, con la
+captura de solicitudes desactivada. El agente no guarda el token en YAML ni en
+argumentos de procesos. .runtime/public-config.json y manual-db.json contienen
+credenciales protegidas con DPAPI para el usuario de Windows que las configuró.
+
+PRIMERA CONFIGURACIÓN DE NEGOCIO
+MANUAL empieza con la cuenta administradora y sin farmacias, medicamentos,
+compras ni cuentas DEMO. Los compradores adultos pueden registrarse desde la web.
+El administrador carga farmacias y sucursales reales y asigna roles a usuarios
+registrados. Cada farmacia carga catálogo, stock, cobertura y medios de pago.
+Los planes y parámetros se configuran desde el panel; los flujos permanecen en código.
+Antes de recibir pedidos, completar capacidades, horarios, zonas y documentación
+de cada farmacia y cadete. Las comprobaciones de receta, cobertura, pago y factura
+siguen siendo manuales y deben registrar evidencia. No existen integraciones reales
+con emisores, obras sociales, bancos o ARCA. No hay verificación de correo ni
+recuperación automática de contraseñas en esta versión.
+
+PROTECCIONES DEL ACCESO
+Se exige modo MANUAL, cookies Secure/HttpOnly/SameSite=Lax y binding loopback.
+El servidor reconoce sólo el proxy local y la URL HTTPS configurada. Usa la IP y
+el protocolo que ngrok agrega al final; los valores que envía un visitante al
+principio no sustituyen esa identidad. Spring forwarded headers permanece en NONE.
+Las mutaciones requieren CSRF y permisos del servidor; los documentos se sirven
+únicamente por endpoints autenticados con control de acceso.
+El login y registro admiten hasta 20 intentos por IP/ruta en 5 minutos. La carga
+de documentos admite 30 intentos por usuario/minuto cuando hay URL pública.
+Cuotas iniciales: 250 MiB por usuario, 5 GiB por base y reserva de 1 GiB libre en
+el volumen de archivos. Se parametrizan con EMEDICAPP_DOCUMENT_USER_QUOTA_BYTES,
+EMEDICAPP_DOCUMENT_TOTAL_QUOTA_BYTES y EMEDICAPP_DOCUMENT_MIN_FREE_BYTES.
+La comprobación de cuotas usa un bloqueo transaccional para cargas concurrentes.
+
+DATOS Y RESPALDO
+La aplicación pública usa emedicapp_manual_app, sin permisos de administración
+del clúster, sobre emedicapp_manual y .runtime/documents-Manual. El DEMO de 8082
+conserva su propia base y documentos. No se publica el DEMO con este acceso.
+Para respaldar: powershell -NoProfile -ExecutionPolicy Bypass -File scripts\Backup.ps1 -Environment Manual
+El respaldo contiene datos privados; conservar una copia fuera de esta PC en un
+destino privado. La contraseña inicial no se guarda en los scripts. PostgreSQL
+conserva su hash BCrypt. Si cambia el usuario de Windows, será necesario volver
+a configurar las credenciales protegidas, sin borrar ni reinicializar las bases.
+
+DETENCIÓN Y ACTUALIZACIÓN
+DetenerPublicacion.cmd cierra únicamente el túnel y la aplicación MANUAL que
+inició esta publicación. Conserva base, archivos y DEMO. Una caída de energía o
+un reinicio corta el acceso: volver a abrir PublicarEMedicapp.cmd.
+No se instaló servicio de Windows ni tarea de inicio automático.
+Para actualizar el JAR, detener primero publicación y DEMO propios, respaldar
+MANUAL y ejecutar scripts\Build.ps1; luego volver a iniciar los accesos.
+No reemplazar un JAR que esté usando Java ni limpiar .runtime para forzar arranque.
+
+LÍMITES DE NGROK GRATUITO
+La cuenta gratuita tiene límites de solicitudes y transferencia y puede mostrar
+una pantalla de advertencia antes de abrir la aplicación. Al verificar esta
+implementación, los límites publicados eran 20.000 solicitudes HTTP/mes y 1 GB
+de transferencia saliente. Las actualizaciones periódicas de las pantallas y la
+descarga de documentos consumen cuota. Revisar Usage en la cuenta durante el piloto.
+Referencia: https://ngrok.com/docs/pricing-limits/free-plan-limits
+TLS termina en ngrok: desactivar el inspector local evita la captura local de
+cuerpos, pero el proveedor procesa el tráfico para entregar el servicio. Revisar
+por separado las opciones de captura de tráfico de la cuenta (Full Capture) y
+mantenerlas desactivadas. Según ngrok, la captura completa es optativa y el
+contenido de tráfico no se almacena por defecto: https://ngrok.com/security
+
+ESTADO Y DIAGNÓSTICO
+.runtime/public-session.json informa URL, PID propios y estado STARTING,
+CONNECTING, UP o STOPPED. UP requiere bootstrap público MANUAL y cookie segura.
+.runtime/public-tool.json registra origen, versión, firma y hash del agente.
+.runtime/app-Manual.stdout.log y .stderr.log contienen diagnósticos del backend.
+Los errores crudos de ngrok no se registran ni se imprimen, porque un error de
+autenticación puede incluir el token. Un intento fallido cierra los procesos
+propios, conserva los datos y permite corregir la configuración y volver a iniciar.

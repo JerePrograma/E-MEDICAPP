@@ -1,0 +1,60 @@
+E-MEDICAPP — decisiones de implementación del MVP
+8 de octubre de 2026
+
+Autoridad: PDF V3 y respuestas posteriores del dueño. El relevamiento integral
+sirve como catálogo de requisitos; las 88 tablas no son una migración inicial.
+
+Decisiones del usuario: circuito completo con integración progresiva delegada;
+panel configurable con flujos definidos en código; uso inicial en PC, con
+posibilidad de despliegue y acceso remoto.
+
+Java 25 LTS (Temurin), Spring Boot 4.1.1, Maven Wrapper, PostgreSQL 18.6 y Flyway.
+React 19.3, TypeScript 6.0 estricto, Vite 8, React Router, TanStack Query,
+React Hook Form/Zod y Material UI Core. TypeScript 6 se elige para simplificar
+compatibilidad de herramientas; TypeScript 7 existe, pero su 7.0 no expone API
+para herramientas que acceden al compilador. Se revisará la transición al
+incorporar una versión con compatibilidad probada, sin instalar dos compiladores.
+
+Un backend, una base y un frontend. En uso diario el backend sirve el frontend
+compilado bajo un mismo origen. Vite se usa en desarrollo. Node 24 LTS es
+herramienta de construcción, no otro servidor de negocio.
+
+Paquetes por función, servicios transaccionales y repositorios con JdbcClient.
+DTO records, composición e inyección por constructor. Las interfaces se agregan
+cuando existe una frontera con implementaciones distintas. SQL parametrizado.
+No motores genéricos de flujos, CRUD universal, CQRS ni event sourcing.
+La claridad de estados, transacciones, permisos y cantidades prima sobre
+reducir artificialmente el número de archivos.
+
+Configuración: catálogos, precios, stock, farmacias/cadenas/sucursales, horarios,
+zonas, capacidades, miembros, planes, suscripciones y tiempos operativos.
+Cambios prospectivos y auditados; presupuesto aceptado e historial financiero
+se preservan. Las correcciones tienen versión o acción compensatoria.
+
+DEMO usa datos sintéticos y marca el entorno. MANUAL requiere usuarios propios,
+otra base, condiciones verificadas y comprobaciones externas documentadas.
+Stock, receta, cobertura, cobro y factura manuales indican fuente y responsable.
+Un archivo de comprobante no confirma por sí solo un cobro. No se simulan
+resultados de proveedores oficiales en una operación real.
+
+Sesión de servidor, cookies HttpOnly, CSRF y HTTPS para despliegue remoto.
+Los archivos clínicos son privados y descargables por actores autorizados.
+No se guardan sesiones en localStorage. Credenciales y datos quedan fuera de Git.
+El arranque local usa loopback; no cambia firewall ni expone servicios.
+
+Pruebas necesarias: autorización por recurso/sucursal, presupuesto versionado,
+última unidad concurrente, reintentos y doble aceptación, pagos divididos,
+reintegro sin duplicación, conservación de datos y flujo por distintos perfiles.
+PostgreSQL real aislado para integración; no sustitución por H2.
+
+Fuentes técnicas verificadas:
+https://www.oracle.com/java/technologies/java-se-support-roadmap.html
+https://docs.spring.io/spring-boot/system-requirements.html
+https://docs.spring.io/spring-framework/reference/data-access/jdbc/core.html
+https://www.postgresql.org/support/versioning/
+https://react.dev/versions
+https://react.dev/learn/build-a-react-app-from-scratch
+https://devblogs.microsoft.com/typescript/announcing-typescript-7-0/
+https://nodejs.org/en/about/previous-releases
+https://mui.com/material-ui/getting-started/installation/
+https://tanstack.com/query/latest/docs/framework/react/overview

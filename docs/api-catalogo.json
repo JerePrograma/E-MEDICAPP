@@ -1,0 +1,433 @@
+{
+  "version": 1,
+  "numericContract": "Importes, latitud y longitud se devuelven como texto decimal. Cantidades y versiones son números. UUID son strings.",
+  "optimisticConcurrency": "POST usa version 0. PUT administrativo usa la version recibida. Stock usa expectedVersion; 0 solo crea una oferta nueva. Conflicto devuelve HTTP 409.",
+  "public": [
+    {
+      "method": "GET",
+      "path": "/api/catalog/products",
+      "response": "Product[]",
+      "filter": "Productos activos"
+    },
+    {
+      "method": "GET",
+      "path": "/api/catalog/branches",
+      "response": "Branch[]",
+      "filter": "Activas, verificadas, adheridas, cadena activa y sin suspensión por impago. Datos privados de pago/capacidad se omiten."
+    }
+  ],
+  "admin": [
+    {
+      "method": "GET",
+      "path": "/api/admin/overview",
+      "response": {
+        "products": "Product[]",
+        "chains": "Chain[]",
+        "branches": "Branch[]",
+        "plans": "Plan[]",
+        "subscriptions": "Subscription[]",
+        "memberships": "Member[]",
+        "users": "UserOption[]",
+        "config": "Settings"
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/products",
+      "body": "ProductInput",
+      "response": "Product"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/admin/products/{id}",
+      "body": "ProductInput",
+      "response": "Product"
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/chains",
+      "body": "ChainInput",
+      "response": "Chain"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/admin/chains/{id}",
+      "body": "ChainInput",
+      "response": "Chain"
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/branches",
+      "body": "BranchInput",
+      "response": "Branch"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/admin/branches/{id}",
+      "body": "BranchInput",
+      "response": "Branch"
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/plans",
+      "body": "PlanInput",
+      "response": "Plan"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/admin/plans/{id}",
+      "body": "PlanInput",
+      "response": "Plan"
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/subscriptions",
+      "body": "SubscriptionInput",
+      "response": "Subscription"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/admin/subscriptions/{id}",
+      "body": "SubscriptionInput",
+      "response": "Subscription"
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/memberships",
+      "body": "MemberInput",
+      "response": "Member"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/admin/memberships/{id}",
+      "body": "MemberInput",
+      "response": "Member"
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/settings",
+      "response": "Settings"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/admin/settings",
+      "body": "SettingsInput",
+      "response": "Settings"
+    }
+  ],
+  "branchOperators": [
+    {
+      "method": "GET",
+      "path": "/api/branches/{id}/stock",
+      "response": "Stock[]",
+      "permission": "ADMIN o membresía PHARMACY/PHARMACIST activa de esta sucursal"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/branches/{id}/stock/{productId}",
+      "body": {
+        "quantity": 10,
+        "price": "12500.00",
+        "expectedVersion": 1,
+        "reason": "Conteo físico"
+      },
+      "response": "Stock",
+      "permission": "ADMIN o membresía PHARMACY/PHARMACIST activa de esta sucursal"
+    },
+    {
+      "method": "GET",
+      "path": "/api/branches/{id}/stock/{productId}/lots",
+      "response": "Lots",
+      "permission": "ADMIN o membresía PHARMACY/PHARMACIST activa de esta sucursal"
+    },
+    {
+      "method": "POST",
+      "path": "/api/branches/{id}/stock/{productId}/lots",
+      "body": "LotInput (expectedVersion=0)",
+      "response": "Lots"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/branches/{id}/stock/{productId}/lots/{lotId}",
+      "body": "LotInput",
+      "response": "Lots"
+    }
+  ],
+  "records": {
+    "Product": {
+      "id": "uuid",
+      "code": "string",
+      "name": "string",
+      "presentation": "string",
+      "requiresPrescription": "boolean",
+      "coldChain": "boolean",
+      "restricted": "boolean",
+      "active": "boolean",
+      "version": "number",
+      "metadata": "object"
+    },
+    "ProductInput": {
+      "code": "string required <=80",
+      "name": "string required <=200",
+      "presentation": "string required <=200",
+      "requiresPrescription": "boolean",
+      "coldChain": "boolean",
+      "restricted": "boolean",
+      "active": "boolean",
+      "version": "number",
+      "metadata": "object optional"
+    },
+    "Chain": {
+      "id": "uuid",
+      "name": "string",
+      "active": "boolean",
+      "version": "number"
+    },
+    "ChainInput": {
+      "name": "string required <=200",
+      "active": "boolean",
+      "version": "number"
+    },
+    "Branch": {
+      "id": "uuid",
+      "chainId": "uuid|null",
+      "name": "string",
+      "address": "string",
+      "latitude": "decimal string",
+      "longitude": "decimal string",
+      "active": "boolean",
+      "verified": "boolean",
+      "agreementAccepted": "boolean",
+      "deliveryEnabled": "boolean",
+      "pickupEnabled": "boolean",
+      "coldChainCapable": "boolean",
+      "restrictedCapable": "boolean",
+      "driverAvailable": "boolean",
+      "merchantName": "string",
+      "paymentInstructions": "string",
+      "capabilities": "object",
+      "version": "number",
+      "subscriptionEligible": "boolean paid priority only",
+      "subscriptionState": "PAID|GRACE|SUSPENDED|NONE",
+      "deliveryRadiusKm": "positive decimal string",
+      "opensAt": "HH:mm|null",
+      "closesAt": "HH:mm|null"
+    },
+    "BranchInput": {
+      "chainId": "uuid|null",
+      "name": "string required",
+      "address": "string required",
+      "latitude": "decimal string required",
+      "longitude": "decimal string required",
+      "active": "boolean",
+      "verified": "boolean",
+      "agreementAccepted": "boolean",
+      "deliveryEnabled": "boolean",
+      "pickupEnabled": "boolean",
+      "coldChainCapable": "boolean",
+      "restrictedCapable": "boolean",
+      "driverAvailable": "boolean",
+      "merchantName": "string required",
+      "paymentInstructions": "string <=2000",
+      "capabilities": {
+        "capabilityEvidenceDocumentId": "CAPABILITY document uuid required for cold/restricted"
+      },
+      "version": "number",
+      "deliveryRadiusKm": "positive decimal string required",
+      "opensAt": "HH:mm|null together with closesAt; Mendoza local time",
+      "closesAt": "HH:mm|null paired distinct; overnight allowed"
+    },
+    "Stock": {
+      "branchId": "uuid",
+      "productId": "uuid",
+      "productName": "string",
+      "quantity": "number",
+      "reservedQuantity": "number",
+      "availableQuantity": "number",
+      "price": "decimal string",
+      "currency": "ARS or configured ISO code",
+      "version": "number",
+      "source": "MANUAL|DEMO|INTEGRATED",
+      "observedAt": "ISO instant"
+    },
+    "Lot": {
+      "id": "uuid",
+      "lotCode": "string",
+      "expiresOn": "YYYY-MM-DD|null",
+      "quantity": "number",
+      "reservedQuantity": "number",
+      "status": "AVAILABLE|QUARANTINED|EXPIRED|DEPLETED",
+      "version": "number"
+    },
+    "Lots": {
+      "branchId": "uuid",
+      "productId": "uuid",
+      "stockVersion": "number",
+      "lots": "Lot[]"
+    },
+    "LotInput": {
+      "lotCode": "string required",
+      "expiresOn": "YYYY-MM-DD|null (required valid for available special products)",
+      "quantity": "number >=0",
+      "status": "AVAILABLE|QUARANTINED|EXPIRED|DEPLETED",
+      "expectedVersion": "number (0 creates)",
+      "stockVersion": "number required current aggregate version",
+      "reason": "string required"
+    },
+    "Plan": {
+      "id": "uuid",
+      "name": "string",
+      "minBranches": "number",
+      "maxBranches": "number|null",
+      "symbolicUnits": "decimal string|null",
+      "monthlyPrice": "decimal string|null",
+      "currency": "ISO code|null",
+      "active": "boolean",
+      "version": "number"
+    },
+    "PlanInput": {
+      "name": "string required",
+      "minBranches": "number >=1",
+      "maxBranches": "number|null",
+      "symbolicUnits": "positive decimal string|null",
+      "monthlyPrice": "positive decimal string|null",
+      "currency": "ISO code|null (required with real price)",
+      "active": "boolean",
+      "version": "number"
+    },
+    "Subscription": {
+      "id": "uuid",
+      "planId": "uuid",
+      "chainId": "uuid|null",
+      "branchId": "uuid|null",
+      "branchIds": "uuid[]",
+      "monthlyPrice": "decimal string|null",
+      "currency": "ISO code|null",
+      "status": "DRAFT|ACTIVE|CANCEL_AT_PERIOD_END|SUSPENDED|CANCELLED",
+      "startsAt": "ISO instant",
+      "paidThroughAt": "ISO instant|null",
+      "version": "number"
+    },
+    "SubscriptionInput": {
+      "planId": "uuid required",
+      "chainId": "uuid|null exactly one scope",
+      "branchId": "uuid|null exactly one scope",
+      "branchIds": "uuid[] required actual covered establishments",
+      "monthlyPrice": "positive decimal string|null",
+      "currency": "ISO code|null",
+      "status": "DRAFT|ACTIVE|CANCEL_AT_PERIOD_END|SUSPENDED|CANCELLED",
+      "startsAt": "ISO instant|null",
+      "periodStartsAt": "ISO instant|null",
+      "periodEndsAt": "ISO instant|null",
+      "paymentReference": "string|null",
+      "evidenceDocumentId": "PAYMENT_RECEIPT uuid|null",
+      "version": "number"
+    },
+    "Member": {
+      "id": "uuid",
+      "userId": "uuid",
+      "userName": "string",
+      "email": "string",
+      "branchId": "uuid",
+      "role": "PHARMACY|PHARMACIST|DRIVER",
+      "active": "boolean",
+      "coldChainCapable": "boolean",
+      "restrictedCapable": "boolean",
+      "capabilityEvidenceDocumentId": "uuid|null",
+      "capabilityVerifiedAt": "ISO instant|null",
+      "capabilityVerifiedBy": "uuid|null",
+      "version": "number"
+    },
+    "MemberInput": {
+      "userId": "uuid required",
+      "branchId": "uuid required",
+      "role": "PHARMACY|PHARMACIST|DRIVER",
+      "active": "boolean",
+      "coldChainCapable": "boolean only DRIVER",
+      "restrictedCapable": "boolean only DRIVER",
+      "capabilityEvidenceDocumentId": "CAPABILITY uuid of this exact branch required with special capabilities; ADMIN records verification",
+      "version": "number"
+    },
+    "UserOption": {
+      "id": "uuid",
+      "name": "string",
+      "email": "string",
+      "active": "boolean"
+    },
+    "Settings": {
+      "version": "number",
+      "currency": "ISO code",
+      "quoteMinutes": "number",
+      "reservationMinutes": "number",
+      "graceDays": "number",
+      "highValueThreshold": "decimal string",
+      "maxUploadMb": "number",
+      "deliveryEnabled": "boolean",
+      "pickupEnabled": "boolean",
+      "fallbackEnabled": "boolean",
+      "messages": "object of strings"
+    },
+    "SettingsInput": {
+      "version": "number",
+      "currency": "ISO code required",
+      "quoteMinutes": "number 1..1440",
+      "reservationMinutes": "number 1..1440",
+      "graceDays": "number 0..90",
+      "highValueThreshold": "positive decimal string",
+      "maxUploadMb": "number 1..50",
+      "deliveryEnabled": "boolean",
+      "pickupEnabled": "boolean",
+      "fallbackEnabled": "boolean",
+      "messages": "object max30 strings each<=1000"
+    },
+    "SessionProfile": {
+      "id": "uuid",
+      "email": "string",
+      "name": "string",
+      "roles": "ADMIN|BUYER|PHARMACY|PHARMACIST|DRIVER[]",
+      "branchIds": "uuid[] (alcance agregado de sucursales; no habilita un rol clínico por sí solo)",
+      "birthDate": "YYYY-MM-DD|null; nacimiento propio de la cuenta",
+      "branchRoles": "object keyed by branch UUID; each value is PHARMACY|PHARMACIST|DRIVER[] for active memberships and current global roles"
+    }
+  },
+  "subscriptionRules": [
+    "ACTIVE requiere precio contractual real y moneda; prioridad solo si existe período pagado y establecimiento cubierto vigente.",
+    "Unidades simbólicas no acreditan pago. Para registrar un período manual se requieren fechas que cubran un mes calendario en la zona del negocio (America/Argentina/Mendoza por defecto), conservando la hora local y ajustando el día del mes cuando corresponde; referencia y PAYMENT_RECEIPT verificado por ADMIN.",
+    "Cambiar el precio no cambia el importe de períodos anteriores. Un período pagado vigente impide cambiar contratante o lista de establecimientos.",
+    "CANCEL_AT_PERIOD_END conserva prioridad hasta finalizar el período ya pagado. CANCELLED inmediato se rechaza si queda período pagado vigente.",
+    "GRACE no concede prioridad. SUSPENDED se excluye de solicitudes nuevas, sin alterar operaciones históricas. Períodos DEMO no conceden prioridad en MANUAL."
+  ],
+  "specialHandling": "Habilitar frío/restringidos requiere CAPABILITY document y el servidor agrega verificador/fecha. Una bandera no sustituye requisitos legales ni evidencia. Stock con lotes debe conservar igualdad entre saldo agregado y lotes disponibles.",
+  "persistence": "Bajas son active=false; no se ofrecen DELETE con historia. Auditoría y períodos pagados se conservan. No se afirma RLS; permisos por membresía exacta en backend y FKs de sucursal.",
+  "defaults": {
+    "currency": "ARS",
+    "quoteMinutes": 20,
+    "reservationMinutes": 30,
+    "graceDays": 7,
+    "highValueThreshold": "1000000.00",
+    "maxUploadMb": 10,
+    "deliveryEnabled": true,
+    "pickupEnabled": true,
+    "fallbackEnabled": true
+  },
+  "branchServiceRules": [
+    "Radio circular por distancia en línea recta desde la sucursal. No incluye trazado vial, polígonos, feriados ni varias franjas.",
+    "Horario diario en America/Argentina/Mendoza, apertura inclusiva y cierre exclusivo; se permite cruce de medianoche. Ambos null representan disponibilidad manual mediante active y driverAvailable.",
+    "deliveryRadiusKm,opensAt,closesAt son campos tipados en API y se conservan en capabilities JSONB. Datos DEMO anteriores sin radio usan 20.00 km."
+  ],
+  "authenticated": [
+    {
+      "method": "GET",
+      "path": "/api/auth/me",
+      "response": "SessionProfile",
+      "permission": "Sesión válida de una cuenta activa; 401 para ausencia de sesión o cuenta desactivada.",
+      "scope": "Perfil propio. roles y branchRoles se consultan con permisos actuales; branchRoles incluye sólo membresías activas cuyos roles siguen presentes en user_role."
+    }
+  ],
+  "authorizationRules": [
+    "El servidor decide las autorizaciones. El frontend muestra acciones por rol global y branchRoles del mismo rol en la sucursal; el campo branchIds sólo contiene un alcance agregado.",
+    "ADMIN permite catálogos, configuración y existencias administrativas; no concede acceso a recetas ni credenciales clínicas por ese rol.",
+    "Stock y lotes: ADMIN o rol global PHARMACY/PHARMACIST con membresía activa del mismo rol en la sucursal. El servidor relee el permiso actual en cada operación.",
+    "Datos privados clínicos y comerciales de una compra se proyectan según su propietario, el rol vigente y la sucursal exacta; consultar docs/api-compras.json."
+  ]
+}
