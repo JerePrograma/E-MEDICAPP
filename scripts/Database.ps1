@@ -1,11 +1,14 @@
-﻿param([ValidateSet('Start','Stop','Status')][string]$Action='Start', [ValidateSet('Demo','Manual','Test')][string]$Environment='Demo', [int]$Port=55432, [string]$PostgresBin=$env:EMEDICAPP_PG_BIN)
+﻿param([ValidateSet('Start','Stop','Status')][string]$Action='Start', [ValidateSet('Demo','Manual','Test')][string]$Environment='Demo', [int]$Port=0, [string]$PostgresBin=$env:EMEDICAPP_PG_BIN)
 $ErrorActionPreference='Stop'
 $projectRoot=[IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
 $runtimePath=Join-Path $projectRoot '.runtime'
 $databasePath=Join-Path $runtimePath 'postgres'
 $credentialsPath=Join-Path $runtimePath 'local-db.json'
-if (-not $PostgresBin) { $PostgresBin='C:\Program Files\PostgreSQL\18\bin' }
-if (-not (Test-Path -LiteralPath (Join-Path $PostgresBin 'pg_ctl.exe'))) { throw 'No se encontró PostgreSQL 18. Indicá EMEDICAPP_PG_BIN.' }
+if ($Port -eq 0) {
+  $Port=if (Test-Path -LiteralPath $credentialsPath) { [int](Get-Content -LiteralPath $credentialsPath -Raw -Encoding UTF8 | ConvertFrom-Json).port } else { 5544 }
+}
+. (Join-Path $PSScriptRoot 'Tools.Common.ps1')
+$PostgresBin=Resolve-EMedicappPostgresBin $PostgresBin
 if ($Port -lt 1024 -or $Port -gt 65535) { throw 'Puerto de base inválido.' }
 $pgctl=Join-Path $PostgresBin 'pg_ctl.exe'
 if ($Action -eq 'Stop') {

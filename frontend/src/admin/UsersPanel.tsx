@@ -49,7 +49,7 @@ export function UsersPanel({
         body: { active, roles: selectedRoles, expectedVersion: selected.version },
       });
       if (selected.id === actor.id) {
-        window.location.assign('/');
+        window.location.reload();
         return;
       }
       setSelected(null);

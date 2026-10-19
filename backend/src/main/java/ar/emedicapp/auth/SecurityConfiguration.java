@@ -16,6 +16,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.AnonymousAuthenticationFilter;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.security.web.context.SecurityContextHolderFilter;
 
 import java.io.IOException;
 
@@ -32,8 +33,11 @@ public class SecurityConfiguration {
             UserRepository users,
             Access access,
             Json json,
-            LoginRateLimiter limiter)
+            LoginRateLimiter limiter,
+            CrossOriginAccess crossOrigin)
             throws Exception {
+        http.cors(cors -> cors.configurationSource(crossOrigin.cors()));
+        http.addFilterBefore(crossOrigin.sessions(), SecurityContextHolderFilter.class);
         http.authorizeHttpRequests(
                 authorize ->
                         authorize

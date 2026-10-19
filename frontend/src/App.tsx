@@ -1,4 +1,4 @@
-import { lazy, Suspense, useState } from 'react';
+import { lazy, Suspense, useEffect, useState } from 'react';
 import {
   Alert,
   AppBar,
@@ -11,10 +11,12 @@ import {
   Typography,
 } from '@mui/material';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Route, Routes } from 'react-router-dom';
+import { Route, Routes, useLocation, useNavigate } from 'react-router-dom';
 import { AuthenticationPage, authenticationIntent } from './components/AuthenticationPage';
 import { Workspace } from './components/Workspace';
 import { Actor, ApiError, api, Bootstrap, label } from './api';
+import { initializeBackendConnection, needsBackendConnection } from './connection';
+import { ConnectionPage } from './components/ConnectionPage';
 const PurchasePage = lazy(() =>
   import('./purchases/PurchasePage').then((m) => ({ default: m.PurchasePage })),
 );
@@ -25,7 +27,29 @@ const DeliveryPage = lazy(() =>
 );
 
 export function App() {
+  const [connectionError] = useState(initializeBackendConnection);
+  const [connectionRequested, setConnectionRequested] = useState(
+    () => needsBackendConnection() || !!connectionError,
+  );
+  if (connectionRequested)
+    return (
+      <ConnectionPage
+        error={connectionError}
+        onConnected={() => window.location.reload()}
+        onCancel={
+          needsBackendConnection() || !!connectionError
+            ? undefined
+            : () => setConnectionRequested(false)
+        }
+      />
+    );
+  return <ConnectedApp onConnectionRequested={() => setConnectionRequested(true)} />;
+}
+
+function ConnectedApp({ onConnectionRequested }: { onConnectionRequested: () => void }) {
   const cache = useQueryClient();
+  const navigate = useNavigate();
+  const location = useLocation();
   const bootstrap = useQuery({
     queryKey: ['bootstrap'],
     queryFn: () => api<Bootstrap>('/api/bootstrap'),
@@ -33,15 +57,25 @@ export function App() {
   });
   const session = useQuery({
     queryKey: ['session'],
-    queryFn: () => api<Actor>('/api/auth/me'),
+    queryFn: async () => {
+      try {
+        return await api<Actor>('/api/auth/me');
+      } catch (error) {
+        // An anonymous session is cached as data, so focus refreshes never remount the login form.
+        if (error instanceof ApiError && error.status === 401) return null;
+        throw error;
+      }
+    },
     staleTime: 30_000,
   });
   const [logoutError, setLogoutError] = useState('');
   const [authenticationRequested, setAuthenticationRequested] = useState(
     () => !!authenticationIntent(),
   );
-  const actor =
-    session.error instanceof ApiError && session.error.status === 401 ? undefined : session.data;
+  useEffect(() => {
+    if (authenticationIntent()) setAuthenticationRequested(true);
+  }, [location]);
+  const actor = session.data;
   if (bootstrap.isPending || session.isPending)
     return (
       <Box sx={{ p: 8, textAlign: 'center' }}>
@@ -49,10 +83,7 @@ export function App() {
         <Typography sx={{ mt: 2 }}>Abriendo E-MEDICAPP…</Typography>
       </Box>
     );
-  if (
-    bootstrap.error ||
-    (session.error && !(session.error instanceof ApiError && session.error.status === 401))
-  )
+  if ((bootstrap.error && !bootstrap.data) || (session.error && session.data === undefined))
     return (
       <Container maxWidth="sm" sx={{ py: 8 }}>
         <Alert severity="error">No se pudo conectar con E-MEDICAPP.</Alert>
@@ -64,6 +95,9 @@ export function App() {
           }}
         >
           Volver a intentar
+        </Button>
+        <Button sx={{ mt: 2 }} onClick={onConnectionRequested}>
+          Cambiar servidor
         </Button>
       </Container>
     );
@@ -105,8 +139,12 @@ export function App() {
                 onClick={async () => {
                   try {
                     await api('/api/auth/logout', { method: 'POST' });
-                    cache.clear();
-                    window.location.assign('/');
+                    cache.setQueryData(['session'], null);
+                    cache.removeQueries({
+                      predicate: (query) =>
+                        !['bootstrap', 'session'].includes(String(query.queryKey[0])),
+                    });
+                    navigate('/', { replace: true });
                   } catch (e) {
                     setLogoutError(e instanceof Error ? e.message : 'No se pudo cerrar la sesión.');
                   }
@@ -116,6 +154,7 @@ export function App() {
               </Button>
             </>
           )}
+          {!actor && <Button onClick={onConnectionRequested}>Conexión</Button>}
         </Toolbar>
       </AppBar>
       {demo && (
@@ -124,11 +163,26 @@ export function App() {
         </Alert>
       )}
       {logoutError && <Alert severity="error">{logoutError}</Alert>}
+      {(bootstrap.error || session.error) && (
+        <Alert severity="warning">
+          Se interrumpió la conexión. Tus datos en pantalla se conservan; podés volver a intentar
+          cuando el servidor esté disponible.
+          <Button
+            onClick={() => {
+              void bootstrap.refetch();
+              void session.refetch();
+            }}
+          >
+            Reintentar
+          </Button>
+        </Alert>
+      )}
       {!actor || authenticationRequested ? (
         <AuthenticationPage
           demo={demo}
           onLogin={() => {
             setAuthenticationRequested(false);
+            navigate('/', { replace: true });
             cache.removeQueries({
               predicate: (q) => !['session', 'bootstrap'].includes(String(q.queryKey[0])),
             });

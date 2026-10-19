@@ -1,5 +1,7 @@
 # E-MEDICAPP — MVP de operación manual
 
+El despliegue actual separa la web en **[GitHub Pages](https://jereprograma.github.io/E-MEDICAPP/)** y el backend en esta PC. Para presentar desde otras computadoras, abrir **`AbrirDemoPages.cmd`** y compartir el enlace completo que genera. **`DetenerDemoPages.cmd`** cierra el backend y su túnel; conserva los datos. Ver [guía de GitHub Pages y demo](docs/github-pages-demo.txt).
+
 Aplicación Java + React con PostgreSQL. La autoridad funcional actual es `CASOS DE USO - E-MEDICAPP.pdf` de QA, con las respuestas posteriores del dueño: confirmación de correo sin aprobación de identidad, nota nueva por compra para comprar y recibir, un solo reintento coordinado y resolución farmacéutica de compras divididas. El concepto V3 y las decisiones anteriores completan los puntos compatibles que QA no especifica. La trazabilidad actual se documenta en [flujo del producto según QA](docs/flujo-producto-QA.txt); el relevamiento V3 del directorio superior se conserva como antecedente.
 
 [Manuales breves por rol, cuentas temporales públicas y guía de alta real](docs/manuales/README.md). Cada perfil tiene su propio archivo para compartirlo por separado.
@@ -35,33 +37,35 @@ Un período mensual se calcula por mes calendario en el horario de Mendoza, cons
 | Parte | Elección |
 |---|---|
 | Backend | Java 25 LTS, Spring Boot 4.1.1, Spring MVC, Spring Security, JdbcClient |
-| Datos | PostgreSQL 18.6, Flyway, SQL explícito, migraciones aditivas |
+| Datos | PostgreSQL 17 o superior (17.5 en esta PC), Flyway, SQL explícito, migraciones aditivas |
 | Frontend | React 19.3.0, TypeScript 6.0.3, Vite 8.3.4, MUI 9.4.0 |
 | Formularios y consultas | React Hook Form, Zod, TanStack Query |
 | Ubicación | Leaflet 1.9.4 y mapa OpenStreetMap con atribución |
 | Verificación | JUnit, pruebas HTTP con PostgreSQL, Vitest y Playwright |
 
-Un único backend organizado por función: `auth`, `documents`, `catalog`, `purchase`, `payments`, `fulfillment`, `replacements`, `config`. Las transacciones quedan en los servicios; el servidor decide precios, reservas, estados y permisos. La SPA se incluye dentro del JAR para el uso diario. Vite se utiliza durante desarrollo.
+Un único backend organizado por función: `auth`, `documents`, `catalog`, `purchase`, `payments`, `fulfillment`, `replacements`, `config`. Las transacciones quedan en los servicios; el servidor decide precios, reservas, estados y permisos. La web compartida se sirve desde GitHub Pages. El JAR también incluye la SPA para usarla como alternativa local en esta PC. Vite se utiliza durante desarrollo.
 
 Se aplican transacciones, estados explícitos, control de versión, idempotencia y separación por rol y sucursal donde resuelven problemas reales. No se introduce un motor editable de flujos. Los parámetros cambian desde el panel; una etapa nueva se implementa en código y se verifica.
 
 ## Arranque en esta PC
 
-El proyecto está en `C:\laburo\E-MEDICAPP\E-MEDICAPP`.
+El proyecto está en `C:\laburo\E-MEDICAPP`.
 
-Requisitos: JDK 25, Node.js 24 LTS, PostgreSQL 18. Maven se obtiene mediante el wrapper. Las herramientas ya verificadas en esta PC son Java 25.0.4.1, Node 24.21.0 y PostgreSQL 18.6. La primera compilación necesita Internet para dependencias.
+Requisitos: JDK 25, Node.js 24 LTS y PostgreSQL 17 o superior. Maven se obtiene mediante el wrapper. Los scripts descubren las herramientas instaladas, incluido un JDK portable en `.tools/java/`. La primera compilación necesita Internet para dependencias. Para compartir la demo se utiliza `cloudflared`, que proporciona HTTPS hacia el backend local.
 
 ```powershell
-cd C:\laburo\E-MEDICAPP\E-MEDICAPP
+cd C:\laburo\E-MEDICAPP
 .\scripts\Build.ps1
-.\scripts\Start.ps1 -Environment Demo -OpenBrowser
+.\scripts\Start-DemoPages.ps1 -OpenBrowser
 ```
 
-Después de compilar, también se puede abrir `AbrirDemo.cmd` con doble clic. El acceso comprueba disponibilidad antes de abrir el navegador. Dirección: `http://127.0.0.1:8082`.
+Después de compilar, también se puede abrir `AbrirDemoPages.cmd` con doble clic. El acceso comprueba el backend HTTPS y genera el enlace completo de GitHub Pages para compartirlo.
+
+Como alternativa de uso exclusivo en esta PC, detener primero la demo de Pages y abrir `AbrirDemo.cmd`: sirve la web incluida en el JAR en `http://127.0.0.1:8082`. Ambos accesos utilizan el mismo escenario DEMO y el mismo puerto; se inicia uno por vez.
 
 Los scripts utilizan el JDK 25 del proyecto sin cambiar el Java predeterminado de otros proyectos. Para otra instalación, configurar `EMEDICAPP_JAVA_HOME` o pasar `-JavaHome`. Para PostgreSQL, configurar `EMEDICAPP_PG_BIN`. No se adopta ni se detiene automáticamente un proceso ajeno que ocupe los puertos.
 
-La base local propia escucha en `127.0.0.1:55432`. Se inicializa en `.runtime/postgres`, con contraseña aleatoria protegida mediante DPAPI para el usuario de Windows. No se imprime la contraseña ni se guarda en el repositorio. `.runtime` contiene los datos persistidos, archivos privados y registros: conservarla; no es una caché descartable.
+La base local propia escucha en `127.0.0.1:5544` en esta PC; los scripts leen el puerto persistido en `.runtime/local-db.json`. Se inicializa en `.runtime/postgres`, con contraseña aleatoria protegida mediante DPAPI para el usuario de Windows. No se imprime la contraseña ni se guarda en el repositorio. `.runtime` contiene los datos persistidos, archivos privados y registros: conservarla; no es una caché descartable.
 
 ### Cuentas exclusivamente de demostración
 
@@ -90,20 +94,22 @@ El [guion de demostración](docs/guion-demostracion.txt) guía una presentación
 Para renovar el escenario de demostración:
 
 ```powershell
-.\scripts\ResetDemo.ps1 -OpenBrowser
+.\scripts\Stop-DemoPages.ps1
+.\scripts\ResetDemo.ps1 -NoStart
+.\scripts\Start-DemoPages.ps1 -OpenBrowser
 ```
 
-El script primero genera un respaldo, detiene únicamente la aplicación DEMO propia y archiva su base anterior con un nombre fechado. También conserva los documentos en su directorio de archivo y crea una nueva base DEMO. No ejecuta `DROP` ni modifica MANUAL. La ubicación del archivo queda en `.runtime/demo-reset.json`; los respaldos se guardan en `.runtime/backups`. `-NoStart` prepara la nueva base y permite iniciarla después con `AbrirDemo.cmd`.
+Con el túnel detenido, el reinicio del escenario genera un respaldo, detiene únicamente la aplicación DEMO propia y archiva su base anterior con un nombre fechado. También conserva los documentos en su directorio de archivo y crea una nueva base DEMO. No ejecuta `DROP` ni modifica MANUAL. La ubicación del archivo queda en `.runtime/demo-reset.json`; los respaldos se guardan en `.runtime/backups`. `-NoStart` prepara la nueva base sin iniciar el acceso local; el último paso vuelve a publicar el backend de Pages.
 
-Para detener la aplicación propia:
+Para detener el backend y el túnel de Pages, abrir `DetenerDemoPages.cmd` o ejecutar:
 
 ```powershell
-.\scripts\Stop.ps1 -Environment Demo
+.\scripts\Stop-DemoPages.ps1
 ```
 
 ## Operación manual con datos propios
 
-Detener DEMO antes de usar el mismo puerto. Abrir `AbrirOperacionManual.cmd` o ejecutar:
+Detener la demo de Pages con `DetenerDemoPages.cmd` antes de usar el mismo puerto. Si se utilizaba la alternativa local, detenerla con `scripts\Stop.ps1 -Environment Demo`. Abrir `AbrirOperacionManual.cmd` o ejecutar:
 
 ```powershell
 .\scripts\Start.ps1 -Environment Manual -OpenBrowser
@@ -150,7 +156,7 @@ npm.cmd --prefix frontend test
 
 `Test-Workflow.ps1` crea una base QA nueva y un directorio de documentos propios en cada invocación. Inicia la aplicación en `http://127.0.0.1:8083`, espera disponibilidad, ejecuta los recorridos Playwright y detiene sólo el proceso que inició. La base y las evidencias QA se conservan para revisión; el estado queda en `.runtime/workflow-*.json` y la salida del navegador en `.runtime/verification-browser.log`.
 
-Sin parámetros ejecuta los ocho recorridos. Para verificar un cambio puntual se puede pasar `-TestName 'registro sin correo'`: selecciona nombres que contienen ese texto literal y conserva la misma protección de base, documentos y puerto. El estado registra la selección y el hash del JAR; una ejecución parcial no se considera aprobación del conjunto completo.
+Sin parámetros ejecuta todos los recorridos de navegador. Para verificar un cambio puntual se puede pasar `-TestName 'registro sin correo'`: selecciona nombres que contienen ese texto literal y conserva la misma protección de base, documentos y puerto. El estado registra la selección y el hash del JAR; una ejecución parcial no se considera aprobación del conjunto completo.
 
 El puerto 8083 debe estar libre. El script no adopta ni detiene otra aplicación. La ejecución directa de `npm.cmd --prefix frontend run test:e2e` se niega a operar contra la base de presentación de 8082: el recorrido exige el entorno aislado preparado por el script.
 
@@ -168,21 +174,22 @@ La restauración se realiza sobre una base nueva mediante `pg_restore`, con Post
 
 ## Desarrollo y despliegue posterior
 
-Para publicar la operación real desde esta PC, usar `ConfigurarPublicacion.cmd`
-y después `PublicarEMedicapp.cmd`. El acceso HTTPS de ngrok se verifica antes de
-informar disponibilidad y apunta a MANUAL en 8084, con base y documentos separados
-del DEMO. `DetenerPublicacion.cmd` cierra solamente esa publicación. La guía de
-cuenta, secretos, carga inicial, respaldos y límites está en
-[publicación desde esta PC](docs/publicacion-pc.txt).
+La web se publica con [el flujo de GitHub Pages](.github/workflows/pages.yml).
+Compila `frontend/` con la ruta `/E-MEDICAPP/` y carga solamente sus archivos
+estáticos. Configurar **Settings → Pages → Source → GitHub Actions** en el
+repositorio. Un push a `main` con cambios del frontend ejecuta el flujo.
+El origen HTTPS del backend se configura desde la pantalla de conexión o con
+el enlace `?api=...` generado por `AbrirDemoPages.cmd`. Para una dirección estable
+se puede definir la variable de repositorio `VITE_API_BASE_URL`.
 
-La operación MANUAL se publicó y verificó el 08/10/2026 en
-[tamper-raving-aversion.ngrok-free.dev](https://tamper-raving-aversion.ngrok-free.dev/).
-La [verificación de publicación](docs/verificacion-publicacion-pc.txt) registra
-las comprobaciones HTTPS, el estado inicial de la base real y el primer respaldo.
+La [guía de Pages y demo](docs/github-pages-demo.txt) reúne los accesos, cuentas,
+actualización y diagnóstico. El despliegue anterior de ngrok/MANUAL y sus
+[verificaciones](docs/verificacion-publicacion-pc.txt) son antecedentes históricos;
+no acreditan un despliegue activo en esta máquina.
 
-Durante desarrollo: iniciar el backend y, en otra terminal, `npm.cmd --prefix frontend run dev`. Vite escucha en `127.0.0.1:5174` y envía `/api` al backend local. La ejecución diaria utiliza el JAR compilado con el frontend incluido.
+Durante desarrollo: iniciar el backend local con `scripts\Start.ps1 -Environment Demo` y, en otra terminal, `npm.cmd --prefix frontend run dev`. Vite escucha en `127.0.0.1:5174` y envía `/api` al backend local. Para la presentación compartida se utiliza GitHub Pages; el frontend incluido en el JAR permite el acceso alternativo desde esta PC.
 
-El mismo JAR puede desplegarse en un servidor Java 25 con PostgreSQL 18 y almacenamiento persistente para documentos. Los parámetros se suministran desde el entorno:
+El mismo JAR puede desplegarse en un servidor Java 25 con PostgreSQL 17 o superior y almacenamiento persistente para documentos. Los parámetros se suministran desde el entorno:
 
 | Variable | Uso |
 |---|---|
@@ -191,10 +198,12 @@ El mismo JAR puede desplegarse en un servidor Java 25 con PostgreSQL 18 y almace
 | EMEDICAPP_DOCUMENTS_DIR | Directorio privado persistente, fuera del frontend |
 | EMEDICAPP_ADDRESS / EMEDICAPP_PORT | Dirección y puerto de escucha |
 | EMEDICAPP_SECURE_COOKIES | `true` para acceso HTTPS |
+| EMEDICAPP_ALLOWED_ORIGINS | Orígenes exactos admitidos; para Pages: `https://jereprograma.github.io` |
+| EMEDICAPP_EMAIL_BASE_URL | Dirección del frontend para enlaces de correo, incluyendo `/E-MEDICAPP/` |
 | EMEDICAPP_BUSINESS_ZONE | Zona de fechas del negocio; por defecto `America/Argentina/Mendoza` |
 | EMEDICAPP_ADMIN_EMAIL / EMEDICAPP_ADMIN_PASSWORD | Primer administrador de un entorno MANUAL nuevo |
 
-El acceso público desde esta PC utiliza el túnel HTTPS descrito arriba, la base MANUAL y documentos privados. La geolocalización del navegador necesita HTTPS fuera de localhost. El mapa requiere Internet; las ubicaciones también pueden marcarse manualmente. No se modificó el firewall ni se abrieron puertos del router.
+El acceso de presentación utiliza GitHub Pages, un túnel HTTPS al backend DEMO y documentos privados servidos por endpoints autenticados. El frontend conserva la conexión por navegador y la sesión por pestaña, sin depender de cookies de terceros. La geolocalización del navegador necesita HTTPS fuera de localhost. El mapa requiere Internet; las ubicaciones también pueden marcarse manualmente. No se modificó el firewall ni se abrieron puertos del router.
 
 ## Límites de esta primera versión
 

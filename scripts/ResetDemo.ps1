@@ -7,7 +7,8 @@ if ($archiveName -notmatch '^emedicapp_archive_[0-9_]+_demo$') { throw 'Nombre d
 & (Join-Path $PSScriptRoot 'Backup.ps1') -Environment Demo
 & (Join-Path $PSScriptRoot 'Stop.ps1') -Environment Demo
 $credentials=Get-Content -LiteralPath (Join-Path $runtimeRoot 'local-db.json') -Raw -Encoding UTF8 | ConvertFrom-Json
-$postgresBin=if ($env:EMEDICAPP_PG_BIN) {$env:EMEDICAPP_PG_BIN}else{'C:\Program Files\PostgreSQL\18\bin'}
+. (Join-Path $PSScriptRoot 'Tools.Common.ps1')
+$postgresBin=Resolve-EMedicappPostgresBin
 $savedPassword=$env:PGPASSWORD
 try {
   $env:PGPASSWORD=[Net.NetworkCredential]::new('',(ConvertTo-SecureString $credentials.protectedPassword)).Password

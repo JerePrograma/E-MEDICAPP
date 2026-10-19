@@ -7,7 +7,8 @@ $backupPath=Join-Path $destinationRoot ("emedicapp-{0}-{1}" -f $Environment,(Get
 New-Item -ItemType Directory -Path $backupPath -Force | Out-Null
 & (Join-Path $PSScriptRoot 'Database.ps1') -Action Start -Environment $Environment
 $credentials=Get-Content -LiteralPath (Join-Path $projectRoot '.runtime\local-db.json') -Raw -Encoding UTF8 | ConvertFrom-Json
-$postgresBin=if ($env:EMEDICAPP_PG_BIN) { $env:EMEDICAPP_PG_BIN } else { 'C:\Program Files\PostgreSQL\18\bin' }
+. (Join-Path $PSScriptRoot 'Tools.Common.ps1')
+$postgresBin=Resolve-EMedicappPostgresBin
 $databaseName=if ($Environment -eq 'Demo') {'emedicapp_demo'}else{'emedicapp_manual'}
 $savedPassword=$env:PGPASSWORD
 try {

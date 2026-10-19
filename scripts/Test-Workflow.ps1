@@ -11,9 +11,12 @@ $projectRoot=[IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
 $runtimePath=Join-Path $projectRoot '.runtime'
 $clusterPath=Join-Path $runtimePath 'postgres'
 $credentialsPath=Join-Path $runtimePath 'local-db.json'
-if (-not $JavaHome) { $JavaHome='C:\Program Files\Java\jdk-25.0.4.1+1' }
-if (-not $PostgresBin) { $PostgresBin='C:\Program Files\PostgreSQL\18\bin' }
-if (-not $NodeHome) { $NodeHome='C:\Users\Jerem\AppData\Local\Programs\nodejs24\node-v24.21.0-win-x64' }
+. (Join-Path $PSScriptRoot 'Tools.Common.ps1')
+$isolatedConfiguration=Suspend-EMedicappExternalConfiguration
+try {
+$JavaHome=Resolve-EMedicappJavaHome $JavaHome
+$PostgresBin=Resolve-EMedicappPostgresBin $PostgresBin
+$NodeHome=Resolve-EMedicappNodeHome $NodeHome
 $javaPath=Join-Path $JavaHome 'bin\java.exe'
 $psqlPath=Join-Path $PostgresBin 'psql.exe'
 $pgctlPath=Join-Path $PostgresBin 'pg_ctl.exe'
@@ -29,7 +32,8 @@ if (Get-NetTCPConnection -LocalPort 8083 -State Listen -ErrorAction SilentlyCont
   throw 'El puerto local 8083 está ocupado. Se preserva el proceso existente; la verificación no adopta otra aplicación.'
 }
 $credentials=Get-Content -LiteralPath $credentialsPath -Raw -Encoding UTF8 | ConvertFrom-Json
-if ($credentials.port -ne 55432 -or $credentials.user -ne 'emedicapp') { throw 'La configuración no corresponde al cluster local de E-MEDICAPP en 55432.' }
+if ($credentials.port -lt 1024 -or $credentials.port -gt 65535 -or $credentials.user -ne 'emedicapp') { throw 'La configuración no corresponde al cluster local de E-MEDICAPP.' }
+$databasePort=[int]$credentials.port
 if (-not (Test-Path -LiteralPath (Join-Path $clusterPath 'PG_VERSION'))) { throw 'El cluster propio todavía no está inicializado.' }
 & $pgctlPath status -D $clusterPath *> $null
 if ($LASTEXITCODE) { throw 'La base propia no está iniciada. Iniciá E-MEDICAPP antes de ejecutar esta verificación.' }
@@ -42,7 +46,7 @@ $normalizedCommand=if ($postgresProcess) { $postgresProcess.CommandLine.Replace(
 if (-not $postgresProcess -or $postgresProcess.Name -ne 'postgres.exe' -or $normalizedCommand.IndexOf($clusterPath,[StringComparison]::OrdinalIgnoreCase) -lt 0) {
   throw 'No se pudo confirmar la propiedad del proceso PostgreSQL. No se crea una base en un servicio ajeno.'
 }
-$postgresListener=Get-NetTCPConnection -LocalPort 55432 -State Listen -ErrorAction SilentlyContinue
+$postgresListener=Get-NetTCPConnection -LocalPort $databasePort -State Listen -ErrorAction SilentlyContinue
 if (-not $postgresListener -or $postgresListener.OwningProcess -notcontains $postgresProcessId) { throw 'El puerto de PostgreSQL no pertenece al cluster propio.' }
 
 $token=(Get-Date).ToUniversalTime().ToString('yyyyMMddHHmmssfff')+'_'+[Guid]::NewGuid().ToString('N').Substring(0,8)
@@ -54,7 +58,7 @@ $statePath=Join-Path $runtimePath ('workflow-'+$token+'.json')
 $stdoutPath=Join-Path $runtimePath ('workflow-'+$token+'.stdout.log')
 $stderrPath=Join-Path $runtimePath ('workflow-'+$token+'.stderr.log')
 $browserLog=Join-Path $runtimePath 'verification-browser.log'
-$keys=@('PGPASSWORD','PATH','EMEDICAPP_DB_PASSWORD','EMEDICAPP_DB_URL','EMEDICAPP_DB_USER','EMEDICAPP_MODE','EMEDICAPP_DOCUMENTS_DIR','EMEDICAPP_PORT','EMEDICAPP_ADDRESS','EMEDICAPP_SECURE_COOKIES','EMEDICAPP_E2E_URL','EMEDICAPP_WORKFLOW_DB','EMEDICAPP_SMTP_HOST','NO_COLOR')
+$keys=@('PGPASSWORD','PATH','EMEDICAPP_DB_PASSWORD','EMEDICAPP_DB_URL','EMEDICAPP_DB_USER','EMEDICAPP_MODE','EMEDICAPP_DOCUMENTS_DIR','EMEDICAPP_PORT','EMEDICAPP_ADDRESS','EMEDICAPP_SECURE_COOKIES','EMEDICAPP_E2E_URL','EMEDICAPP_WORKFLOW_DB','EMEDICAPP_SMTP_HOST','EMEDICAPP_ALLOWED_ORIGINS','EMEDICAPP_PUBLIC_URL','NO_COLOR')
 $saved=@{}; foreach ($key in $keys) { $saved[$key]=[Environment]::GetEnvironmentVariable($key,'Process') }
 $startedProcess=$null
 $startedTicks=$null
@@ -64,22 +68,24 @@ $state.jarSha256=(Get-FileHash -LiteralPath $jarPath -Algorithm SHA256).Hash
 try {
   $password=[Net.NetworkCredential]::new('',(ConvertTo-SecureString $credentials.protectedPassword)).Password
   $env:PGPASSWORD=$password
-  $dataDirectory=& $psqlPath -X -h 127.0.0.1 -p 55432 -U emedicapp -d postgres -tA -v ON_ERROR_STOP=1 -c "SELECT current_setting('data_directory')"
+  $dataDirectory=& $psqlPath -X -h 127.0.0.1 -p $databasePort -U emedicapp -d postgres -tA -v ON_ERROR_STOP=1 -c "SELECT current_setting('data_directory')"
   if ($LASTEXITCODE -or [IO.Path]::GetFullPath($dataDirectory.Trim()) -ne $clusterPath) { throw 'La conexión SQL no corresponde al directorio del cluster propio.' }
-  $exists=& $psqlPath -X -h 127.0.0.1 -p 55432 -U emedicapp -d postgres -tA -v ON_ERROR_STOP=1 -c "SELECT 1 FROM pg_database WHERE datname='$databaseName'"
+  $exists=& $psqlPath -X -h 127.0.0.1 -p $databasePort -U emedicapp -d postgres -tA -v ON_ERROR_STOP=1 -c "SELECT 1 FROM pg_database WHERE datname='$databaseName'"
   if ($LASTEXITCODE) { throw 'No se pudo comprobar el nombre de la nueva base QA.' }
   if ($exists -eq '1') { throw 'La base QA ya existe. No se reutiliza ni se borra.' }
-  & $psqlPath -X -h 127.0.0.1 -p 55432 -U emedicapp -d postgres -v ON_ERROR_STOP=1 -c "CREATE DATABASE $databaseName OWNER emedicapp"
+  & $psqlPath -X -h 127.0.0.1 -p $databasePort -U emedicapp -d postgres -v ON_ERROR_STOP=1 -c "CREATE DATABASE $databaseName OWNER emedicapp"
   if ($LASTEXITCODE) { throw 'No se pudo crear la base aislada de verificación.' }
   New-Item -ItemType Directory -Path $documentsPath | Out-Null
   $env:EMEDICAPP_DB_PASSWORD=$password
-  $env:EMEDICAPP_DB_URL="jdbc:postgresql://127.0.0.1:55432/$databaseName"
+  $env:EMEDICAPP_DB_URL="jdbc:postgresql://127.0.0.1:$databasePort/$databaseName"
   $env:EMEDICAPP_DB_USER='emedicapp'
   $env:EMEDICAPP_MODE='DEMO'
   $env:EMEDICAPP_DOCUMENTS_DIR=$documentsPath
   $env:EMEDICAPP_ADDRESS='127.0.0.1'
   $env:EMEDICAPP_PORT='8083'
   $env:EMEDICAPP_SECURE_COOKIES='false'
+  $env:EMEDICAPP_ALLOWED_ORIGINS='http://localhost:4174'
+  $env:EMEDICAPP_PUBLIC_URL=$null
   $env:EMEDICAPP_E2E_URL='http://127.0.0.1:8083'
   $env:EMEDICAPP_WORKFLOW_DB=$databaseName
   # Browser QA uses synthetic accounts; it must never inherit a real mail provider.
@@ -136,3 +142,4 @@ try {
   foreach ($key in $saved.Keys) { [Environment]::SetEnvironmentVariable($key,$saved[$key],'Process') }
   Write-Host "Evidencia QA conservada: $statePath. La verificación usa su propia base y sus documentos."
 }
+} finally { Restore-EMedicappExternalConfiguration $isolatedConfiguration }

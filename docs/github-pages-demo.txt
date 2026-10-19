@@ -1,0 +1,118 @@
+E-MEDICAPP - GITHUB PAGES + BACKEND EN ESTA PC
+19 de octubre de 2026
+
+DIRECCIONES
+Repositorio: https://github.com/JerePrograma/E-MEDICAPP
+Frontend: https://jereprograma.github.io/E-MEDICAPP/
+Backend local: http://127.0.0.1:8082
+Base propia: 127.0.0.1:5544 en esta PC (el puerto persistido se lee de .runtime/local-db.json).
+
+PRESENTAR LA DEMO
+1. Abrir C:\laburo\E-MEDICAPP\AbrirDemoPages.cmd.
+2. Esperar la confirmacion del backend HTTPS y compartir el enlace completo que
+   muestra el acceso. Tambien queda guardado en .runtime/demo-pages.json,
+   campo connectionUrl. El enlace contiene ?api=... para conectar automaticamente
+   la web de GitHub Pages con esta PC.
+3. Ingresar con comprador@demo.invalid y DemoMedicapp2026! o elegir un perfil
+   de demostracion. Otros perfiles: farmacia@demo.invalid,
+   farmaceutico@demo.invalid, farmaceutico2@demo.invalid, cadete@demo.invalid,
+   adminfarmacia@demo.invalid y admin@demo.invalid, con la misma contrasena DEMO.
+4. Seguir docs/guion-demostracion.txt. Los documentos simulados para adjuntar se
+   encuentran en frontend/tests/fixtures.
+5. Al finalizar abrir DetenerDemoPages.cmd. Conserva la base y los documentos.
+
+La PC debe permanecer encendida, sin suspension y conectada a Internet.
+Cloudflare proporciona un tunel HTTPS temporal sin configurar el router.
+La URL trycloudflare.com cambia al reiniciar el tunel; volver a compartir el
+enlace generado por el acceso. La direccion de GitHub Pages permanece estable.
+El dominio del tunel puede tardar unos segundos en propagarse. El acceso espera
+hasta 90 segundos y solo confirma disponibilidad cuando recibe respuesta HTTPS.
+Al entrar directamente a Pages sin ?api=..., la web permite pegar el origen
+HTTPS del backend y conserva esa configuracion en ese navegador.
+Para un enlace permanente del backend hace falta un tunel con dominio estable;
+se puede usar ese dominio en VITE_API_BASE_URL sin cambiar la arquitectura.
+
+El inicio carga automaticamente el escenario ficticio si la base DEMO es nueva:
+personas y roles, farmacias de Mendoza, catalogo, precios, existencias, lotes y
+documentos de capacidades. No requiere importar datos a mano. Los cambios que
+se realicen durante la presentacion quedan guardados para la proxima sesion.
+El DEMO no envia correo real, aun si Windows tiene un proveedor SMTP configurado.
+El alta/recuperacion de cuentas necesita proveedor en MANUAL; para la demo usar
+las cuentas ya habilitadas. No usar datos reales en esta demostracion publica.
+
+PUBLICAR EL FRONTEND EN GITHUB PAGES
+El flujo .github/workflows/pages.yml compila y prueba frontend/ con Node.js 24.
+Solo sube frontend/dist; no sube Java, PostgreSQL, .runtime ni documentos privados.
+Se ejecuta al actualizar frontend/ en main o desde Actions -> Run workflow.
+En el repositorio, Settings -> Pages -> Build and deployment -> Source debe estar
+en GitHub Actions. Al completar el flujo aparece la URL del sitio.
+
+La ruta Vite es /E-MEDICAPP/ para Pages y / para el JAR local. Las rutas de
+navegacion usan # para que recargar o compartir una pantalla no produzca 404.
+Opcionalmente agregar una variable de repositorio VITE_API_BASE_URL con el origen
+HTTPS de un backend estable; el navegador puede cambiarlo desde Conexion.
+Los valores VITE_* son publicos y nunca deben contener credenciales.
+
+PRIMERA INSTALACION O ACTUALIZACION EN WINDOWS
+Requisitos: JDK 25, Node.js 24, PostgreSQL 17 o superior y cloudflared.
+Esta PC utiliza PostgreSQL 17.5 y Node.js 24.18.0; el JDK 25 se conserva portable
+en .tools/java/. No se modifica el Java predeterminado de otros proyectos.
+Los scripts detectan las herramientas instaladas y un JDK portable bajo .tools/.
+Si hace falta indicar rutas, usar EMEDICAPP_JAVA_HOME, EMEDICAPP_NODE_HOME,
+EMEDICAPP_PG_BIN y EMEDICAPP_CLOUDFLARED en el entorno de Windows.
+Los accesos y las verificaciones usan la configuracion EMEDICAPP_* del proyecto.
+Suspenden los parametros genericos Spring/Server/JVM heredados de otros proyectos
+durante el inicio y restauran el entorno del lanzador al terminar. No cambian
+la configuracion permanente de Windows.
+Para cloudflared: winget install --id Cloudflare.cloudflared --exact
+
+Si no existe el JAR, AbrirDemoPages.cmd lo compila automaticamente. La primera
+compilacion requiere Internet para dependencias. Despues de cambiar el codigo:
+  1. DetenerDemoPages.cmd
+  2. powershell -NoProfile -ExecutionPolicy Bypass -File scripts\Build.ps1
+  3. AbrirDemoPages.cmd
+Tambien se puede ejecutar scripts\Start-DemoPages.ps1 -Build -OpenBrowser con la
+demo detenida. No reemplazar el JAR mientras esta abierto por Java.
+
+El acceso no adopta ni termina procesos ajenos. Si 8082 esta ocupado por el DEMO
+local iniciado con AbrirDemo.cmd, cerrarlo antes con scripts\Stop.ps1 -Environment
+Demo. El arranque de Pages configura exclusivamente su propio backend DEMO.
+
+DATOS Y SESIONES
+PostgreSQL escucha solo en 127.0.0.1. Los binarios deben coincidir con la version
+principal del cluster que ya exista. .runtime/local-db.json conserva el puerto y
+una contrasena aleatoria protegida mediante DPAPI para el usuario de Windows.
+No borrar .runtime: contiene los datos, documentos, credenciales locales y logs.
+El tunel publica el backend; GitHub Pages conserva solo los archivos de la web.
+
+El backend admite exclusivamente el origen https://jereprograma.github.io.
+La sesion entre dominios se conserva por pestana mediante X-Auth-Session y
+mantiene validacion CSRF. No depende de habilitar cookies de terceros.
+La sesion vence a los 30 minutos de inactividad o al reiniciar Java; el navegador
+solicita ingresar nuevamente. El correo tipeado en el ingreso no se borra al
+cambiar de ventana o minimizar. La contrasena no se guarda en localStorage.
+
+Para restaurar datos de presentacion con respaldo previo y sin borrar lo anterior:
+  powershell -NoProfile -ExecutionPolicy Bypass -File scripts\ResetDemo.ps1 -NoStart
+Ejecutar solo con la demo de Pages detenida. Luego abrir AbrirDemoPages.cmd.
+El guion de presentacion recomienda crear una compra sencilla con retiro y luego
+mostrar entrega, pagos, factura y cierre mediante las cuentas de cada rol.
+
+DIAGNOSTICO
+.runtime/demo-pages.json: estado, backend HTTPS y enlace completo para compartir.
+.runtime/demo-tunnel.stderr.log: conexion saliente de Cloudflare.
+.runtime/app-Demo.stdout.log y .stderr.log: inicio del backend.
+.runtime/postgres.log: base local.
+El acceso informa disponibilidad solamente despues de comprobar modo DEMO por
+HTTPS y el permiso CORS para GitHub Pages. La verificacion del frontend publico
+se completa en GitHub Actions; el tunel por si solo no publica el frontend.
+
+El mecanismo anterior de ngrok y MANUAL queda en scripts/Start-Public.ps1,
+Configure-Public.ps1 y Stop-Public.ps1 como alternativa historica. Su configuracion
+privada no se usa para el nuevo DEMO de Pages.
+
+REFERENCIAS OFICIALES
+GitHub Pages con Actions:
+https://docs.github.com/en/pages/getting-started-with-github-pages/using-custom-workflows-with-github-pages
+Tuneles temporales de Cloudflare:
+https://developers.cloudflare.com/tunnel/get-started/quick-tunnels/

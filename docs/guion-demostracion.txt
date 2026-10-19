@@ -1,5 +1,6 @@
 E-MEDICAPP — guion de demostración ante una farmacia
-Escenario de Mendoza. Revisión del 8 de octubre de 2026.
+Escenario de Mendoza. Recorrido funcional del 8 de octubre de 2026;
+accesos y sesiones actualizados para GitHub Pages el 19 de octubre de 2026.
 
 El recorrido principal dura entre 10 y 15 minutos y completa una compra con
 retiro. La variante de entrega sustituye el cierre del retiro. El caso de familiar,
@@ -13,24 +14,28 @@ del escenario para que la demostración conserve coherencia entre cada etapa.
 
 PREPARACIÓN — 1 minuto
 
-1. Abrir C:\laburo\E-MEDICAPP\E-MEDICAPP\AbrirDemo.cmd.
-   Esperar la pantalla de ingreso en http://127.0.0.1:8082.
+1. Para compartir con otras computadoras, abrir
+   C:\laburo\E-MEDICAPP\AbrirDemoPages.cmd y usar el enlace completo generado.
+   La web queda en GitHub Pages y consume el backend HTTPS de esta PC.
+   Para presentar solamente en esta PC, AbrirDemo.cmd abre http://127.0.0.1:8082.
 
 2. Utilizar dos sesiones de navegador independientes:
    - Sesión cliente: Comprador · Lucía Fernández.
    - Sesión farmacia: Farmacéutico · Valentina Ríos.
-   Pueden ser Chrome y Edge, o perfiles distintos. Dos pestañas normales del mismo
-   perfil comparten sesión. Si se utiliza una sola sesión, pulsar Salir para cambiar
+   Pueden ser Chrome y Edge, o perfiles distintos. En GitHub Pages cada pestaña
+   mantiene su propia sesión; en el acceso local las pestañas comparten la cookie.
+   Si se utiliza una sola sesión, pulsar Salir para cambiar
    de perfil; las compras ya creadas permanecen guardadas.
 
 3. Tener a mano esta carpeta para seleccionar los documentos:
-   C:\laburo\E-MEDICAPP\E-MEDICAPP\frontend\tests\fixtures.
+   C:\laburo\E-MEDICAPP\frontend\tests\fixtures.
    Para el retiro normal se usan comprobante-pago.pdf y factura-farmacia.pdf.
    El selector DEMO completa el ingreso de cada perfil. La contraseña pública,
    únicamente si se ingresa por correo, es DemoMedicapp2026!.
 
-No renovar el escenario durante una compra. ResetDemo.ps1 se utiliza antes de
-la presentación si se desea empezar nuevamente: respalda y archiva lo anterior.
+No renovar el escenario durante una compra. Para empezar nuevamente antes de
+presentar, ejecutar DetenerDemoPages.cmd, luego scripts\ResetDemo.ps1 -NoStart y abrir
+AbrirDemoPages.cmd: respalda y archiva lo anterior antes de generar otra demo.
 La información y los documentos de MANUAL pertenecen a otro entorno.
 
 RECORRIDO PRINCIPAL — retiro en farmacia
@@ -255,7 +260,9 @@ particular que avance a pago necesita documentos de muestra acordes al importe.
 SI ALGO NO COINCIDE
 
 - Si no aparece la compra, esperar la actualización o recargar y comprobar perfil
-  y número. Cambiar un perfil en la misma sesión modifica las demás pestañas.
+  y número. En el acceso local, cambiar de perfil afecta las pestañas que comparten
+  la cookie. En GitHub Pages la sesión se conserva por pestaña; para la presentación
+  usar ventanas de Chrome y Edge o perfiles distintos evita confundir los roles.
 - Si no hay disponibilidad, confirmar punto de Mendoza, sucursal y cantidad.
   El DEMO conserva las operaciones hechas: no debe asumirse stock inicial después
   de múltiples presentaciones.

@@ -3,7 +3,10 @@ $ErrorActionPreference='Stop'
 if ($RestrictedDatabase -and $Environment -ne 'Manual') { throw 'La base limitada corresponde solamente a operación MANUAL.' }
 $projectRoot=[IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
 . (Join-Path $PSScriptRoot 'Mail.Common.ps1')
-if (-not $JavaHome) { $JavaHome='C:\Program Files\Java\jdk-25.0.4.1+1' }
+. (Join-Path $PSScriptRoot 'Tools.Common.ps1')
+$isolatedConfiguration=Suspend-EMedicappExternalConfiguration
+try {
+$JavaHome=Resolve-EMedicappJavaHome $JavaHome
 $javaPath=Join-Path $JavaHome 'bin\java.exe'
 if (-not (Test-Path -LiteralPath $javaPath)) { throw 'No se encontró Java 25. Indicá EMEDICAPP_JAVA_HOME.' }
 $version=& $javaPath --version 2>&1 | Out-String
@@ -66,6 +69,9 @@ for ($attempt=0; $attempt -lt 45; $attempt++) {
   Start-Sleep -Seconds 1
 }
 if (-not $ready) { throw 'El proceso sigue iniciando pero todavía no confirmó disponibilidad. Revisá sus registros antes de operar.' }
+$ownedListener=Get-NetTCPConnection -LocalPort $Port -State Listen -ErrorAction SilentlyContinue
+if (-not $ownedListener -or $ownedListener.OwningProcess -notcontains $process.Id) { throw 'El puerto esperado no pertenece al proceso de E-MEDICAPP iniciado. No se confirma disponibilidad de otra aplicación.' }
 if ($Environment -eq 'Manual') { Set-Content -LiteralPath (Join-Path $projectRoot '.runtime\manual-initialized') -Value 'Initialized' -Encoding UTF8 }
 Write-Host "Aplicación disponible: http://127.0.0.1:$Port"
 if ($OpenBrowser) { Start-Process "http://127.0.0.1:$Port" -WindowStyle Hidden }
+} finally { Restore-EMedicappExternalConfiguration $isolatedConfiguration }

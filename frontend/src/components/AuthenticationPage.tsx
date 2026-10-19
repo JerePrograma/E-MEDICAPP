@@ -12,12 +12,24 @@ import {
   Typography,
 } from '@mui/material';
 import { api, ApiError } from '../api';
+import { useLocation } from 'react-router-dom';
 
 type Mode = 'LOGIN' | 'REGISTER' | 'VERIFY' | 'EMAIL_PENDING' | 'RESET_REQUEST' | 'RESET';
 type Response = { status: string; message: string };
+const demoProfiles = {
+  comprador: 'Comprador · Lucía Fernández',
+  farmacia: 'Farmacia · Paula Benítez',
+  farmaceutico: 'Farmacéutico · Valentina Ríos',
+  farmaceutico2: 'Segundo farmacéutico · Gabriel Ponce',
+  cadete: 'Cadete · Santiago Molina',
+  adminfarmacia: 'Administrador de farmacia · Sofía Méndez',
+  admin: 'Administrador · Marina Suárez',
+};
+const demoEmails = new Set(Object.keys(demoProfiles).map((key) => `${key}@demo.invalid`));
 
 export function authenticationIntent() {
-  const hash = new URLSearchParams(window.location.hash.slice(1));
+  const fragment = window.location.hash.slice(1);
+  const hash = new URLSearchParams(fragment.includes('?') ? fragment.split('?')[1] : fragment);
   if (hash.has('verify-email'))
     return { mode: 'VERIFY' as const, token: hash.get('verify-email') ?? '' };
   if (hash.has('reset-password'))
@@ -26,12 +38,24 @@ export function authenticationIntent() {
 }
 
 export function AuthenticationPage({ demo, onLogin }: { demo: boolean; onLogin: () => void }) {
-  const [intent] = useState(authenticationIntent);
+  const location = useLocation();
+  const [intent, setIntent] = useState(authenticationIntent);
   const [mode, setMode] = useState<Mode>(intent?.mode ?? 'LOGIN');
-  const [email, setEmail] = useState(demo && !intent ? 'comprador@demo.invalid' : '');
-  const [password, setPassword] = useState(demo && !intent ? 'DemoMedicapp2026!' : '');
+  const [email, setEmail] = useState(() => {
+    try {
+      return (
+        sessionStorage.getItem('emedicapp.login-email') ??
+        (demo && !intent ? 'comprador@demo.invalid' : '')
+      );
+    } catch {
+      return demo && !intent ? 'comprador@demo.invalid' : '';
+    }
+  });
+  const [password, setPassword] = useState(
+    demo && !intent && demoEmails.has(email) ? 'DemoMedicapp2026!' : '',
+  );
   const [confirmation, setConfirmation] = useState('');
-  const [credentials, setCredentials] = useState(!demo || !!intent);
+  const [credentials, setCredentials] = useState(!demo || !!intent || !demoEmails.has(email));
   const [name, setName] = useState('');
   const [birthDate, setBirthDate] = useState('');
   const [dni, setDni] = useState('');
@@ -41,9 +65,24 @@ export function AuthenticationPage({ demo, onLogin }: { demo: boolean; onLogin: 
   const [notice, setNotice] = useState('');
   const [noticeKind, setNoticeKind] = useState<'error' | 'info' | 'success'>('info');
   useEffect(() => {
-    if (intent)
-      window.history.replaceState(null, '', window.location.pathname + window.location.search);
-  }, [intent]);
+    const next = authenticationIntent();
+    if (next && (next.mode !== intent?.mode || next.token !== intent.token)) {
+      setIntent(next);
+      setMode(next.mode);
+      setCredentials(true);
+      setPassword('');
+      setConfirmation('');
+      setNotice('');
+    }
+  }, [location, intent]);
+  useEffect(() => {
+    try {
+      if (email) sessionStorage.setItem('emedicapp.login-email', email);
+      else sessionStorage.removeItem('emedicapp.login-email');
+    } catch {
+      // Editing remains available when browser storage is restricted.
+    }
+  }, [email]);
   function changeMode(next: Mode) {
     setMode(next);
     setNotice('');
@@ -97,6 +136,11 @@ export function AuthenticationPage({ demo, onLogin }: { demo: boolean; onLogin: 
         setMode('LOGIN');
         setPassword('');
         setCredentials(true);
+        window.history.replaceState(
+          null,
+          '',
+          window.location.pathname + window.location.search + '#/',
+        );
       } else if (mode === 'RESET') {
         response = await api<Response>('/api/auth/password/reset', {
           method: 'POST',
@@ -105,6 +149,11 @@ export function AuthenticationPage({ demo, onLogin }: { demo: boolean; onLogin: 
         setMode('LOGIN');
         setPassword('');
         setCredentials(true);
+        window.history.replaceState(
+          null,
+          '',
+          window.location.pathname + window.location.search + '#/',
+        );
       } else {
         response = await api<Response>(
           mode === 'EMAIL_PENDING'
@@ -236,15 +285,7 @@ export function AuthenticationPage({ demo, onLogin }: { demo: boolean; onLogin: 
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
               >
-                {Object.entries({
-                  comprador: 'Comprador · Lucía Fernández',
-                  farmacia: 'Farmacia · Paula Benítez',
-                  farmaceutico: 'Farmacéutico · Valentina Ríos',
-                  farmaceutico2: 'Segundo farmacéutico · Gabriel Ponce',
-                  cadete: 'Cadete · Santiago Molina',
-                  adminfarmacia: 'Administrador de farmacia · Sofía Méndez',
-                  admin: 'Administrador · Marina Suárez',
-                }).map(([key, title]) => (
+                {Object.entries(demoProfiles).map(([key, title]) => (
                   <MenuItem key={key} value={`${key}@demo.invalid`}>
                     {title}
                   </MenuItem>

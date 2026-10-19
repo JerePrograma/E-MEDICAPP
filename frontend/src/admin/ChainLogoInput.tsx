@@ -1,5 +1,6 @@
 import { useId, useRef, useState } from 'react';
 import { Alert, Box, Button, Stack, Typography } from '@mui/material';
+import { useApiImage } from '../components/ApiImage';
 
 const MAX_LOGO_BYTES = 2 * 1024 * 1024;
 
@@ -49,7 +50,8 @@ export function ChainLogoInput({
   const [reading, setReading] = useState(false);
   const [error, setError] = useState('');
   const [failedPreview, setFailedPreview] = useState<string | null>(null);
-  const preview = logoDataUrl ?? (removeLogo ? null : savedUrl);
+  const savedImage = useApiImage(savedUrl);
+  const preview = logoDataUrl ?? (removeLogo ? null : savedImage);
   const changeReading = (value: boolean) => {
     setReading(value);
     onReading(value);

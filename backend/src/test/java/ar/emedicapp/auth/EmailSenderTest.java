@@ -81,6 +81,16 @@ class EmailSenderTest {
     }
 
     @Test
+    void supportsTheGithubPagesProjectPathForVerificationAndRecovery() {
+        assertThat(sender("smtp.example.test", "valid@example.test",
+                "https://jereprograma.github.io/E-MEDICAPP/", true, false).configured()).isTrue();
+        assertThat(sender("smtp.example.test", "valid@example.test",
+                "https://jereprograma.github.io/E-MEDICAPP/#token", true, false).configured()).isFalse();
+        assertThat(sender("smtp.example.test", "valid@example.test",
+                "https://jereprograma.github.io/E-MEDICAPP/../other", true, false).configured()).isFalse();
+    }
+
+    @Test
     void incompleteConfigurationNeverAttemptsDelivery() {
         assertThatThrownBy(
                         () ->

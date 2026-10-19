@@ -1,3 +1,4 @@
+import { ApiImage } from '../components/ApiImage';
 import { useState } from 'react';
 import type { ReactNode } from 'react';
 import {
@@ -115,7 +116,7 @@ export function AdminPage({ actor }: { actor: Actor }) {
   if (!globalAdmin && !actor.roles.includes('PHARMACY_ADMIN'))
     return <Alert severity="error">Tu cuenta no tiene permiso de administración.</Alert>;
   if (query.isPending) return <Typography>Cargando administración…</Typography>;
-  if (query.error || !query.data)
+  if (!query.data)
     return (
       <Stack spacing={2}>
         <Alert severity="error">
@@ -243,6 +244,12 @@ export function AdminPage({ actor }: { actor: Actor }) {
               ]
         }
       />
+      {query.error && (
+        <Alert severity="warning">
+          No se pudo actualizar la administración. Los datos que estás editando se conservan.
+          <Button onClick={() => void query.refetch()}>Volver a intentar</Button>
+        </Alert>
+      )}
       {invoiceIssues.error && (
         <Alert severity="warning">
           No se pudieron consultar los avisos de facturación. {invoiceIssues.error.message}
@@ -353,8 +360,7 @@ export function AdminPage({ actor }: { actor: Actor }) {
               detail: (
                 <Stack direction="row" spacing={2} sx={{ alignItems: 'center' }}>
                   {x.logoUrl && (
-                    <Box
-                      component="img"
+                    <ApiImage
                       src={x.logoUrl}
                       alt={`Logo de ${x.name}`}
                       sx={{ width: 56, height: 56, objectFit: 'contain', bgcolor: 'white' }}

@@ -105,6 +105,32 @@ test('administrador de farmacia ingresa, guarda su sucursal y conserva su alcanc
   });
   expect(forbidden.status()).toBe(403);
   expect((await page.request.get('/api/admin/settings')).status()).toBe(403);
+  // A failed background refresh must not discard the branch form being edited.
+  await page.getByRole('tab', { name: 'Sucursales', exact: true }).click();
+  await page
+    .getByText(branch.name, { exact: true })
+    .locator('../..')
+    .getByRole('button', { name: 'Modificar', exact: true })
+    .click();
+  const draft = page
+    .getByRole('dialog')
+    .getByRole('textbox', { name: 'Instrucciones de pago directo' });
+  await draft.fill('Borrador conservado al recuperar la ventana.');
+  await page.route('**/api/admin/overview', (route) =>
+    route.fulfill({
+      status: 503,
+      contentType: 'application/json',
+      body: JSON.stringify({ message: 'Sin conexión temporal.' }),
+    }),
+  );
+  const refresh = page.waitForResponse((response) =>
+    response.url().endsWith('/api/admin/overview'),
+  );
+  await page.evaluate(() => window.dispatchEvent(new Event('visibilitychange')));
+  expect((await refresh).status()).toBe(503);
+  await expect(draft).toHaveValue('Borrador conservado al recuperar la ventana.');
+  await page.unroute('**/api/admin/overview');
+  await page.keyboard.press('Escape');
   await page.screenshot({
     path: 'test-results/administrador-farmacia-alcance.png',
     fullPage: true,

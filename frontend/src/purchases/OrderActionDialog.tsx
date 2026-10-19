@@ -1,3 +1,4 @@
+import { DocumentButton } from '../components/DocumentButton';
 import { useState } from 'react';
 import {
   Alert,
@@ -652,24 +653,22 @@ export function OrderActionDialog({
                 </Typography>
               )}
               {prescriptionDocument && (
-                <Button
-                  component="a"
+                <DocumentButton
                   href={`/api/documents/${prescriptionDocument}`}
                   target="_blank"
                   rel="noopener"
                 >
                   Consultar receta privada
-                </Button>
+                </DocumentButton>
               )}
               {authorizationDocument && (
-                <Button
-                  component="a"
+                <DocumentButton
                   href={`/api/documents/${authorizationDocument}`}
                   target="_blank"
                   rel="noopener"
                 >
                   Consultar autorización firmada
-                </Button>
+                </DocumentButton>
               )}
               {order.coverageRequest ? (
                 <Alert severity="info">
@@ -681,14 +680,13 @@ export function OrderActionDialog({
                     Afiliación {order.coverageRequest.memberNumber}
                   </Typography>
                   {order.coverageRequest.evidenceDocumentId && (
-                    <Button
-                      component="a"
+                    <DocumentButton
                       href={`/api/documents/${order.coverageRequest.evidenceDocumentId}`}
                       target="_blank"
                       rel="noopener"
                     >
                       Consultar credencial de cobertura
-                    </Button>
+                    </DocumentButton>
                   )}
                   <Typography variant="body2">
                     Comprobá la afiliación y la autorización en la fuente correspondiente. El aporte
@@ -924,14 +922,13 @@ export function OrderActionDialog({
                               }
                             />
                             {coverageDocs[x.productId] && (
-                              <Button
-                                component="a"
+                              <DocumentButton
                                 href={`/api/documents/${coverageDocs[x.productId]}`}
                                 target="_blank"
                                 rel="noopener"
                               >
                                 Consultar autorización de cobertura
-                              </Button>
+                              </DocumentButton>
                             )}
                           </>
                         )}
@@ -1009,15 +1006,14 @@ export function OrderActionDialog({
                 </Typography>
               )}
               {action === 'payment' && evidence && (
-                <Button
-                  component="a"
+                <DocumentButton
                   href={`/api/documents/${evidence}`}
                   target="_blank"
                   rel="noopener"
                   sx={{ alignSelf: 'flex-start' }}
                 >
                   Consultar comprobante de pago
-                </Button>
+                </DocumentButton>
               )}
               <TextField
                 required
@@ -1398,14 +1394,13 @@ export function OrderActionDialog({
                 reservas liberadas.
               </Alert>
               {order.paymentSubmission && (
-                <Button
-                  component="a"
+                <DocumentButton
                   href={`/api/documents/${order.paymentSubmission.evidenceDocumentId}`}
                   target="_blank"
                   rel="noopener"
                 >
                   Consultar comprobante presentado por el comprador
-                </Button>
+                </DocumentButton>
               )}
               <TextField
                 select
@@ -1474,14 +1469,13 @@ export function OrderActionDialog({
                 compra y la recepción de los medicamentos.
               </Alert>
               {authorizationDocument && (
-                <Button
-                  component="a"
+                <DocumentButton
                   href={`/api/documents/${authorizationDocument}`}
                   target="_blank"
                   rel="noopener"
                 >
                   Consultar autorización firmada
-                </Button>
+                </DocumentButton>
               )}
               <TextField
                 select

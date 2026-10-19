@@ -2,13 +2,15 @@ import { useEffect, useRef, useState } from 'react';
 import { Box, Button, Stack, Typography } from '@mui/material';
 import L from 'leaflet';
 import type { Branch } from '../catalog/types';
+import { apiFetch, apiUrl } from '../api';
+import { crossOriginBackend } from '../connection';
 import 'leaflet/dist/leaflet.css';
 import './LocationPicker.css';
 
 export type Point = { lat: number; lon: number };
 const NO_BRANCHES: Branch[] = [];
 
-function branchIcon(branch: Branch) {
+function branchIcon(branch: Branch, objectUrls: string[], active: () => boolean) {
   const container = document.createElement('div');
   container.className = 'emedicapp-branch-marker__face';
   container.setAttribute('aria-hidden', 'true');
@@ -28,7 +30,21 @@ function branchIcon(branch: Branch) {
       logo.hidden = true;
       fallback.hidden = false;
     };
-    logo.src = branch.chainLogoUrl;
+    if (crossOriginBackend()) {
+      void apiFetch(branch.chainLogoUrl)
+        .then(async (response) => {
+          if (!response.ok) return;
+          const blob = await response.blob();
+          if (!active()) return;
+          const url = URL.createObjectURL(blob);
+          objectUrls.push(url);
+          logo.src = url;
+        })
+        .catch(() => {
+          logo.hidden = true;
+          fallback.hidden = false;
+        });
+    } else logo.src = apiUrl(branch.chainLogoUrl);
     container.append(logo);
   }
   return L.divIcon({
@@ -101,6 +117,8 @@ export function LocationPicker({
     const instance = map.current;
     if (!instance) return;
     const layer = L.layerGroup().addTo(instance);
+    const objectUrls: string[] = [];
+    let active = true;
     const points: L.LatLngExpression[] = [];
     for (const branch of branches) {
       if (!String(branch.latitude ?? '').trim() || !String(branch.longitude ?? '').trim()) continue;
@@ -116,7 +134,7 @@ export function LocationPicker({
       const point: L.LatLngExpression = [lat, lon];
       points.push(point);
       const branchMarker = L.marker(point, {
-        icon: branchIcon(branch),
+        icon: branchIcon(branch, objectUrls, () => active),
         title: `Sucursal ${branch.name}`,
         alt: `Sucursal ${branch.name}`,
         keyboard: true,
@@ -135,6 +153,8 @@ export function LocationPicker({
       instance.fitBounds(L.latLngBounds(points), { padding: [36, 36], maxZoom: 15 });
     }
     return () => {
+      active = false;
+      objectUrls.forEach((url) => URL.revokeObjectURL(url));
       if (map.current === instance) layer.remove();
     };
   }, [branches]);

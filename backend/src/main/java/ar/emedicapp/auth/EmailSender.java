@@ -21,7 +21,7 @@ public class EmailSender {
             @Value("${EMEDICAPP_SMTP_USERNAME:}") String username,
             @Value("${EMEDICAPP_SMTP_PASSWORD:}") String password,
             @Value("${EMEDICAPP_MAIL_FROM:}") String from,
-            @Value("${EMEDICAPP_EMAIL_BASE_URL:${EMEDICAPP_PUBLIC_URL:}}") String baseUrl,
+            @Value("${EMEDICAPP_EMAIL_BASE_URL:${EMEDICAPP_FRONTEND_URL:${EMEDICAPP_PUBLIC_URL:}}}") String baseUrl,
             @Value("${EMEDICAPP_SMTP_STARTTLS:true}") boolean startTls,
             @Value("${EMEDICAPP_SMTP_SSL:false}") boolean ssl) {
         this.from = from.trim();
@@ -90,7 +90,7 @@ public class EmailSender {
                     || uri.getUserInfo() != null
                     || uri.getRawQuery() != null
                     || uri.getRawFragment() != null
-                    || !(uri.getRawPath().isEmpty() || uri.getRawPath().equals("/"))) return false;
+                    || !uri.normalize().getRawPath().equals(uri.getRawPath())) return false;
             String host = uri.getHost().toLowerCase(Locale.ROOT);
             return "https".equalsIgnoreCase(uri.getScheme())
                     || ("http".equalsIgnoreCase(uri.getScheme())

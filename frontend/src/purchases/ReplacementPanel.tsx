@@ -1,3 +1,4 @@
+import { DocumentButton } from '../components/DocumentButton';
 import { useState } from 'react';
 import {
   Alert,
@@ -536,25 +537,23 @@ export function ReplacementPanel({
                   <Stack key={newOrder.id} spacing={1}>
                     {(newOrder.prescriptionDocumentId ??
                       reviewPurchase.data?.prescriptionDocumentId) && (
-                      <Button
-                        component="a"
+                      <DocumentButton
                         href={`/api/documents/${newOrder.prescriptionDocumentId ?? reviewPurchase.data?.prescriptionDocumentId}`}
                         target="_blank"
                         rel="noopener"
                       >
                         Consultar nueva receta de reposición
-                      </Button>
+                      </DocumentButton>
                     )}
                     {(newOrder.authorizationDocumentId ??
                       reviewPurchase.data?.authorizationDocumentId) && (
-                      <Button
-                        component="a"
+                      <DocumentButton
                         href={`/api/documents/${newOrder.authorizationDocumentId ?? reviewPurchase.data?.authorizationDocumentId}`}
                         target="_blank"
                         rel="noopener"
                       >
                         Consultar nueva nota de reposición
-                      </Button>
+                      </DocumentButton>
                     )}
                   </Stack>
                 ))}

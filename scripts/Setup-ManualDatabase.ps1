@@ -1,14 +1,16 @@
-﻿param([int]$Port=55432, [string]$PostgresBin=$env:EMEDICAPP_PG_BIN)
+﻿param([int]$Port=0, [string]$PostgresBin=$env:EMEDICAPP_PG_BIN)
 $ErrorActionPreference='Stop'
 $projectRoot=[IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
 $runtimePath=Join-Path $projectRoot '.runtime'
 $appCredentialsPath=Join-Path $runtimePath 'manual-db.json'
 $databaseName='emedicapp_manual'
 $appUser='emedicapp_manual_app'
-if (-not $PostgresBin) { $PostgresBin='C:\Program Files\PostgreSQL\18\bin' }
+. (Join-Path $PSScriptRoot 'Tools.Common.ps1')
+$PostgresBin=Resolve-EMedicappPostgresBin $PostgresBin
 $psql=Join-Path $PostgresBin 'psql.exe'
 & (Join-Path $PSScriptRoot 'Database.ps1') -Environment Manual -Port $Port -PostgresBin $PostgresBin
 $admin=Get-Content -LiteralPath (Join-Path $runtimePath 'local-db.json') -Raw -Encoding UTF8 | ConvertFrom-Json
+$Port=[int]$admin.port
 $previousPgPassword=$env:PGPASSWORD
 try {
   $env:PGPASSWORD=[Net.NetworkCredential]::new('',(ConvertTo-SecureString $admin.protectedPassword)).Password

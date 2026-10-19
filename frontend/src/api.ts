@@ -1,3 +1,14 @@
+import {
+  apiUrl,
+  authSession,
+  backendUrl,
+  clearAuthSession,
+  crossOriginBackend,
+  rememberAuthSession,
+} from './connection';
+
+export { apiUrl } from './connection';
+
 export class ApiError extends Error {
   constructor(
     public status: number,
@@ -10,10 +21,38 @@ export class ApiError extends Error {
 
 const retryKeys = new Map<string, string>();
 
+export async function apiFetch(path: string, options: RequestInit = {}): Promise<Response> {
+  if (!path.startsWith('/api/'))
+    throw new ApiError(400, 'INVALID_API_PATH', 'La dirección del recurso no es válida.');
+  const requestBackend = backendUrl();
+  const session = authSession();
+  const headers = new Headers(options.headers);
+  if (session) headers.set('X-Auth-Session', session);
+  if (new URL(apiUrl(path), window.location.origin).hostname.endsWith('.ngrok-free.app'))
+    headers.set('ngrok-skip-browser-warning', 'true');
+  let response: Response;
+  try {
+    response = await fetch(apiUrl(path), {
+      ...options,
+      headers: Object.fromEntries(headers.entries()),
+      credentials: crossOriginBackend() ? 'omit' : 'same-origin',
+    });
+  } catch {
+    throw new ApiError(
+      0,
+      'NETWORK_ERROR',
+      'No se pudo conectar con el servidor. Revisá la conexión y volvé a intentar.',
+    );
+  }
+  rememberAuthSession(response, session, requestBackend);
+  return response;
+}
+
 export async function api<T>(
   path: string,
   options: { method?: string; body?: unknown; idempotent?: boolean; form?: boolean } = {},
 ): Promise<T> {
+  const requestBackend = backendUrl();
   const method = options.method ?? 'GET';
   const headers: Record<string, string> = { Accept: 'application/json' };
   const isFile = options.body instanceof FormData;
@@ -30,8 +69,7 @@ export async function api<T>(
   }
   let operationKey: string | undefined;
   if (method !== 'GET') {
-    const csrfResponse = await fetch('/api/auth/csrf', {
-      credentials: 'same-origin',
+    const csrfResponse = await apiFetch('/api/auth/csrf', {
       headers: { Accept: 'application/json' },
     });
     if (!csrfResponse.ok)
@@ -49,7 +87,7 @@ export async function api<T>(
       headers['Idempotency-Key'] = key;
     }
   }
-  const response = await fetch(path, { method, headers, body, credentials: 'same-origin' });
+  const response = await apiFetch(path, { method, headers, body });
   const data: unknown =
     response.status === 204 ? undefined : await response.json().catch(() => undefined);
   if (!response.ok) {
@@ -62,6 +100,13 @@ export async function api<T>(
     );
   }
   if (operationKey) retryKeys.delete(operationKey);
+  if (path === '/api/auth/logout') clearAuthSession(requestBackend);
+  if (response.status !== 204 && data === undefined)
+    throw new ApiError(
+      502,
+      'INVALID_RESPONSE',
+      'El servidor no devolvió una respuesta válida. Revisá la conexión de la demostración.',
+    );
   return data as T;
 }
 

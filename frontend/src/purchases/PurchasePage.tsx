@@ -1,3 +1,4 @@
+import { DocumentButton } from '../components/DocumentButton';
 import { useEffect, useState } from 'react';
 import {
   Alert,
@@ -1037,14 +1038,13 @@ export function PurchasePage({ actor }: { actor: Actor }) {
                               Referencia {order.paymentSubmission.reference} ·{' '}
                               {dateTime(order.paymentSubmission.submittedAt)}
                             </Typography>
-                            <Button
-                              component="a"
+                            <DocumentButton
                               href={`/api/documents/${order.paymentSubmission.evidenceDocumentId}`}
                               target="_blank"
                               rel="noopener"
                             >
                               Ver comprobante enviado
-                            </Button>
+                            </DocumentButton>
                           </Alert>
                         )}
                         {order.paymentSubmission?.status === 'PENDING' &&
@@ -1093,14 +1093,13 @@ export function PurchasePage({ actor }: { actor: Actor }) {
                               {money(adjustment.amount, adjustment.currency)}
                             </Typography>
                             {adjustment.evidence_document_id && (
-                              <Button
-                                component="a"
+                              <DocumentButton
                                 href={`/api/documents/${adjustment.evidence_document_id}`}
                                 target="_blank"
                                 rel="noopener"
                               >
                                 Consultar documento fiscal
-                              </Button>
+                              </DocumentButton>
                             )}
                           </Box>
                         ))}
@@ -1137,14 +1136,13 @@ export function PurchasePage({ actor }: { actor: Actor }) {
                           </Alert>
                         )}
                         {order.invoiceDocumentId && (
-                          <Button
-                            component="a"
+                          <DocumentButton
                             href={`/api/documents/${order.invoiceDocumentId}`}
                             target="_blank"
                             rel="noopener"
                           >
                             Ver factura de la farmacia
-                          </Button>
+                          </DocumentButton>
                         )}
                         <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: 'wrap' }}>
                           {canReview &&

@@ -571,13 +571,8 @@ test('administración mutable y presentación móvil sin errores de navegador', 
     (response) =>
       response.url().endsWith('/api/auth/logout') && response.request().method() === 'POST',
   );
-  const logoutNavigation = page.waitForEvent('framenavigated', {
-    predicate: (frame) => frame === page.mainFrame() && new URL(frame.url()).pathname === '/',
-  });
   await page.getByRole('button', { name: 'Salir', exact: true }).click();
   expect((await logoutResponse).ok()).toBeTruthy();
-  await logoutNavigation;
-  await page.waitForLoadState('load');
   await expect(page.getByRole('button', { name: 'Ingresar', exact: true })).toBeVisible();
   await page.setViewportSize({ width: 390, height: 844 });
   await login(page);

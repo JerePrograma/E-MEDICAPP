@@ -1,5 +1,10 @@
 PUBLICACIÓN DE E-MEDICAPP DESDE ESTA PC
 
+ANTECEDENTE: esta guia describe el mecanismo anterior de ngrok/MANUAL.
+El despliegue actual usa GitHub Pages y backend local: docs/github-pages-demo.txt.
+Las verificaciones y direcciones del 08/10 citadas abajo no acreditan un servicio
+activo en esta PC. Para presentar usar AbrirDemoPages.cmd.
+
 La operación pública usa el JAR Java 25 con React incluido, PostgreSQL local y
 documentos privados. Ngrok aporta la dirección HTTPS estable asignada a la cuenta.
 La disponibilidad depende de que la PC esté encendida, sin suspensión y con Internet.
@@ -18,7 +23,9 @@ INICIO
    Al cerrar la ventana de confirmación, Java y ngrok siguen en segundo plano.
 
 No se necesita abrir puertos del router ni cambiar el firewall. La aplicación
-MANUAL escucha en 127.0.0.1:8084; PostgreSQL, en 127.0.0.1:55432. Ngrok establece
+MANUAL escucha en 127.0.0.1:8084; PostgreSQL usa el puerto persistido en
+.runtime/local-db.json (55432 en la verificacion historica, 5544 en esta PC).
+Ngrok establece
 la conexión saliente. El inspector local está limitado a 127.0.0.1:4041, con la
 captura de solicitudes desactivada. El agente no guarda el token en YAML ni en
 argumentos de procesos. .runtime/public-config.json y manual-db.json contienen
