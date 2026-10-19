@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import {
   Alert,
+  Box,
+  Divider,
   Button,
   Checkbox,
   Dialog,
@@ -29,9 +31,17 @@ export type Action =
   | 'refund'
   | 'incident'
   | 'invoice'
+  | 'invoice-issue'
   | 'cancel'
   | 'reconcile-payment'
-  | 'resolve-incident';
+  | 'resolve-incident'
+  | 'authorization'
+  | 'refund-request'
+  | 'financial-control-dispatch'
+  | 'financial-control-refund'
+  | 'financial-control-cancel'
+  | 'fiscal-adjustment'
+  | 'return-received';
 const titles: Record<Action, string> = {
   review: 'Revisar solicitud',
   payment: 'Verificar pago recibido',
@@ -42,10 +52,35 @@ const titles: Record<Action, string> = {
   refund: 'Confirmar reintegro realizado',
   incident: 'Registrar incidencia',
   invoice: 'Adjuntar factura de la farmacia',
+  'invoice-issue': 'Informar problema de facturación',
   cancel: 'Cancelar el pedido de esta farmacia',
   'reconcile-payment': 'Conciliar el pago informado de un pedido cerrado',
   'resolve-incident': 'Resolver incidencia con la farmacia',
+  authorization: 'Verificar autorización de esta compra',
+  'refund-request': 'Solicitar reintegro parcial o total',
+  'financial-control-dispatch': 'Revisar control de salida de alto valor',
+  'financial-control-refund': 'Revisar control de reintegro de alto valor',
+  'financial-control-cancel': 'Revisar cancelación de alto valor',
+  'fiscal-adjustment': 'Registrar nota de crédito o débito',
+  'return-received': 'Registrar recepción física del retorno',
 };
+
+function PaymentMethod({ value, onChange }: { value: string; onChange: (value: string) => void }) {
+  return (
+    <TextField
+      select
+      required
+      label="Medio por el que se recibió el pago"
+      value={value}
+      onChange={(event) => onChange(event.target.value)}
+    >
+      <MenuItem value="TRANSFER">Transferencia bancaria</MenuItem>
+      <MenuItem value="CASH">Efectivo</MenuItem>
+      <MenuItem value="CARD">Tarjeta</MenuItem>
+      <MenuItem value="OTHER">Otro medio comprobado</MenuItem>
+    </TextField>
+  );
+}
 
 function decimal(value: string): string | null {
   const normalized = value.trim().replace(',', '.');
@@ -94,7 +129,34 @@ export function OrderActionDialog({
   onClose: () => void;
   onDone: () => void;
 }) {
-  const [reason, setReason] = useState('');
+  const pendingRefunds = order.refunds.filter((x) => ['REQUESTED', 'PENDING'].includes(x.status));
+  const [refundId, setRefundId] = useState(pendingRefunds[0]?.id ?? '');
+  const [amount, setAmount] = useState(
+    action === 'refund'
+      ? (pendingRefunds[0]?.amount ?? '0.00')
+      : action === 'refund-request'
+        ? (order.netPaidAmount ?? '0.00')
+        : action === 'fiscal-adjustment'
+          ? (pendingRefunds[0]?.amount ?? order.total)
+          : (order.outstandingAmount ?? order.total),
+  );
+  const [rejectionKind, setRejectionKind] = useState('STOCK');
+  const [splittable, setSplittable] = useState(false);
+  const [deliveryMinutes, setDeliveryMinutes] = useState(
+    order.deliveryMinutes ? String(order.deliveryMinutes) : '',
+  );
+  const [recipientName, setRecipientName] = useState(
+    order.receiverName ?? purchase.beneficiary?.name ?? '',
+  );
+  const [recipientIdentity, setRecipientIdentity] = useState('');
+  const [packageMatches, setPackageMatches] = useState(false);
+  const [incidentKind, setIncidentKind] = useState('OTHER');
+  const [retryScheduledAt, setRetryScheduledAt] = useState('');
+  const [coordinationNote, setCoordinationNote] = useState('');
+  const [fiscalKind, setFiscalKind] = useState('CREDIT');
+  const [paymentMethod, setPaymentMethod] = useState('TRANSFER');
+  const [selectedLines, setSelectedLines] = useState<string[]>([]);
+  const [reason, setReason] = useState(action === 'cancel' ? (order.cancellationReason ?? '') : '');
   const [reference, setReference] = useState(
     action === 'payment' || action === 'reconcile-payment'
       ? (order.paymentSubmission?.reference ?? '')
@@ -165,6 +227,12 @@ export function OrderActionDialog({
     if (action === 'review') {
       if (!reason.trim()) return 'Detallá las comprobaciones realizadas o el motivo del rechazo.';
       if (decision === 'REJECT') return null;
+      if (
+        !/^\d+$/.test(deliveryMinutes) ||
+        Number(deliveryMinutes) < 1 ||
+        Number(deliveryMinutes) > 10080
+      )
+        return 'Informá un plazo real de preparación y recepción en minutos.';
       if (!checked) return 'Confirmá la revisión de identidad, mayoría de edad y autorización.';
       if (!stockChecked)
         return 'Confirmá las existencias físicas, la presentación y el precio vigente.';
@@ -205,6 +273,65 @@ export function OrderActionDialog({
           return `La cantidad autorizada de ${line.name} debe cubrir la cantidad solicitada.`;
       }
     }
+    if (
+      ['payment', 'refund', 'refund-request', 'fiscal-adjustment'].includes(action) ||
+      (action === 'reconcile-payment' && reconciliation === 'RECEIVED')
+    ) {
+      const value = decimal(amount);
+      if (!value || cents(value) < 0n || (action !== 'payment' && cents(value) === 0n))
+        return 'Ingresá un importe válido, con hasta dos decimales y sin separadores de miles.';
+      if (action === 'payment' && cents(value) > cents(order.outstandingAmount ?? order.total))
+        return 'El cobro supera el saldo pendiente de esta farmacia.';
+      if (action === 'refund-request' && cents(value) > cents(order.netPaidAmount ?? '0.00'))
+        return 'El reintegro solicitado supera el saldo efectivamente cobrado y todavía no devuelto.';
+    }
+    if (action === 'refund' && !pendingRefunds.some((x) => x.id === refundId))
+      return 'Elegí el reintegro pendiente que realizaste.';
+    if (
+      [
+        'refund-request',
+        'fiscal-adjustment',
+        'authorization',
+        'financial-control-dispatch',
+        'financial-control-refund',
+        'financial-control-cancel',
+        'return-received',
+        'invoice-issue',
+      ].includes(action) &&
+      !reason.trim()
+    )
+      return 'Registrá el motivo y las comprobaciones realizadas.';
+    if (
+      [
+        'refund-request',
+        'fiscal-adjustment',
+        'financial-control-dispatch',
+        'financial-control-refund',
+        'financial-control-cancel',
+        'return-received',
+        'invoice-issue',
+      ].includes(action) &&
+      !evidence
+    )
+      return 'Adjuntá la evidencia de esta operación.';
+    if (action === 'fiscal-adjustment' && !reference.trim())
+      return 'Registrá la referencia de la nota emitida por la farmacia.';
+    if (
+      action === 'resolve-incident' &&
+      resolution === 'RETRY' &&
+      (!retryScheduledAt ||
+        !coordinationNote.trim() ||
+        !Number.isFinite(new Date(`${retryScheduledAt}:00-03:00`).getTime()) ||
+        new Date(`${retryScheduledAt}:00-03:00`).getTime() <= Date.now())
+    )
+      return 'Acordá una fecha futura y documentá la coordinación del único reintento.';
+    if (
+      action === 'pickup-complete' &&
+      (!recipientName.trim() ||
+        !/^\d{7,12}$/.test(recipientIdentity.replace(/[.\s]/g, '')) ||
+        !packageMatches)
+    )
+      return 'Comprobá nombre, DNI, medicamentos y cantidades antes de confirmar el retiro.';
     if (['payment', 'refund', 'invoice'].includes(action)) {
       if (!reference.trim() || !evidence)
         return 'Registrá la referencia y adjuntá el comprobante correspondiente.';
@@ -283,6 +410,9 @@ export function OrderActionDialog({
           ...body,
           decision,
           reason,
+          rejectionKind: decision === 'REJECT' ? rejectionKind : null,
+          prescriptionSplittable: needsPrescription ? splittable : null,
+          deliveryMinutes: Number(deliveryMinutes),
           prescriptionReference: reference || null,
           prescriptionIssuer: issuer || null,
           prescriptionExpiresAt:
@@ -306,6 +436,10 @@ export function OrderActionDialog({
           reference,
           evidenceDocumentId: evidence || null,
           verifiedExternally: checked,
+          amount: decimal(amount),
+          currency: order.currency,
+          ...(action === 'refund' ? { refundId } : {}),
+          ...(action === 'payment' ? { method: paymentMethod } : {}),
         };
         break;
       case 'dispense':
@@ -325,13 +459,17 @@ export function OrderActionDialog({
           ...body,
           code: code.trim(),
           recipientVerified: checked,
+          packageMatches,
+          recipientName: recipientName.trim(),
+          recipientIdentity: recipientIdentity.replace(/[.\s]/g, ''),
+          authorizationDocumentId: authorizationDocument || null,
           note: reason,
           conditionEvidenceDocumentId: evidence || null,
           temperatureC: temperature.trim().replace(',', '.') || null,
         };
         break;
       case 'incident':
-        body = { ...body, reason, evidenceDocumentId: evidence || null };
+        body = { ...body, reason, kind: incidentKind, evidenceDocumentId: evidence || null };
         break;
       case 'cancel':
         body = { ...body, reason: reason.trim() };
@@ -340,6 +478,9 @@ export function OrderActionDialog({
         body = {
           ...body,
           decision: reconciliation,
+          ...(reconciliation === 'RECEIVED'
+            ? { amount: decimal(amount), currency: order.currency, method: paymentMethod }
+            : {}),
           reference: reference.trim(),
           reason: reason.trim(),
           evidenceDocumentId: evidence,
@@ -350,28 +491,99 @@ export function OrderActionDialog({
         body = {
           ...body,
           decision: resolution,
+          ...(resolution === 'RETRY'
+            ? {
+                retryScheduledAt: new Date(`${retryScheduledAt}:00-03:00`).toISOString(),
+                coordinationNote: coordinationNote.trim(),
+              }
+            : {}),
           reason,
           evidenceDocumentId: evidence || null,
+          temperatureC: temperature.trim().replace(',', '.') || null,
+        };
+        break;
+      case 'authorization':
+        body = { ...body, decision, reason: reason.trim() };
+        break;
+      case 'refund-request':
+        body = {
+          ...body,
+          amount: decimal(amount),
+          currency: order.currency,
+          reason: reason.trim(),
+          evidenceDocumentId: evidence,
+          ...(selectedLines.length ? { lineIds: selectedLines } : {}),
+        };
+        break;
+      case 'financial-control-dispatch':
+      case 'financial-control-refund':
+      case 'financial-control-cancel':
+        body = {
+          ...body,
+          operation:
+            action === 'financial-control-dispatch'
+              ? 'DISPATCH'
+              : action === 'financial-control-cancel'
+                ? 'CANCEL'
+                : 'REFUND',
+          reason: reason.trim(),
+          evidenceDocumentId: evidence,
+        };
+        break;
+      case 'fiscal-adjustment':
+        body = {
+          ...body,
+          kind: fiscalKind,
+          reference: reference.trim(),
+          amount: decimal(amount),
+          currency: order.currency,
+          evidenceDocumentId: evidence,
+          reason: reason.trim(),
+        };
+        break;
+      case 'return-received':
+        body = {
+          ...body,
+          custodyNote: reason.trim(),
+          evidenceDocumentId: evidence,
           temperatureC: temperature.trim().replace(',', '.') || null,
         };
         break;
       case 'invoice':
         body = { ...body, evidenceDocumentId: evidence, reference };
         break;
+      case 'invoice-issue':
+        body = { ...body, reason: reason.trim(), evidenceDocumentId: evidence };
+        break;
     }
     try {
-      await api(`/api/orders/${order.id}/${action}`, {
-        method: 'POST',
-        body,
-        idempotent: [
-          'payment',
-          'refund',
-          'dispense',
-          'pickup-complete',
-          'cancel',
-          'reconcile-payment',
-        ].includes(action),
-      });
+      const result = await api<{ receiptRejected?: boolean; message?: string }>(
+        `/api/orders/${order.id}/${action.startsWith('financial-control-') ? 'financial-control' : action}`,
+        {
+          method: 'POST',
+          body,
+          idempotent: [
+            'payment',
+            'refund',
+            'dispense',
+            'pickup-complete',
+            'cancel',
+            'reconcile-payment',
+            'refund-request',
+            'fiscal-adjustment',
+            'authorization',
+            'return-received',
+            'invoice-issue',
+            'financial-control-dispatch',
+            'financial-control-refund',
+            'financial-control-cancel',
+          ].includes(action),
+        },
+      );
+      if (result.receiptRejected) {
+        setError(result.message ?? 'El código no coincide. Pedile al comprador un código vigente.');
+        return;
+      }
       onDone();
     } catch (e) {
       setError(e instanceof Error ? e.message : 'No se pudo registrar la acción.');
@@ -380,7 +592,12 @@ export function OrderActionDialog({
     }
   }
   return (
-    <Dialog open onClose={busy ? undefined : onClose} fullWidth maxWidth="sm">
+    <Dialog
+      open
+      onClose={busy ? undefined : onClose}
+      fullWidth
+      maxWidth={action === 'review' ? 'md' : 'sm'}
+    >
       <DialogTitle>{titles[action]}</DialogTitle>
       <DialogContent dividers>
         <Stack
@@ -392,7 +609,12 @@ export function OrderActionDialog({
             void submit();
           }}
         >
-          <Typography sx={{ fontWeight: 650 }}>{order.branchName}</Typography>
+          <Box sx={{ p: 2, bgcolor: 'background.default', borderRadius: 2 }}>
+            <Typography sx={{ fontWeight: 650 }}>{order.branchName}</Typography>
+            <Typography variant="caption" color="text.secondary">
+              Pedido {order.id.slice(0, 8).toUpperCase()} · {money(order.total, order.currency)}
+            </Typography>
+          </Box>
           {error && <Alert severity="error">{error}</Alert>}
           {action !== 'review' && (
             <Typography variant="body2" color="text.secondary">
@@ -421,6 +643,9 @@ export function OrderActionDialog({
             )}
           {action === 'review' && (
             <>
+              <Typography variant="overline" color="primary">
+                1 · Identidad y documentos
+              </Typography>
               {order.beneficiary && (
                 <Typography>
                   Beneficiario: {order.beneficiary.name} · Nacimiento {order.beneficiary.birthDate}
@@ -455,14 +680,16 @@ export function OrderActionDialog({
                     {order.coverageRequest.provider} · Plan {order.coverageRequest.plan} ·
                     Afiliación {order.coverageRequest.memberNumber}
                   </Typography>
-                  <Button
-                    component="a"
-                    href={`/api/documents/${order.coverageRequest.evidenceDocumentId}`}
-                    target="_blank"
-                    rel="noopener"
-                  >
-                    Consultar credencial de cobertura
-                  </Button>
+                  {order.coverageRequest.evidenceDocumentId && (
+                    <Button
+                      component="a"
+                      href={`/api/documents/${order.coverageRequest.evidenceDocumentId}`}
+                      target="_blank"
+                      rel="noopener"
+                    >
+                      Consultar credencial de cobertura
+                    </Button>
+                  )}
                   <Typography variant="body2">
                     Comprobá la afiliación y la autorización en la fuente correspondiente. El aporte
                     registrado abajo será el importe efectivamente autorizado.
@@ -480,7 +707,7 @@ export function OrderActionDialog({
                 onChange={(e) => setDecision(e.target.value)}
               >
                 <MenuItem value="APPROVE">Aprobar propuesta</MenuItem>
-                <MenuItem value="REJECT">Rechazar y buscar alternativa</MenuItem>
+                <MenuItem value="REJECT">Rechazar solicitud</MenuItem>
               </TextField>
               <TextField
                 required
@@ -491,16 +718,41 @@ export function OrderActionDialog({
                 onChange={(e) => setReason(e.target.value)}
               />
               {decision === 'REJECT' && (
-                <Alert severity="warning">
-                  Este pedido se retirará de la propuesta y se buscará una alternativa. El comprador
-                  deberá aceptar las nuevas condiciones.
-                </Alert>
+                <>
+                  <TextField
+                    select
+                    label="Motivo del rechazo"
+                    value={rejectionKind}
+                    onChange={(e) => setRejectionKind(e.target.value)}
+                  >
+                    {Object.entries({
+                      STOCK: 'Stock insuficiente',
+                      CLINICAL: 'Impedimento clínico documentado',
+                      VALIDITY: 'Receta o documento sin vigencia',
+                      COVERAGE: 'Cobertura no comprobada',
+                      CAPACITY: 'Capacidad insuficiente',
+                      NON_SPLITTABLE: 'La receta requiere una única farmacia',
+                      OTHER: 'Otra situación',
+                    }).map(([value, title]) => (
+                      <MenuItem key={value} value={value}>
+                        {title}
+                      </MenuItem>
+                    ))}
+                  </TextField>
+                  <Alert severity="warning">
+                    {['CLINICAL', 'VALIDITY'].includes(rejectionKind)
+                      ? 'La compra se rechazará para resolver el impedimento. No se buscará otra farmacia con el mismo documento.'
+                      : rejectionKind === 'NON_SPLITTABLE'
+                        ? 'Se buscará una farmacia capaz de resolver la compra completa, según su disponibilidad.'
+                        : 'Se buscará una alternativa disponible. El comprador deberá aceptar expresamente las nuevas condiciones.'}
+                  </Alert>
+                </>
               )}
               {decision === 'APPROVE' && (
                 <>
                   <Alert severity="info">
                     Verificá el stock físico y el precio vigente antes de aprobar. La reserva se
-                    hará cuando el comprador acepte la propuesta completa.
+                    hará al emitir el presupuesto completo, durante su vigencia.
                     {order.highValueRequired && order.reviewCount < 2
                       ? ' Esta compra requiere la conformidad de dos farmacéuticos distintos.'
                       : ''}
@@ -520,8 +772,21 @@ export function OrderActionDialog({
                     }
                     label="Confirmé existencias físicas, precio vigente y presentación solicitada"
                   />
+                  <Divider />
+                  <Typography variant="overline" color="primary">
+                    2 · Receta y condiciones
+                  </Typography>
                   {needsPrescription && (
                     <>
+                      <FormControlLabel
+                        control={
+                          <Checkbox
+                            checked={splittable}
+                            onChange={(e) => setSplittable(e.target.checked)}
+                          />
+                        }
+                        label="Comprobé que esta receta permite dispensación dividida entre farmacias"
+                      />
                       <TextField
                         required
                         label="Referencia de receta y verificación de origen"
@@ -554,6 +819,23 @@ export function OrderActionDialog({
                       />
                     </>
                   )}
+                  <TextField
+                    label={
+                      purchase.mode === 'PICKUP'
+                        ? 'Plazo estimado para estar listo (minutos)'
+                        : 'Plazo estimado de preparación y entrega (minutos)'
+                    }
+                    type="number"
+                    required
+                    value={deliveryMinutes}
+                    onChange={(e) => setDeliveryMinutes(e.target.value)}
+                    slotProps={{ htmlInput: { min: 1, max: 10080, step: 1 } }}
+                    helperText="Informá un plazo real para esta solicitud. El comprador lo verá antes de aceptar."
+                  />
+                  <Divider />
+                  <Typography variant="overline" color="primary">
+                    3 · Disponibilidad, cobertura e importe
+                  </Typography>
                   <Typography variant="subtitle1" sx={{ fontWeight: 650 }}>
                     Cobertura comprobada por presentación
                   </Typography>
@@ -575,7 +857,13 @@ export function OrderActionDialog({
                       <Stack
                         key={x.productId}
                         spacing={1}
-                        sx={{ p: 2, border: '1px solid #dfe8e7', borderRadius: 2 }}
+                        sx={{
+                          p: 2.5,
+                          border: '1px solid',
+                          borderColor: 'divider',
+                          borderRadius: 2,
+                          bgcolor: 'background.default',
+                        }}
                       >
                         <Typography>
                           {x.name} · {x.presentation} · {x.quantity}{' '}
@@ -665,21 +953,53 @@ export function OrderActionDialog({
           )}
           {(action === 'payment' || action === 'refund') && (
             <>
+              <TextField
+                label="Importe efectivamente comprobado"
+                required
+                value={amount}
+                onChange={(e) => setAmount(e.target.value)}
+                slotProps={{
+                  htmlInput: { inputMode: 'decimal' },
+                  input: { readOnly: action === 'refund' },
+                }}
+                helperText={`${order.currency}. Sin separadores de miles; hasta dos decimales.`}
+              />
+              {action === 'refund' && (
+                <TextField
+                  select
+                  label="Reintegro realizado"
+                  value={refundId}
+                  onChange={(e) => {
+                    setRefundId(e.target.value);
+                    setAmount(
+                      pendingRefunds.find((x) => x.id === e.target.value)?.amount ?? '0.00',
+                    );
+                  }}
+                >
+                  {pendingRefunds.map((x, index) => (
+                    <MenuItem key={x.id} value={x.id}>
+                      Reintegro {index + 1} · {money(x.amount, x.currency)}
+                    </MenuItem>
+                  ))}
+                </TextField>
+              )}
               <Typography variant="h6">
                 {action === 'payment'
-                  ? `Importe a comprobar: ${money(order.total, order.currency)}`
+                  ? `Saldo pendiente: ${money(order.outstandingAmount ?? order.total, order.currency)}`
                   : `Reintegro pendiente: ${money(amountFromCents(order.refunds.filter((refund) => ['REQUESTED', 'PENDING'].includes(refund.status)).reduce((total, refund) => total + cents(refund.amount), 0n)), order.currency)}`}
               </Typography>
               <Alert severity="info">
                 La farmacia realiza y comprueba la operación en su medio de pago. Este registro
-                conserva la verificación y su evidencia.
+                conserva la verificación y su evidencia.{' '}
+                {action === 'payment'
+                  ? 'Si se recibió sólo una parte, queda saldo pendiente y no comienza la preparación.'
+                  : 'Registrá el reintegro individual efectivamente realizado.'}
               </Alert>
               {action === 'payment' && order.paymentSubmission && (
                 <Alert severity="info">
                   El comprador presentó un comprobante el{' '}
-                  {dateTime(order.paymentSubmission.submittedAt)}. Revisalo y comprobá la
-                  acreditación por {money(order.total, order.currency)} en la cuenta de la farmacia
-                  antes de confirmar.
+                  {dateTime(order.paymentSubmission.submittedAt)}. Revisalo y comprobá la importe
+                  efectivamente acreditado en la cuenta de la farmacia antes de confirmar.
                 </Alert>
               )}
               {action === 'payment' && !order.paymentSubmission && (
@@ -705,6 +1025,9 @@ export function OrderActionDialog({
                 value={reference}
                 onChange={(e) => setReference(e.target.value)}
               />
+              {action === 'payment' && (
+                <PaymentMethod value={paymentMethod} onChange={setPaymentMethod} />
+              )}
               <DocumentInput
                 label={
                   action === 'payment'
@@ -721,7 +1044,7 @@ export function OrderActionDialog({
                 }
                 label={
                   action === 'payment'
-                    ? 'Comprobé que la farmacia recibió el importe completo'
+                    ? 'Comprobé que la farmacia recibió el importe registrado'
                     : 'Comprobé que la farmacia reintegró el importe correspondiente'
                 }
               />
@@ -822,6 +1145,29 @@ export function OrderActionDialog({
           {action === 'pickup-complete' && (
             <>
               <TextField
+                label="Nombre de quien retira"
+                required
+                value={recipientName}
+                onChange={(e) => setRecipientName(e.target.value)}
+              />
+              <TextField
+                label="DNI comprobado de quien retira"
+                required
+                value={recipientIdentity}
+                onChange={(e) => setRecipientIdentity(e.target.value)}
+                slotProps={{ htmlInput: { inputMode: 'numeric', maxLength: 16 } }}
+                helperText="Transcribí el documento observado presencialmente."
+              />
+              <FormControlLabel
+                control={
+                  <Checkbox
+                    checked={packageMatches}
+                    onChange={(e) => setPackageMatches(e.target.checked)}
+                  />
+                }
+                label="Medicamentos, cantidades y presentación coinciden con el pedido"
+              />
+              <TextField
                 required
                 label="Código de recepción del comprador"
                 value={code}
@@ -881,11 +1227,40 @@ export function OrderActionDialog({
                 onChange={(e) => setResolution(e.target.value)}
               >
                 <MenuItem value="REFUND">Solicitar reintegro completo de lo cobrado</MenuItem>
-                <MenuItem value="RETRY">Reintentar el cumplimiento seguro</MenuItem>
+                <MenuItem
+                  value="RETRY"
+                  disabled={
+                    order.cancellationPending ||
+                    (order.fulfillment?.retryCount ?? 0) >= 1 ||
+                    order.fulfillment?.custodyHolder === 'DRIVER'
+                  }
+                >
+                  Coordinar el único reintento permitido
+                </MenuItem>
                 <MenuItem value="CLOSE_WITHOUT_REFUND">
                   Cerrar con resolución farmacéutica documentada
                 </MenuItem>
               </TextField>
+              {resolution === 'RETRY' && (
+                <>
+                  <TextField
+                    required
+                    type="datetime-local"
+                    label="Fecha acordada de reintento"
+                    value={retryScheduledAt}
+                    onChange={(e) => setRetryScheduledAt(e.target.value)}
+                    slotProps={{ inputLabel: { shrink: true } }}
+                    helperText="Horario de Mendoza. El paquete debe estar nuevamente en custodia de la farmacia."
+                  />
+                  <TextField
+                    required
+                    multiline
+                    label="Coordinación con el comprador y el receptor"
+                    value={coordinationNote}
+                    onChange={(e) => setCoordinationNote(e.target.value)}
+                  />
+                </>
+              )}
               <TextField
                 required
                 label="Evaluación y acuerdo de resolución"
@@ -914,6 +1289,31 @@ export function OrderActionDialog({
           )}
           {action === 'incident' && (
             <>
+              <TextField
+                select
+                label="Tipo de incidencia"
+                value={incidentKind}
+                onChange={(e) => setIncidentKind(e.target.value)}
+              >
+                {Object.entries({
+                  RECIPIENT_ABSENT: 'Receptor ausente',
+                  RECIPIENT_REFUSED: 'Receptor rechaza el paquete',
+                  PRODUCT_DISCREPANCY: 'Diferencia de medicamentos o cantidades',
+                  TEMPERATURE: 'Conservación o temperatura',
+                  OTHER: 'Otra situación',
+                }).map(([value, title]) => (
+                  <MenuItem
+                    key={value}
+                    value={value}
+                    disabled={
+                      ['RECIPIENT_ABSENT', 'RECIPIENT_REFUSED'].includes(value) &&
+                      order.fulfillment?.status !== 'PICKED_UP'
+                    }
+                  >
+                    {title}
+                  </MenuItem>
+                ))}
+              </TextField>
               <TextField
                 label="Qué ocurrió y qué resolución necesita"
                 required
@@ -955,16 +1355,23 @@ export function OrderActionDialog({
           {action === 'cancel' && (
             <>
               <Alert severity="warning">
-                Se liberarán las reservas de este pedido y se solicitará el reintegro completo de
-                cualquier cobro registrado. La compra quedará pendiente de resolución con el
-                comprador; las otras farmacias no continuarán automáticamente. El reintegro debe
-                realizarlo y comprobarlo la farmacia.
+                {order.highValueRequired && !order.cancellationPending
+                  ? 'La solicitud detiene la preparación y libera las reservas. Dos farmacéuticos deben aprobar el control de cancelación antes de confirmar el cierre definitivo.'
+                  : 'Se confirmará la cancelación de este pedido y se solicitará el reintegro de los cobros registrados. La farmacia debe realizar y comprobar la devolución.'}
+                Las otras farmacias no continuarán automáticamente: se debe resolver la compra con
+                el comprador.
               </Alert>
               <TextField
                 required
                 multiline
                 minRows={3}
                 label="Motivo de la cancelación de esta farmacia"
+                slotProps={{ input: { readOnly: order.cancellationPending } }}
+                helperText={
+                  order.cancellationPending
+                    ? 'Se conserva el motivo de la solicitud original.'
+                    : undefined
+                }
                 value={reason}
                 onChange={(event) => setReason(event.target.value)}
               />
@@ -1007,9 +1414,22 @@ export function OrderActionDialog({
                 value={reconciliation}
                 onChange={(event) => setReconciliation(event.target.value)}
               >
-                <MenuItem value="RECEIVED">La farmacia recibió el importe completo</MenuItem>
+                <MenuItem value="RECEIVED">La farmacia recibió fondos</MenuItem>
                 <MenuItem value="NOT_RECEIVED">La farmacia no recibió ese pago</MenuItem>
               </TextField>
+              {reconciliation === 'RECEIVED' && (
+                <>
+                  <PaymentMethod value={paymentMethod} onChange={setPaymentMethod} />
+                  <TextField
+                    required
+                    label="Importe efectivamente recibido"
+                    value={amount}
+                    onChange={(e) => setAmount(e.target.value)}
+                    slotProps={{ htmlInput: { inputMode: 'decimal' } }}
+                    helperText={`${order.currency}. Se solicita la devolución del importe registrado.`}
+                  />
+                </>
+              )}
               {reconciliation === 'NOT_RECEIVED' && (
                 <Alert severity="info">
                   Se cerrará el reporte con la comprobación de que la farmacia no recibió fondos. La
@@ -1047,6 +1467,225 @@ export function OrderActionDialog({
               />
             </>
           )}
+          {action === 'authorization' && (
+            <>
+              <Alert severity="info">
+                Verificá identidad y firma de la nota vinculada a esta compra. Debe autorizar la
+                compra y la recepción de los medicamentos.
+              </Alert>
+              {authorizationDocument && (
+                <Button
+                  component="a"
+                  href={`/api/documents/${authorizationDocument}`}
+                  target="_blank"
+                  rel="noopener"
+                >
+                  Consultar autorización firmada
+                </Button>
+              )}
+              <TextField
+                select
+                label="Resultado de la verificación"
+                value={decision}
+                onChange={(e) => setDecision(e.target.value)}
+              >
+                <MenuItem value="APPROVE">Aprobar autorización</MenuItem>
+                <MenuItem value="REQUEST_INFO">Solicitar información</MenuItem>
+                <MenuItem value="REJECT">Rechazar autorización</MenuItem>
+              </TextField>
+              <TextField
+                required
+                multiline
+                label="Comprobaciones y motivo"
+                value={reason}
+                onChange={(e) => setReason(e.target.value)}
+              />
+            </>
+          )}
+          {action === 'refund-request' && (
+            <>
+              <Alert severity="info">
+                La solicitud registra el importe a devolver. La devolución queda pendiente hasta que
+                la farmacia la realice y compruebe.
+              </Alert>
+              <Typography>
+                Saldo cobrado sin devolver: {money(order.netPaidAmount ?? '0.00', order.currency)}
+              </Typography>
+              <TextField
+                required
+                label="Importe a reintegrar"
+                value={amount}
+                onChange={(e) => setAmount(e.target.value)}
+                helperText={`${order.currency}. Puede ser parcial o total.`}
+                slotProps={{ htmlInput: { inputMode: 'decimal' } }}
+              />
+              <Typography variant="subtitle2">
+                Presentaciones relacionadas, si corresponde
+              </Typography>
+              {order.lines
+                .filter((x) => x.lineId)
+                .map((x) => (
+                  <FormControlLabel
+                    key={x.lineId}
+                    control={
+                      <Checkbox
+                        checked={selectedLines.includes(x.lineId!)}
+                        onChange={(e) =>
+                          setSelectedLines(
+                            e.target.checked
+                              ? [...selectedLines, x.lineId!]
+                              : selectedLines.filter((id) => id !== x.lineId),
+                          )
+                        }
+                      />
+                    }
+                    label={`${x.name} · ${x.presentation}`}
+                  />
+                ))}
+              <TextField
+                required
+                multiline
+                label="Motivo y acuerdo de reintegro"
+                value={reason}
+                onChange={(e) => setReason(e.target.value)}
+              />
+              <DocumentInput
+                label="Evidencia del acuerdo de reintegro"
+                branchId={order.branchId}
+                value={evidence}
+                onChange={setEvidence}
+              />
+            </>
+          )}
+          {action.startsWith('financial-control-') && (
+            <>
+              <Alert severity="warning">
+                Dos farmacéuticos distintos deben comprobar esta operación de alto valor. El
+                servidor verifica que la aprobación corresponda al importe y a las condiciones
+                vigentes.
+              </Alert>
+              <Typography>
+                Operación:{' '}
+                {action === 'financial-control-dispatch'
+                  ? 'Salida física del paquete'
+                  : action === 'financial-control-cancel'
+                    ? 'Cancelación de la compra'
+                    : 'Reintegro o cierre financiero'}
+              </Typography>
+              <TextField
+                required
+                multiline
+                label="Comprobaciones realizadas para el control"
+                value={reason}
+                onChange={(e) => setReason(e.target.value)}
+              />
+              <DocumentInput
+                label="Evidencia del control de alto valor"
+                branchId={order.branchId}
+                value={evidence}
+                onChange={setEvidence}
+              />
+            </>
+          )}
+          {action === 'fiscal-adjustment' && (
+            <>
+              <Alert severity="info">
+                Registrá el documento emitido por la farmacia, asociado a la factura original. Para
+                devolver un cobro facturado, el crédito debe cubrir el importe reintegrado.
+              </Alert>
+              <TextField
+                select
+                label="Tipo de documento fiscal"
+                value={fiscalKind}
+                onChange={(e) => setFiscalKind(e.target.value)}
+              >
+                <MenuItem value="CREDIT">Nota de crédito</MenuItem>
+                <MenuItem value="DEBIT">Nota de débito</MenuItem>
+              </TextField>
+              <TextField
+                required
+                label="Referencia de nota fiscal"
+                value={reference}
+                onChange={(e) => setReference(e.target.value)}
+              />
+              <TextField
+                required
+                label="Importe de la nota fiscal"
+                value={amount}
+                onChange={(e) => setAmount(e.target.value)}
+                helperText={order.currency}
+              />
+              <TextField
+                required
+                multiline
+                label="Motivo del ajuste fiscal"
+                value={reason}
+                onChange={(e) => setReason(e.target.value)}
+              />
+              <DocumentInput
+                label="Nota emitida por la farmacia"
+                kind="FACTURA"
+                branchId={order.branchId}
+                value={evidence}
+                onChange={setEvidence}
+              />
+            </>
+          )}
+          {action === 'return-received' && (
+            <>
+              <Alert severity="warning">
+                Confirmá que el paquete regresó físicamente a la farmacia. Este acto registra la
+                custodia; no reincorpora medicamentos al stock.
+              </Alert>
+              <TextField
+                required
+                multiline
+                label="Constancia de custodia y estado del paquete retornado"
+                value={reason}
+                onChange={(e) => setReason(e.target.value)}
+              />
+              {cold && (
+                <TextField
+                  required
+                  label="Temperatura observada al recibir el retorno (°C)"
+                  value={temperature}
+                  onChange={(e) => setTemperature(e.target.value)}
+                />
+              )}
+              <DocumentInput
+                kind="ENTREGA"
+                label="Evidencia de recepción física del retorno"
+                branchId={order.branchId}
+                value={evidence}
+                onChange={setEvidence}
+              />
+            </>
+          )}
+          {action === 'invoice-issue' && (
+            <>
+              <Alert severity="warning">
+                Registrá la falla comprobada al emitir la factura fuera de E-MEDICAPP.
+                Administración recibirá un aviso prioritario. La farmacia debe resolver el problema
+                en su sistema y adjuntar la factura válida; ese registro cierra el aviso.
+              </Alert>
+              <TextField
+                required
+                multiline
+                minRows={3}
+                label="Problema comprobado al emitir la factura"
+                value={reason}
+                onChange={(event) => setReason(event.target.value)}
+                helperText="Describí el error operativo, sin incluir recetas ni información clínica."
+              />
+              <DocumentInput
+                kind="OTRO"
+                label="Evidencia operativa del problema de facturación"
+                branchId={order.branchId}
+                value={evidence}
+                onChange={setEvidence}
+              />
+            </>
+          )}
         </Stack>
       </DialogContent>
       <DialogActions>
@@ -1060,7 +1699,11 @@ export function OrderActionDialog({
           type="submit"
           form="order-action-form"
         >
-          {busy ? 'Guardando…' : 'Confirmar registro'}
+          {busy
+            ? 'Guardando…'
+            : action === 'cancel' && order.cancellationPending
+              ? 'Confirmar cancelación autorizada'
+              : 'Confirmar registro'}
         </Button>
       </DialogActions>
     </Dialog>

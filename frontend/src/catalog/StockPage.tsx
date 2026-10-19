@@ -13,6 +13,7 @@ import {
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Actor, api, canOperateBranch, dateTime, money } from '../api';
 import { LotsPanel } from '../admin/LotsPanel';
+import { MetricRow, PageHeader } from '../components/PageElements';
 import { Branch, Product, Stock } from './types';
 
 export function StockPage({ actor }: { actor: Actor }) {
@@ -70,11 +71,29 @@ export function StockPage({ actor }: { actor: Actor }) {
   const changed = !!productId && (current?.version ?? 0) !== editVersion;
   return (
     <Stack spacing={3}>
-      <Typography variant="h4">Stock y precios</Typography>
-      <Typography color="text.secondary">
-        Disponibilidad informada por tu farmacia. Confirmá la existencia física al revisar cada
-        solicitud. Las reservas de compras aceptadas ya están descontadas del saldo disponible.
-      </Typography>
+      <PageHeader
+        eyebrow="Disponibilidad de tu sucursal"
+        title="Stock y precios"
+        description="Informá existencias y precios vigentes. Al revisar cada solicitud, confirmá físicamente las unidades. Las reservas activas ya están descontadas del saldo disponible."
+      />
+      {stock.data && (
+        <MetricRow
+          metrics={[
+            {
+              label: 'Presentaciones con stock',
+              value: stock.data.filter((x) => x.availableQuantity > 0).length,
+            },
+            {
+              label: 'Unidades disponibles',
+              value: stock.data.reduce((total, x) => total + x.availableQuantity, 0),
+            },
+            {
+              label: 'Unidades reservadas',
+              value: stock.data.reduce((total, x) => total + x.reservedQuantity, 0),
+            },
+          ]}
+        />
+      )}
       {operatedBranches.length === 0 && (
         <Alert severity="warning">
           Tu cuenta no tiene una sucursal asignada. Solicitá al administrador que registre el

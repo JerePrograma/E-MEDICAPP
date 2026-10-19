@@ -25,16 +25,26 @@ argumentos de procesos. .runtime/public-config.json y manual-db.json contienen
 credenciales protegidas con DPAPI para el usuario de Windows que las configuró.
 
 PRIMERA CONFIGURACIÓN DE NEGOCIO
-MANUAL empieza con la cuenta administradora y sin farmacias, medicamentos,
-compras ni cuentas DEMO. Los compradores adultos pueden registrarse desde la web.
+Una base MANUAL nueva empieza con la cuenta administradora y sin farmacias,
+medicamentos, compras ni cuentas DEMO. Los compradores adultos pueden registrarse
+desde la web y confirmar su correo una vez configurado el envío.
 El administrador carga farmacias y sucursales reales y asigna roles a usuarios
-registrados. Cada farmacia carga catálogo, stock, cobertura y medios de pago.
+registrados. La plataforma carga el catálogo; cada farmacia carga stock, precios,
+cobertura e instrucciones de pago.
 Los planes y parámetros se configuran desde el panel; los flujos permanecen en código.
 Antes de recibir pedidos, completar capacidades, horarios, zonas y documentación
 de cada farmacia y cadete. Las comprobaciones de receta, cobertura, pago y factura
 siguen siendo manuales y deben registrar evidencia. No existen integraciones reales
-con emisores, obras sociales, bancos o ARCA. No hay verificación de correo ni
-recuperación automática de contraseñas en esta versión.
+con emisores, obras sociales, bancos o ARCA. La verificación de correo y la
+recuperación de contraseñas están implementadas; su envío está pendiente de
+configuración mediante ConfigurarCorreo.cmd (ver docs/configuracion-correo.txt).
+Los registros nuevos no pueden ingresar hasta confirmar su correo.
+
+Para la presentación pública del 09/10/2026 se crearon expresamente siete cuentas
+ficticias habilitadas y una sucursal de ejemplo en la base MANUAL. No se modificó
+el registro normal ni la cuenta administradora original. Credenciales y guías
+independientes: docs/manuales/README.md. Esa preparación no carga catálogo,
+existencias, compras ni cobros, y no borra los datos existentes.
 
 PROTECCIONES DEL ACCESO
 Se exige modo MANUAL, cookies Secure/HttpOnly/SameSite=Lax y binding loopback.

@@ -1,0 +1,17 @@
+{
+  "version": "qa-2026-10-09",
+  "base": "/api/auth",
+  "security": "Sesión con cookie HttpOnly y CSRF en mutaciones. Rate limit en alta, ingreso, reenvío y recuperación. Nunca se devuelve el token de correo.",
+  "operations": [
+    {"method":"GET","path":"/csrf","response":{"token":"string","headerName":"string"}},
+    {"method":"GET","path":"/me","response":"Perfil autenticado, roles globales y branchRoles efectivos, DNI/contacto propios"},
+    {"method":"POST","path":"/login","contentType":"application/x-www-form-urlencoded","request":{"email":"string","password":"string"},"response":"200 Actor (id/email/name/roles/branchIds); la interfaz consulta /me para obtener el perfil propio completo. 401 INVALID_CREDENTIALS o EMAIL_NOT_VERIFIED. Renueva el identificador de sesión al ingresar; requiere CSRF."},
+    {"method":"POST","path":"/logout","request":null,"response":{"loggedOut":true},"effect":"Invalida la sesión, limpia la autenticación y elimina JSESSIONID; requiere CSRF."},
+    {"method":"POST","path":"/register","request":{"name":"string","email":"string","password":"string","birthDate":"YYYY-MM-DD","dni":"7-12 dígitos","phone":"string","address":"string"},"response":"202; EMAIL_CONFIGURATION_PENDING o confirmación enviada; no crea sesión"},
+    {"method":"POST","path":"/verification/resend","request":{"email":"string"},"response":"202; mensaje sin enumerar cuentas"},
+    {"method":"POST","path":"/verification/confirm","request":{"token":"string"},"response":"Confirmación de un token vigente y de un solo uso; no inicia sesión"},
+    {"method":"POST","path":"/password/request-reset","request":{"email":"string"},"response":"202; mensaje sin enumerar cuentas"},
+    {"method":"POST","path":"/password/reset","request":{"token":"string","password":"string"},"response":"Contraseña actualizada y sesiones anteriores invalidadas"}
+  ],
+  "mail": "ConfigurarCorreo.cmd prepara SMTP local cifrado DPAPI. Sin proveedor configurado no se habilitan altas nuevas. Enlace mediante fragmento del navegador, token aleatorio persistido sólo como SHA-256, con propósito y caducidad."
+}

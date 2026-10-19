@@ -1,5 +1,5 @@
 {
-  "version": "mvp-1",
+  "version": "qa-2026-10-09",
   "base": "/api",
   "notes": [
     "Importes decimales como strings; el servidor toma precio y cantidad de la propuesta vigente.",
@@ -8,11 +8,9 @@
     "Pago y reintegro son confirmaciones manuales de operaciones externas directas de la farmacia, no cobros ejecutados por la plataforma.",
     "Los GET devuelven arrays/objetos JSON. Comprador ve sus compras; farmacia sólo sus pedidos; cadete sólo tareas asignadas sin receta/DNI/fecha de nacimiento.",
     "ROUTING indica revisión pendiente; cada hijo PROPOSED expone reviewApproved/reviewCount/highValueRequired. QUOTED es estado del padre con presupuesto completo.",
-    "Todos los compradores, incluso titular propio, requieren revisión manual de identidad adulta: authorizationChecked=true.",
     "Frío o restringidos: evidencia propia de custodia obligatoria en hitos. Para frío, temperatura dentro del rango documentado del producto también es obligatoria; estas observaciones manuales no acreditan monitoreo térmico continuo.",
     "Mostrar un código de recepción genera uno nuevo, revoca el anterior y persiste sólo hash. Cinco fallos bloquean ese código.",
     "RESOLVED indica cierre profesional de incidencia, no prueba de entrega ni devolución física a stock.",
-    "Cada 30 segundos se revisan reservas vencidas de compras ACCEPTED o PARTIALLY_PAID: cancela el grupo y libera reservas de stock, lotes y receta; cobros ya verificados generan reintegros completos REQUESTED y COMPENSATING hasta comprobación externa. El origen automático es SYSTEM sin usuario humano ficticio.",
     "GET /purchases lista compras propias del comprador y pedidos de farmacia con permiso exacto vigente; el cadete trabaja desde GET /deliveries. GET individual mantiene una proyección mínima para cadete asignado.",
     "Las sucursales respetan radio de entrega y horario diario de Mendoza, incluidos intervalos que cruzan medianoche. Ausencia de horario significa disponibilidad confirmada manualmente. Estos datos, nombres, presentación, comercio e instrucciones de pago quedan preservados en el presupuesto.",
     "Capacidad especial de cadete exige coldChain/restricted según categoría, capabilityEvidenceDocumentId CAPABILITY de la misma sucursal, verifiedAt y verifiedBy. Búsqueda, asignación y hitos vuelven a comprobarlos.",
@@ -22,7 +20,22 @@
     "payment-report conserva un único paymentSubmission vigente, con historial auditado; no crea payment ni cambia ACCEPTED a PAID. La farmacia comprueba el ingreso externo antes de verificar el cobro.",
     "Una cancelación con paymentSubmission PENDING requiere conciliación. RECEIVED registra el cobro comprobado y solicita su reintegro completo; NOT_RECEIVED documenta que no ingresaron fondos. Ninguna opción reactiva la reserva ni la preparación.",
     "El perfil autenticado incluye branchRoles por sucursal. Un rol global y la presencia en branchIds no sustituyen la membresía vigente del rol específico en la sucursal.",
-    "La evidencia que autoriza una cobertura positiva también se adjunta como COBERTURA/HEALTH_COVERAGE clínico. La revisión exige referencia y ese documento privado; ADMIN y PHARMACY no acceden a la autorización por permisos comerciales. Un farmacéutico de otra sucursal no accede a la evidencia del pedido ajeno."
+    "La evidencia que autoriza una cobertura positiva también se adjunta como COBERTURA/HEALTH_COVERAGE clínico. La revisión exige referencia y ese documento privado; ADMIN y PHARMACY no acceden a la autorización por permisos comerciales. Un farmacéutico de otra sucursal no accede a la evidencia del pedido ajeno.",
+    "El registro requiere correo confirmado; no necesita aprobación manual de identidad. En revisión profesional se comprueba correspondencia del beneficiario y nota cuando representa a otra persona.",
+    "QUOTED reserva stock/lote/saldo de receta antes del consentimiento. Vencimiento de presupuesto libera HELD; aceptación conserva la reserva y extiende el plazo de pago según configuración congelada.",
+    "Cada nota autoriza comprar y recibir para una compra concreta. Reemplazarla exige revisión; revocarla impide aceptación/recepción. No se reutiliza el archivo de otra compra.",
+    "CLINICAL/VALIDITY rechaza esa versión de receta y la solicitud sin buscar otra farmacia. STOCK/CAPACITY puede solicitar alternativa. Receta indivisible impide compra distribuida.",
+    "La confirmación de pago exige amount y currency realmente observados; pagos parciales no habilitan preparación. refund exige refundId, amount/currency y referencia externa verificada.",
+    "CANCEL, DISPATCH y REFUND de alto valor exigen controles propios vigentes de dos farmacéuticos distintos. La primera solicitud de cancelación detiene el pedido y libera reservas, pero permanece sin confirmar hasta completar CANCEL.",
+    "Una ausencia permite un reintento coordinado después de retorno físico registrado. Puede asignarse anticipadamente la tarea, pero el cadete no retira físicamente el paquete antes de retryScheduledAt. No se reingresa automáticamente a stock.",
+    "La recepción exige recipientName/recipientIdentity observados, packageMatches=true y authorizationDocumentId vigente cuando corresponde. Código incorrecto devuelve 409 receiptRejected y conserva estado pendiente.",
+    "Substitution propuesta PENDING bloquea revisión/aceptación/búsqueda. Decidir ACCEPT cambia sólo líneas activas conservando originales; después requiere nuevo presupuesto y consentimiento.",
+    "La reposición RF35 crea una compra nueva vinculada a la original, sin pago adicional del cliente. Conserva factura, unidades consumidas y documentos originales; no revierte automáticamente stock ni saldo de receta.",
+    "La propuesta de reposición exige evaluación profesional, disposición documentada del paquete original y unidades nuevas disponibles. Si el paquete permanece con el cadete, debe registrarse su retorno físico primero.",
+    "Una reposición con receta o representación exige documentos nuevos. La aceptación reserva unidades nuevas; la revisión profesional pendiente bloquea preparación. Alto valor usa el valor comercial, aunque el total del cliente sea cero.",
+    "Las notas firmadas utilizadas conservan su hash en un historial inmutable, incluso después de reemplazarlas. La reutilización del archivo para otra compra se rechaza.",
+    "La farmacia declara method TRANSFER, CASH, CARD u OTHER al comprobar un pago. EXTERNAL_MANUAL identifica peticiones antiguas sin método. Pagos históricos con method null conservan esa ausencia, sin inventar su medio.",
+    "Una falla de emisión externa puede registrarse como invoiceIssue prioritario con evidencia operativa; el panel administrativo muestra únicamente información comercial de su alcance. Adjuntar la factura válida resuelve la alerta y conserva su historia."
   ],
   "operations": [
     {
@@ -47,7 +60,10 @@
             "productId": "uuid",
             "quantity": 1
           }
-        ]
+        ],
+        "beneficiaryIdentity": null,
+        "receiverName": null,
+        "receiverIdentity": null
       },
       "response": {
         "id": "uuid",
@@ -125,7 +141,8 @@
             "highValueRequired": false,
             "paymentSubmission": null,
             "payments": [],
-            "refunds": []
+            "refunds": [],
+            "invoiceIssue": null
           }
         ],
         "buyerUserId": "uuid",
@@ -172,7 +189,10 @@
         ],
         "prescriptionIssuer": null,
         "prescriptionExpiresAt": null,
-        "originVerified": false
+        "originVerified": false,
+        "rejectionKind": null,
+        "prescriptionSplittable": null,
+        "deliveryMinutes": 60
       },
       "coverageConditions": "coverageAmount positivo requiere coverageReference y coverageEvidenceDocumentId HEALTH_COVERAGE/COBERTURA clínico accesible para el farmacéutico de esa misma sucursal; no se admite OTHER comercial como autorización de cobertura."
     },
@@ -225,7 +245,10 @@
         "expectedVersion": 3,
         "reference": "Transferencia bancaria comprobada",
         "evidenceDocumentId": "uuid",
-        "verifiedExternally": true
+        "verifiedExternally": true,
+        "amount": "1500.00",
+        "currency": "ARS",
+        "method": "TRANSFER"
       }
     },
     {
@@ -353,7 +376,11 @@
         "recipientVerified": true,
         "note": "Recepción comprobada",
         "conditionEvidenceDocumentId": null,
-        "temperatureC": null
+        "temperatureC": null,
+        "recipientName": "Receptor autorizado",
+        "recipientIdentity": "12345678",
+        "authorizationDocumentId": null,
+        "packageMatches": true
       }
     },
     {
@@ -371,7 +398,11 @@
         "recipientVerified": true,
         "note": "Identidad y autorización verificadas personalmente",
         "conditionEvidenceDocumentId": null,
-        "temperatureC": null
+        "temperatureC": null,
+        "recipientName": "Receptor autorizado",
+        "recipientIdentity": "12345678",
+        "authorizationDocumentId": null,
+        "packageMatches": true
       }
     },
     {
@@ -405,13 +436,16 @@
         "reference": "NV-00874322",
         "evidenceDocumentId": "uuid",
         "verifiedExternally": true,
-        "reason": "Se comprobó el ingreso del importe completo después de cerrar el pedido."
+        "reason": "Se comprobó un ingreso efectivo después de cerrar el pedido; corresponde devolverlo íntegramente.",
+        "amount": "1500.00",
+        "currency": "ARS",
+        "method": "TRANSFER"
       },
       "response": "Purchase proyectada; cobro verificado y reintegro REQUESTED si RECEIVED; paymentSubmission NOT_RECEIVED si no ingresó el pago.",
       "conditions": [
-        "Pedido CANCELLED o RESOLVED con paymentSubmission PENDING y sin cobro ya registrado.",
+        "Pedido CANCELLED o RESOLVED con paymentSubmission PENDING todavía no conciliado. Puede existir otro cobro parcial registrado anteriormente.",
         "decision RECEIVED o NOT_RECEIVED; verifiedExternally=true, motivo y evidencia PAYMENT_RECEIPT u OTHER accesible de la sucursal.",
-        "RECEIVED requiere referencia y comprueba el importe completo; registra el cobro y solicita reintegro íntegro en la misma transacción.",
+        "RECEIVED requiere referencia, amount positivo realmente recibido y moneda del pedido; registra ese cobro y solicita su devolución íntegra en la misma transacción, sin duplicar obligaciones previas.",
         "No reactiva reserva, preparación ni dispensación. Repetir con la misma clave no duplica cobro ni reintegro."
       ]
     },
@@ -429,7 +463,10 @@
         "expectedVersion": 7,
         "reference": "Reintegro externo confirmado",
         "evidenceDocumentId": "uuid",
-        "verifiedExternally": true
+        "verifiedExternally": true,
+        "refundId": "uuid",
+        "amount": "1500.00",
+        "currency": "ARS"
       }
     },
     {
@@ -444,7 +481,8 @@
       "request": {
         "expectedVersion": 7,
         "reason": "Incidencia de conservación o recepción",
-        "evidenceDocumentId": null
+        "evidenceDocumentId": null,
+        "kind": "OTHER"
       }
     },
     {
@@ -507,11 +545,284 @@
         "decision": "REFUND",
         "temperatureC": null,
         "expectedVersion": 8,
-        "reason": "Resolución farmacéutica documentada"
+        "reason": "Resolución farmacéutica documentada",
+        "retryScheduledAt": null,
+        "coordinationNote": null
       },
       "path": "/orders/{id}/resolve-incident",
       "roles": [
         "PHARMACIST"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/orders/{id}/authorization",
+      "roles": [
+        "PHARMACIST"
+      ],
+      "request": {
+        "expectedVersion": 1,
+        "decision": "APPROVE|REJECT|REQUEST_INFO",
+        "reason": "Comprobación de nota por compra"
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/purchases/{id}/authorization/revoke",
+      "roles": [
+        "BUYER"
+      ],
+      "request": {
+        "expectedVersion": 1
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/purchases/{id}/authorization",
+      "roles": [
+        "BUYER"
+      ],
+      "request": {
+        "expectedVersion": 1,
+        "documentId": "uuid nuevo AUTORIZACION"
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/orders/{id}/substitutions",
+      "roles": [
+        "PHARMACIST"
+      ],
+      "request": {
+        "expectedVersion": 1,
+        "lineId": "uuid order_item",
+        "productId": "uuid alternativa",
+        "quantity": 1,
+        "reason": "Motivo profesional",
+        "evidenceDocumentId": null,
+        "prescriptionCompatible": false
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/purchases/{id}/substitutions/{proposal}",
+      "roles": [
+        "BUYER"
+      ],
+      "request": {
+        "expectedVersion": 1,
+        "decision": "ACCEPT|REJECT"
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/orders/{id}/refund-request",
+      "roles": [
+        "PHARMACIST"
+      ],
+      "request": {
+        "expectedVersion": 1,
+        "amount": "1000.00",
+        "currency": "ARS",
+        "reason": "Motivo",
+        "evidenceDocumentId": "uuid",
+        "lineIds": [
+          "uuid order_item"
+        ]
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/orders/{id}/financial-control",
+      "roles": [
+        "PHARMACIST"
+      ],
+      "request": {
+        "expectedVersion": 1,
+        "operation": "CANCEL|DISPATCH|REFUND",
+        "reason": "Comprobaciones propias",
+        "evidenceDocumentId": "uuid"
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/orders/{id}/fiscal-adjustment",
+      "roles": [
+        "PHARMACY",
+        "PHARMACIST"
+      ],
+      "request": {
+        "expectedVersion": 1,
+        "kind": "CREDIT|DEBIT",
+        "reference": "Referencia fiscal externa",
+        "amount": "1000.00",
+        "currency": "ARS",
+        "evidenceDocumentId": "uuid INVOICE",
+        "reason": "Motivo"
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/deliveries/{id}/reject",
+      "roles": [
+        "DRIVER"
+      ],
+      "request": {
+        "expectedVersion": 1,
+        "reason": "Motivo de rechazo antes de recibir paquete"
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/orders/{id}/return-received",
+      "roles": [
+        "PHARMACIST"
+      ],
+      "request": {
+        "expectedVersion": 1,
+        "custodyNote": "Regreso físico comprobado",
+        "evidenceDocumentId": "uuid",
+        "temperatureC": null
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/orders/{id}/replacements",
+      "roles": [
+        "BUYER",
+        "PHARMACIST"
+      ],
+      "permission": "Comprador propietario o farmacéutico con membresía vigente en la sucursal original.",
+      "response": "Array de propuestas, con versiones y vínculo a la nueva compra cuando existe."
+    },
+    {
+      "method": "GET",
+      "path": "/replacements/{id}",
+      "roles": [
+        "BUYER",
+        "PHARMACIST"
+      ],
+      "response": "Propuesta proyectada según permisos; documentos clínicos disponibles sólo para propietario o farmacéutico autorizado.",
+      "permission": "Comprador propietario o farmacéutico con membresía vigente en la sucursal original."
+    },
+    {
+      "method": "POST",
+      "path": "/orders/{id}/replacements",
+      "roles": [
+        "PHARMACIST"
+      ],
+      "headers": {
+        "Idempotency-Key": "uuid"
+      },
+      "request": {
+        "expectedVersion": 1,
+        "lines": [
+          {
+            "lineId": "uuid de línea activa original",
+            "quantity": 1
+          }
+        ],
+        "reason": "Resolución profesional documentada",
+        "evidenceDocumentId": "uuid de evidencia operativa propia de la sucursal",
+        "originalDisposition": "RETURNED",
+        "dispositionNote": "Paquete recibido y separado del stock vendible",
+        "mode": "PICKUP",
+        "deliveryAddress": null,
+        "latitude": null,
+        "longitude": null,
+        "deliveryMinutes": 60
+      },
+      "conditions": [
+        "Pedido original dispensado, con incidencia o reclamo admisible y sin otra reposición activa.",
+        "originalDisposition RETURNED exige retorno físico comprobado. NO_RETURN_DOCUMENTED conserva motivo explícito de la resolución.",
+        "Las líneas pertenecen al pedido original; la cantidad no supera lo dispensado. Se validan stock, lote, presentación, moneda y requisitos especiales vigentes.",
+        "La propuesta no cobra ni restaura medicamentos originales; el comprador debe aceptarla expresamente."
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/replacements/{id}/accept",
+      "roles": [
+        "BUYER"
+      ],
+      "headers": {
+        "Idempotency-Key": "uuid"
+      },
+      "request": {
+        "expectedVersion": 1,
+        "receiverName": "Receptor adulto",
+        "receiverIdentity": "12345678",
+        "prescriptionDocumentId": null,
+        "authorizationDocumentId": null
+      },
+      "conditions": [
+        "Comprador propietario, propuesta PROPOSED vigente.",
+        "Receta nueva cuando corresponde y nota firmada nueva cuando la compra requiere representación. No se reutilizan documentos consumidos, revocados ni archivos de notas ya usados.",
+        "Se crea una compra/pedido nuevo con total del cliente cero y reservas nuevas; permanece bloqueado mientras requiere revisión profesional."
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/replacements/{id}/reject",
+      "roles": [
+        "BUYER"
+      ],
+      "request": {
+        "expectedVersion": 1,
+        "reason": "No acepto esta solución"
+      },
+      "response": "Propuesta REJECTED; la incidencia original continúa pendiente de resolución."
+    },
+    {
+      "method": "POST",
+      "path": "/replacements/{id}/review",
+      "roles": [
+        "PHARMACIST"
+      ],
+      "headers": {
+        "Idempotency-Key": "uuid"
+      },
+      "request": {
+        "expectedVersion": 2,
+        "reason": "Documentos nuevos y cantidades comprobadas",
+        "originVerified": true,
+        "authorizationChecked": true,
+        "prescriptionReference": null,
+        "issuer": null,
+        "expiresAt": null,
+        "conditionEvidenceDocumentId": "uuid de evidencia operativa OTHER/DELIVERY_PROOF propia de la sucursal",
+        "lines": [
+          {
+            "lineId": "uuid de la línea original incluida en la propuesta",
+            "authorizedQuantity": 1
+          }
+        ]
+      },
+      "conditions": [
+        "Membresía profesional de la sucursal. Receta nueva requiere emisor, referencia, vigencia y cantidad autorizada comprobados externamente.",
+        "La nota nueva debe estar vigente y comprobada. La evidencia operativa OTHER/DELIVERY_PROOF es obligatoria también para medicamentos comunes; las categorías especiales conservan además sus requisitos de condiciones.",
+        "Al completar la revisión se habilita el circuito de preparación y dispensación del nuevo pedido. La incidencia original se cierra únicamente al completar la reposición."
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/orders/{id}/invoice-issue",
+      "roles": [
+        "PHARMACY",
+        "PHARMACIST"
+      ],
+      "headers": {
+        "Idempotency-Key": "uuid"
+      },
+      "request": {
+        "expectedVersion": 4,
+        "reason": "Emisión rechazada por datos fiscales; reintento manual requerido",
+        "evidenceDocumentId": "uuid OTHER operativo propio de la sucursal"
+      },
+      "conditions": [
+        "Pedido PAID/PREPARING/DISPENSED sin factura y sin ser reposición; membresía exacta vigente.",
+        "La evidencia operativa no puede ser un documento clínico asociado. No se realiza una llamada al servidor fiscal.",
+        "Se conserva invoiceIssue.active=true, prioridad HIGH, responsable, fecha y cantidad de intentos. Adjuntar la factura válida lo resuelve sin borrar la alerta histórica."
       ]
     }
   ],

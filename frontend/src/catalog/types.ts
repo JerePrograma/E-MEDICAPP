@@ -34,6 +34,7 @@ export type Branch = {
   version: number;
   subscriptionEligible: boolean;
   subscriptionState: string;
+  chainLogoUrl: string | null;
 };
 export type Stock = {
   branchId: string;

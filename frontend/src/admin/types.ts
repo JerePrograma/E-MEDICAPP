@@ -1,6 +1,12 @@
 import type { Branch, Product } from '../catalog/types';
 
-export type Chain = { id: string; name: string; active: boolean; version: number };
+export type Chain = {
+  id: string;
+  name: string;
+  active: boolean;
+  version: number;
+  logoUrl: string | null;
+};
 export type Plan = {
   id: string;
   name: string;
@@ -33,6 +39,8 @@ export type Member = {
   branchId: string;
   role: string;
   active: boolean;
+  available?: boolean;
+  capacity?: number;
   coldChainCapable: boolean;
   restrictedCapable: boolean;
   capabilityEvidenceDocumentId: string | null;
@@ -40,12 +48,23 @@ export type Member = {
   capabilityVerifiedBy: string | null;
   version: number;
 };
-export type UserOption = { id: string; name: string; email: string; active: boolean };
+export type UserOption = {
+  id: string;
+  name: string;
+  email: string;
+  active: boolean;
+  emailVerified: boolean;
+  version: number;
+  roles: string[];
+};
 export type Settings = {
   version: number;
   currency: string;
   quoteMinutes: number;
   reservationMinutes: number;
+  taskAcceptanceMinutes?: number;
+  pickupDeadlineHours?: number;
+  receiptCodeMinutes?: number;
   graceDays: number;
   highValueThreshold: string;
   maxUploadMb: number;
@@ -65,8 +84,14 @@ export type Overview = {
   config: Settings;
 };
 export type ProductInput = Omit<Product, 'id'>;
-export type ChainInput = Omit<Chain, 'id'>;
-export type BranchInput = Omit<Branch, 'id' | 'subscriptionEligible' | 'subscriptionState'>;
+export type ChainInput = Omit<Chain, 'id' | 'logoUrl'> & {
+  logoDataUrl: string | null;
+  removeLogo: boolean;
+};
+export type BranchInput = Omit<
+  Branch,
+  'id' | 'subscriptionEligible' | 'subscriptionState' | 'chainLogoUrl'
+>;
 export type PlanInput = Omit<Plan, 'id'>;
 export type MemberInput = Pick<
   Member,
@@ -74,6 +99,8 @@ export type MemberInput = Pick<
   | 'branchId'
   | 'role'
   | 'active'
+  | 'available'
+  | 'capacity'
   | 'coldChainCapable'
   | 'restrictedCapable'
   | 'capabilityEvidenceDocumentId'

@@ -5,15 +5,17 @@ import ar.emedicapp.common.Actor;
 import ar.emedicapp.common.AppException;
 import ar.emedicapp.common.AuditLog;
 import ar.emedicapp.config.OperationalConfigService;
-import java.io.IOException;
-import java.util.List;
-import java.util.Map;
-import java.util.UUID;
+
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.web.multipart.MultipartFile;
+
+import java.io.IOException;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
 
 @Service
 public class DocumentService {
@@ -48,15 +50,19 @@ public class DocumentService {
         if (kind.health() && kind != DocumentKind.COBERTURA && branchId != null)
             throw AppException.badRequest(
                     "HEALTH_DOCUMENT_BRANCH",
-                    "La receta, credencial o autorización se asigna a la compra después de cargarla.");
+                    "La receta, credencial o autorización se asigna a la compra después de"
+                            + " cargarla.");
         if ((kind == DocumentKind.FACTURA || kind == DocumentKind.CAPACIDAD) && branchId == null)
             throw AppException.badRequest(
                     "DOCUMENT_BRANCH_REQUIRED", "Indicá la sucursal correspondiente al documento.");
         if (branchId != null) {
             if (kind == DocumentKind.COBERTURA) access.requireBranchRole(branchId, "PHARMACIST");
             else if (kind == DocumentKind.ENTREGA)
-                access.requireBranchRole(branchId, "DRIVER", "PHARMACY", "PHARMACIST", "ADMIN");
-            else access.requireBranchRole(branchId, "PHARMACY", "PHARMACIST", "ADMIN");
+                access.requireBranchRole(
+                        branchId, "DRIVER", "PHARMACY_ADMIN", "PHARMACY", "PHARMACIST", "ADMIN");
+            else
+                access.requireBranchRole(
+                        branchId, "PHARMACY_ADMIN", "PHARMACY", "PHARMACIST", "ADMIN");
         }
         long limit =
                 Math.min(config.current().maxUploadMb() * 1024L * 1024L, DocumentStorage.MAX_SIZE);
@@ -145,13 +151,13 @@ public class DocumentService {
         } else {
             if (file.branchId() != null
                     && (actor.hasRole("ADMIN")
-                            || (actor.hasRole("PHARMACY", "PHARMACIST")
+                            || (actor.hasRole("PHARMACY_ADMIN", "PHARMACY", "PHARMACIST")
                                     && documents.commercialBranchAccess(
                                             file.branchId(), actor.id())))) return file;
-            if (file.kind().equals("INVOICE") && documents.buyerInvoiceAccess(id, actor.id()))
-                return file;
+            if ((file.kind().equals("INVOICE") || file.kind().equals("PAYMENT_RECEIPT"))
+                    && documents.buyerInvoiceAccess(id, actor.id())) return file;
             if (file.kind().equals("PAYMENT_RECEIPT")
-                    && actor.hasRole("PHARMACY", "PHARMACIST")
+                    && actor.hasRole("PHARMACY_ADMIN", "PHARMACY", "PHARMACIST")
                     && documents.paymentOrderAccess(id, actor.id())) return file;
         }
         throw AppException.forbidden("DOCUMENT_ACCESS_DENIED", "No tenés acceso a este documento.");

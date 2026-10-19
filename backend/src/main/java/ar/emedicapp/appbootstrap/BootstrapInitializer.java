@@ -2,6 +2,17 @@ package ar.emedicapp.appbootstrap;
 
 import ar.emedicapp.common.Json;
 import ar.emedicapp.documents.DocumentStorage;
+
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.ApplicationArguments;
+import org.springframework.boot.ApplicationRunner;
+import org.springframework.jdbc.core.simple.JdbcClient;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
+
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.math.BigDecimal;
@@ -12,15 +23,6 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.UUID;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.boot.ApplicationArguments;
-import org.springframework.boot.ApplicationRunner;
-import org.springframework.jdbc.core.simple.JdbcClient;
-import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.stereotype.Component;
-import org.springframework.transaction.annotation.Transactional;
-import org.springframework.transaction.support.TransactionSynchronization;
-import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 @Component
 public class BootstrapInitializer implements ApplicationRunner {
@@ -63,9 +65,9 @@ public class BootstrapInitializer implements ApplicationRunner {
         boolean exists =
                 jdbc.sql(
                                 """
-                SELECT EXISTS(SELECT 1 FROM app_user u JOIN user_role r ON r.user_id=u.id
-                    WHERE u.active AND r.role='ADMIN')
-                """)
+                                SELECT EXISTS(SELECT 1 FROM app_user u JOIN user_role r ON r.user_id=u.id
+                                    WHERE u.active AND r.role='ADMIN')
+                                """)
                         .query(Boolean.class)
                         .single();
         if (exists) return;
@@ -77,14 +79,16 @@ public class BootstrapInitializer implements ApplicationRunner {
                 || adminPassword.getBytes(StandardCharsets.UTF_8).length > 72
                 || adminPassword.equals("DemoMedicapp2026!")) {
             throw new IllegalStateException(
-                    "El primer inicio MANUAL requiere un correo real y una contraseña propia de al menos 12 caracteres en las variables de bootstrap. No se habilitan credenciales DEMO.");
+                    "El primer inicio MANUAL requiere un correo real y una contraseña propia de al"
+                            + " menos 12 caracteres en las variables de bootstrap. No se habilitan"
+                            + " credenciales DEMO.");
         }
         UUID id = UUID.randomUUID();
         jdbc.sql(
                         """
-                INSERT INTO app_user(id,email,name,password_hash,birth_date,active)
-                VALUES(:id,:email,'Administración',:password,DATE '1970-01-01',true)
-                """)
+                        INSERT INTO app_user(id,email,name,password_hash,birth_date,active,email_verified)
+                        VALUES(:id,:email,'Administración',:password,DATE '1970-01-01',true,true)
+                        """)
                 .param("id", id)
                 .param("email", email)
                 .param("password", passwords.encode(adminPassword))
@@ -96,6 +100,12 @@ public class BootstrapInitializer implements ApplicationRunner {
 
     private void demo() throws IOException {
         UUID admin = user("admin@demo.invalid", "Marina Suárez", "1985-04-12", "ADMIN");
+        UUID pharmacyAdmin =
+                user(
+                        "adminfarmacia@demo.invalid",
+                        "Sofía Méndez",
+                        "1986-05-21",
+                        "PHARMACY_ADMIN");
         user("comprador@demo.invalid", DemoIds.BUYER_NAME, DemoIds.BUYER_BIRTH_DATE, "BUYER");
         UUID pharmacy = user("farmacia@demo.invalid", "Paula Benítez", "1988-07-09", "PHARMACY");
         UUID pharmacist =
@@ -161,6 +171,8 @@ public class BootstrapInitializer implements ApplicationRunner {
                         "8.00",
                         "09:00",
                         "21:00");
+        membership(pharmacyAdmin, center, "PHARMACY_ADMIN", false);
+        membership(pharmacyAdmin, east, "PHARMACY_ADMIN", false);
         var branches = List.of(center, east, south, fallback);
         for (int index = 0; index < branches.size(); index++) {
             UUID branch = branches.get(index);
@@ -355,9 +367,9 @@ public class BootstrapInitializer implements ApplicationRunner {
         contract("sur", plan1, sur, null, List.of(south), admin, "39500.00");
         jdbc.sql(
                         """
-                INSERT INTO operational_setting(id,version,updated_by,messages)
-                VALUES(:id,1,:admin,CAST(:messages AS jsonb)) ON CONFLICT(version) DO NOTHING
-                """)
+                        INSERT INTO operational_setting(id,version,updated_by,messages)
+                        VALUES(:id,1,:admin,CAST(:messages AS jsonb)) ON CONFLICT(version) DO NOTHING
+                        """)
                 .param("id", DemoIds.id("settings:1"))
                 .param("admin", admin)
                 .param(
@@ -365,7 +377,10 @@ public class BootstrapInitializer implements ApplicationRunner {
                         json.encode(
                                 Map.of(
                                         "demo",
-                                        "Escenario de demostración de Mendoza. Personas, comercios, marcas, stock, precios, requisitos y documentos son simulados. No existe un convenio, habilitación ni cobro real.")))
+                                        "Escenario de demostración de Mendoza. Personas, comercios,"
+                                            + " marcas, stock, precios, requisitos y documentos son"
+                                            + " simulados. No existe un convenio, habilitación ni"
+                                            + " cobro real.")))
                 .update();
     }
 
@@ -383,20 +398,37 @@ public class BootstrapInitializer implements ApplicationRunner {
         int created =
                 jdbc.sql(
                                 """
-                INSERT INTO app_user(id,email,name,password_hash,birth_date,active)
-                VALUES(:id,:email,:name,:password,:birthDate,true) ON CONFLICT(id) DO NOTHING
-                """)
+                                INSERT INTO app_user(id,email,name,password_hash,birth_date,active,email_verified,dni)
+                                VALUES(:id,:email,:name,:password,:birthDate,true,true,:dni) ON CONFLICT(id) DO NOTHING
+                                """)
                         .param("id", id)
                         .param("email", email)
                         .param("name", name)
                         .param("password", passwords.encode("DemoMedicapp2026!"))
                         .param("birthDate", LocalDate.parse(birthDate))
+                        .param(
+                                "dni",
+                                "99"
+                                        + String.format(
+                                                java.util.Locale.ROOT,
+                                                "%06d",
+                                                Math.floorMod(email.hashCode(), 1000000)))
                         .update();
         if (created == 1)
             jdbc.sql("INSERT INTO user_role(user_id,role) VALUES(:id,:role)")
                     .param("id", id)
                     .param("role", role)
                     .update();
+        jdbc.sql("UPDATE app_user SET dni=:dni WHERE id=:id AND dni IS NULL")
+                .param(
+                        "dni",
+                        "99"
+                                + String.format(
+                                        java.util.Locale.ROOT,
+                                        "%06d",
+                                        Math.floorMod(email.hashCode(), 1000000)))
+                .param("id", id)
+                .update();
         return id;
     }
 
@@ -437,11 +469,11 @@ public class BootstrapInitializer implements ApplicationRunner {
         }
         jdbc.sql(
                         """
-                INSERT INTO branch(id,chain_id,name,address,latitude,longitude,verified,agreement_accepted,
-                    cold_chain_capable,restricted_capable,driver_available,merchant_name,payment_instructions,capabilities)
-                VALUES(:id,:chain,:name,:address,:lat,:lon,true,true,:cold,:restricted,true,:merchant,:instructions,CAST(:capabilities AS jsonb))
-                ON CONFLICT(id) DO NOTHING
-                """)
+                        INSERT INTO branch(id,chain_id,name,address,latitude,longitude,verified,agreement_accepted,
+                            cold_chain_capable,restricted_capable,driver_available,merchant_name,payment_instructions,capabilities)
+                        VALUES(:id,:chain,:name,:address,:lat,:lon,true,true,:cold,:restricted,true,:merchant,:instructions,CAST(:capabilities AS jsonb))
+                        ON CONFLICT(id) DO NOTHING
+                        """)
                 .param("id", id)
                 .param("chain", chain)
                 .param("name", name)
@@ -456,7 +488,9 @@ public class BootstrapInitializer implements ApplicationRunner {
                         "instructions",
                         "El pago se registra directamente a nombre de "
                                 + merchant
-                                + ". Transferencia o pago presencial, con comprobante y referencia. En esta demostración se adjunta un comprobante de ejemplo: no transfieras dinero real.")
+                                + ". Transferencia o pago presencial, con comprobante y referencia."
+                                + " En esta demostración se adjunta un comprobante de ejemplo: no"
+                                + " transfieras dinero real.")
                 .update();
         return id;
     }
@@ -464,10 +498,10 @@ public class BootstrapInitializer implements ApplicationRunner {
     private void membership(UUID user, UUID branch, String role, boolean special) {
         jdbc.sql(
                         """
-                INSERT INTO membership(id,user_id,branch_id,role,capabilities)
-                VALUES(:id,:user,:branch,:role,CAST(:capabilities AS jsonb))
-                ON CONFLICT(user_id,branch_id,role) DO NOTHING
-                """)
+                        INSERT INTO membership(id,user_id,branch_id,role,capabilities)
+                        VALUES(:id,:user,:branch,:role,CAST(:capabilities AS jsonb))
+                        ON CONFLICT(user_id,branch_id,role) DO NOTHING
+                        """)
                 .param("id", DemoIds.id("membership:" + user + ":" + branch + ":" + role))
                 .param("user", user)
                 .param("branch", branch)
@@ -485,7 +519,8 @@ public class BootstrapInitializer implements ApplicationRunner {
         metadata.put("demo", true);
         metadata.put(
                 "label",
-                "Marca, presentación, requisitos y precio de escenario. No es información para indicar ni dispensar un producto real.");
+                "Marca, presentación, requisitos y precio de escenario. No es información para"
+                        + " indicar ni dispensar un producto real.");
         metadata.put("source", "CATALOGO_ESCENARIO_MENDOZA_2026");
         if (product.cold()) {
             metadata.put("minTemperatureC", 2);
@@ -493,10 +528,10 @@ public class BootstrapInitializer implements ApplicationRunner {
         }
         jdbc.sql(
                         """
-                INSERT INTO product(id,code,name,presentation,requires_prescription,cold_chain,restricted,metadata)
-                VALUES(:id,:code,:name,:presentation,:prescription,:cold,:restricted,CAST(:metadata AS jsonb))
-                ON CONFLICT(id) DO NOTHING
-                """)
+                        INSERT INTO product(id,code,name,presentation,requires_prescription,cold_chain,restricted,metadata)
+                        VALUES(:id,:code,:name,:presentation,:prescription,:cold,:restricted,CAST(:metadata AS jsonb))
+                        ON CONFLICT(id) DO NOTHING
+                        """)
                 .param("id", id)
                 .param("code", "EMC-" + product.code().toUpperCase(Locale.ROOT) + "-2026")
                 .param("name", product.name())
@@ -513,9 +548,9 @@ public class BootstrapInitializer implements ApplicationRunner {
             UUID branch, UUID product, String code, int quantity, BigDecimal price, int position) {
         jdbc.sql(
                         """
-                INSERT INTO branch_stock(branch_id,product_id,quantity,price,source)
-                VALUES(:branch,:product,:quantity,:price,'DEMO') ON CONFLICT(branch_id,product_id) DO NOTHING
-                """)
+                        INSERT INTO branch_stock(branch_id,product_id,quantity,price,source)
+                        VALUES(:branch,:product,:quantity,:price,'DEMO') ON CONFLICT(branch_id,product_id) DO NOTHING
+                        """)
                 .param("branch", branch)
                 .param("product", product)
                 .param("quantity", quantity)
@@ -523,9 +558,9 @@ public class BootstrapInitializer implements ApplicationRunner {
                 .update();
         jdbc.sql(
                         """
-                INSERT INTO stock_lot(id,branch_id,product_id,lot_code,expires_on,quantity,status,metadata)
-                VALUES(:id,:branch,:product,:lotCode,:expiry,:quantity,:status,CAST(:metadata AS jsonb)) ON CONFLICT(id) DO NOTHING
-                """)
+                        INSERT INTO stock_lot(id,branch_id,product_id,lot_code,expires_on,quantity,status,metadata)
+                        VALUES(:id,:branch,:product,:lotCode,:expiry,:quantity,:status,CAST(:metadata AS jsonb)) ON CONFLICT(id) DO NOTHING
+                        """)
                 .param("id", DemoIds.id("lot:" + branch + ":" + product))
                 .param("branch", branch)
                 .param("product", product)
@@ -550,9 +585,9 @@ public class BootstrapInitializer implements ApplicationRunner {
         UUID id = DemoIds.id("plan:" + min);
         jdbc.sql(
                         """
-                INSERT INTO plan(id,name,min_branches,max_branches,symbolic_units)
-                VALUES(:id,:name,:min,:max,:units) ON CONFLICT(id) DO NOTHING
-                """)
+                        INSERT INTO plan(id,name,min_branches,max_branches,symbolic_units)
+                        VALUES(:id,:name,:min,:max,:units) ON CONFLICT(id) DO NOTHING
+                        """)
                 .param("id", id)
                 .param("name", name)
                 .param("min", min)
@@ -573,9 +608,9 @@ public class BootstrapInitializer implements ApplicationRunner {
         UUID contract = DemoIds.id("contract:" + key);
         jdbc.sql(
                         """
-                INSERT INTO subscription_contract(id,plan_id,chain_id,branch_id,monthly_price,currency,status)
-                VALUES(:id,:plan,:chain,:branch,:monthlyPrice,'ARS','ACTIVE') ON CONFLICT(id) DO NOTHING
-                """)
+                        INSERT INTO subscription_contract(id,plan_id,chain_id,branch_id,monthly_price,currency,status)
+                        VALUES(:id,:plan,:chain,:branch,:monthlyPrice,'ARS','ACTIVE') ON CONFLICT(id) DO NOTHING
+                        """)
                 .param("id", contract)
                 .param("plan", plan)
                 .param("chain", chain)
@@ -585,9 +620,9 @@ public class BootstrapInitializer implements ApplicationRunner {
         for (UUID covered : branches)
             jdbc.sql(
                             """
-                INSERT INTO branch_subscription(contract_id,branch_id) VALUES(:contract,:branch)
-                ON CONFLICT(contract_id,branch_id) DO NOTHING
-                """)
+                            INSERT INTO branch_subscription(contract_id,branch_id) VALUES(:contract,:branch)
+                            ON CONFLICT(contract_id,branch_id) DO NOTHING
+                            """)
                     .param("contract", contract)
                     .param("branch", covered)
                     .update();
@@ -595,20 +630,20 @@ public class BootstrapInitializer implements ApplicationRunner {
                 jdbc.sql("SELECT date_trunc('month',now())::date").query(LocalDate.class).single();
         jdbc.sql(
                         """
-                INSERT INTO subscription_period(id,contract_id,starts_at,ends_at,amount,currency,status,
-                    verified_by,verified_at,payment_reference,source,snapshot)
-                SELECT :id,sc.id,date_trunc('month',now()),date_trunc('month',now())+interval '1 month',
-                    sc.monthly_price,sc.currency,'PAID',:verifier,now(),'ESCENARIO-SUSCRIPCION-SIN-COBRO-REAL','DEMO',
-                    jsonb_build_object('demo',true,'planId',sc.plan_id,'monthlyPrice',sc.monthly_price,
-                        'currency',sc.currency,'branchIds',COALESCE((SELECT jsonb_agg(bs.branch_id ORDER BY bs.branch_id)
-                            FROM branch_subscription bs WHERE bs.contract_id=sc.id AND bs.active),'[]'::jsonb))
-                FROM subscription_contract sc WHERE sc.id=:contract AND sc.status='ACTIVE'
-                    AND sc.monthly_price>0 AND sc.currency IS NOT NULL
-                    AND NOT EXISTS(SELECT 1 FROM subscription_period sp WHERE sp.contract_id=sc.id
-                        AND sp.starts_at<date_trunc('month',now())+interval '1 month'
-                        AND sp.ends_at>date_trunc('month',now()))
-                ON CONFLICT(id) DO NOTHING
-                """)
+                        INSERT INTO subscription_period(id,contract_id,starts_at,ends_at,amount,currency,status,
+                            verified_by,verified_at,payment_reference,source,snapshot)
+                        SELECT :id,sc.id,date_trunc('month',now()),date_trunc('month',now())+interval '1 month',
+                            sc.monthly_price,sc.currency,'PAID',:verifier,now(),'ESCENARIO-SUSCRIPCION-SIN-COBRO-REAL','DEMO',
+                            jsonb_build_object('demo',true,'planId',sc.plan_id,'monthlyPrice',sc.monthly_price,
+                                'currency',sc.currency,'branchIds',COALESCE((SELECT jsonb_agg(bs.branch_id ORDER BY bs.branch_id)
+                                    FROM branch_subscription bs WHERE bs.contract_id=sc.id AND bs.active),'[]'::jsonb))
+                        FROM subscription_contract sc WHERE sc.id=:contract AND sc.status='ACTIVE'
+                            AND sc.monthly_price>0 AND sc.currency IS NOT NULL
+                            AND NOT EXISTS(SELECT 1 FROM subscription_period sp WHERE sp.contract_id=sc.id
+                                AND sp.starts_at<date_trunc('month',now())+interval '1 month'
+                                AND sp.ends_at>date_trunc('month',now()))
+                        ON CONFLICT(id) DO NOTHING
+                        """)
                 .param("id", DemoIds.id("period:" + key + ":" + periodMonth))
                 .param("contract", contract)
                 .param("verifier", verifier)
@@ -628,7 +663,8 @@ public class BootstrapInitializer implements ApplicationRunner {
         }
         var branchRow =
                 jdbc.sql(
-                                "SELECT name,address,cold_chain_capable,restricted_capable FROM branch WHERE id=:id")
+                                "SELECT name,address,cold_chain_capable,restricted_capable FROM"
+                                        + " branch WHERE id=:id")
                         .param("id", branch)
                         .query()
                         .singleRow();
@@ -648,9 +684,9 @@ public class BootstrapInitializer implements ApplicationRunner {
                 });
         jdbc.sql(
                         """
-                INSERT INTO document(id,owner_user_id,kind,branch_id,original_name,content_type,size_bytes,storage_key,sha256,snapshot)
-                VALUES(:id,:owner,'CAPABILITY',:branch,:fileName,:type,:size,:key,:sha,CAST(:snapshot AS jsonb))
-                """)
+                        INSERT INTO document(id,owner_user_id,kind,branch_id,original_name,content_type,size_bytes,storage_key,sha256,snapshot)
+                        VALUES(:id,:owner,'CAPABILITY',:branch,:fileName,:type,:size,:key,:sha,CAST(:snapshot AS jsonb))
+                        """)
                 .param("id", document)
                 .param("owner", pharmacist)
                 .param(
@@ -668,7 +704,9 @@ public class BootstrapInitializer implements ApplicationRunner {
                 .param("snapshot", json.encode(Map.of("demo", true, "notRealEvidence", true)))
                 .update();
         jdbc.sql(
-                        "UPDATE branch SET capabilities=capabilities || CAST(:capabilities AS jsonb) WHERE id=:id AND capabilities->>'demo'='true' AND NOT jsonb_exists(capabilities,'capabilityEvidenceDocumentId')")
+                        "UPDATE branch SET capabilities=capabilities || CAST(:capabilities AS"
+                                + " jsonb) WHERE id=:id AND capabilities->>'demo'='true' AND NOT"
+                                + " jsonb_exists(capabilities,'capabilityEvidenceDocumentId')")
                 .param("id", branch)
                 .param(
                         "capabilities",
@@ -689,15 +727,15 @@ public class BootstrapInitializer implements ApplicationRunner {
     private void driverCapability(UUID branch, UUID pharmacist, UUID document) {
         jdbc.sql(
                         """
-                UPDATE membership m SET capabilities=m.capabilities || CAST(:verification AS jsonb),version=version+1
-                WHERE m.branch_id=:branch AND m.role='DRIVER' AND m.active AND m.version=1
-                    AND m.capabilities->>'demo'='true'
-                    AND (m.capabilities->>'coldChain'='true' OR m.capabilities->>'restricted'='true')
-                    AND NOT jsonb_exists(m.capabilities,'capabilityEvidenceDocumentId')
-                    AND NOT jsonb_exists(m.capabilities,'verifiedAt') AND NOT jsonb_exists(m.capabilities,'verifiedBy')
-                    AND EXISTS(SELECT 1 FROM document d WHERE d.id=:document AND d.branch_id=:branch
-                        AND d.owner_user_id=:pharmacist AND d.kind='CAPABILITY' AND d.snapshot->>'demo'='true')
-                """)
+                        UPDATE membership m SET capabilities=m.capabilities || CAST(:verification AS jsonb),version=version+1
+                        WHERE m.branch_id=:branch AND m.role='DRIVER' AND m.active AND m.version=1
+                            AND m.capabilities->>'demo'='true'
+                            AND (m.capabilities->>'coldChain'='true' OR m.capabilities->>'restricted'='true')
+                            AND NOT jsonb_exists(m.capabilities,'capabilityEvidenceDocumentId')
+                            AND NOT jsonb_exists(m.capabilities,'verifiedAt') AND NOT jsonb_exists(m.capabilities,'verifiedBy')
+                            AND EXISTS(SELECT 1 FROM document d WHERE d.id=:document AND d.branch_id=:branch
+                                AND d.owner_user_id=:pharmacist AND d.kind='CAPABILITY' AND d.snapshot->>'demo'='true')
+                        """)
                 .param("branch", branch)
                 .param("document", document)
                 .param("pharmacist", pharmacist)
@@ -847,14 +885,17 @@ public class BootstrapInitializer implements ApplicationRunner {
                 42,
                 45,
                 "0.40 0.46 0.50",
-                "E-MEDICAPP · Mendoza · Registro interno del entorno DEMO                                      1 / 1");
+                "E-MEDICAPP · Mendoza · Registro interno del entorno DEMO                          "
+                        + "            1 / 1");
         byte[] stream = content.toString().getBytes(StandardCharsets.ISO_8859_1);
         String[] objects = {
             "<< /Type /Catalog /Pages 2 0 R >>",
             "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
-            "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 4 0 R /F2 5 0 R >> >> /Contents 6 0 R >>",
+            "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 4 0 R"
+                    + " /F2 5 0 R >> >> /Contents 6 0 R >>",
             "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>",
-            "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding >>",
+            "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding"
+                    + " >>",
             "<< /Length " + stream.length + " >>\nstream\n" + content + "\nendstream"
         };
         var out = new ByteArrayOutputStream();

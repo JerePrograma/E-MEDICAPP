@@ -1,10 +1,13 @@
 package ar.emedicapp.purchase;
 
+import static org.assertj.core.api.Assertions.*;
+import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
+
 import ar.emedicapp.appbootstrap.DemoIds;
 import ar.emedicapp.payments.PaymentService;
-import java.math.BigDecimal;
-import java.util.*;
-import java.util.concurrent.*;
+
 import org.junit.jupiter.api.*;
 import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -15,12 +18,13 @@ import org.springframework.test.context.*;
 import org.springframework.test.web.servlet.*;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.context.WebApplicationContext;
+
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
-import static org.assertj.core.api.Assertions.*;
-import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
+
+import java.math.BigDecimal;
+import java.util.*;
+import java.util.concurrent.*;
 
 @SpringBootTest(properties = "emedicapp.mode=DEMO")
 @EnabledIfEnvironmentVariable(named = "EMEDICAPP_TEST_DB_URL", matches = ".+")
@@ -29,6 +33,7 @@ class PurchaseIntegrationTest {
     @Autowired JdbcClient db;
     @Autowired JsonMapper json;
     @Autowired PaymentService payments;
+    @Autowired PurchaseService purchases;
     private MockMvc mvc;
     private Session buyer, pharmacist;
     private UUID branch, product;
@@ -50,10 +55,14 @@ class PurchaseIntegrationTest {
         branch = UUID.randomUUID();
         product = UUID.randomUUID();
         sql(
-                "INSERT INTO branch(id,name,address,latitude,longitude,verified,agreement_accepted,pickup_enabled) VALUES(?,'Sucursal aislada test','Dirección ficticia test',-32.889,-68.845,true,true,true)",
+                "INSERT INTO"
+                    + " branch(id,name,address,latitude,longitude,verified,agreement_accepted,pickup_enabled)"
+                    + " VALUES(?,'Sucursal aislada test','Dirección ficticia"
+                    + " test',-32.889,-68.845,true,true,true)",
                 branch);
         sql(
-                "INSERT INTO product(id,code,name,presentation) VALUES(?,?, 'Producto aislado test','Envase test')",
+                "INSERT INTO product(id,code,name,presentation) VALUES(?,?, 'Producto aislado"
+                        + " test','Envase test')",
                 product,
                 "TEST-" + product);
         sql(
@@ -63,16 +72,22 @@ class PurchaseIntegrationTest {
         membership(DemoIds.id("user:farmaceutico@demo.invalid"), branch, "PHARMACIST");
         UUID plan = UUID.randomUUID(), contract = UUID.randomUUID();
         sql(
-                "INSERT INTO plan(id,name,min_branches,monthly_price,currency) VALUES(?,'Plan aislado test',1,1,'ARS')",
+                "INSERT INTO plan(id,name,min_branches,monthly_price,currency) VALUES(?,'Plan"
+                        + " aislado test',1,1,'ARS')",
                 plan);
         sql(
-                "INSERT INTO subscription_contract(id,plan_id,branch_id,monthly_price,currency,status) VALUES(?,?,?,1,'ARS','ACTIVE')",
+                "INSERT INTO"
+                    + " subscription_contract(id,plan_id,branch_id,monthly_price,currency,status)"
+                    + " VALUES(?,?,?,1,'ARS','ACTIVE')",
                 contract,
                 plan,
                 branch);
         sql("INSERT INTO branch_subscription(contract_id,branch_id) VALUES(?,?)", contract, branch);
         sql(
-                "INSERT INTO subscription_period(id,contract_id,starts_at,ends_at,amount,currency,status,verified_by,verified_at,payment_reference) VALUES(?,?,now()-interval '1 day',now()+interval '1 day',1,'ARS','PAID',?,now(),?)",
+                "INSERT INTO"
+                    + " subscription_period(id,contract_id,starts_at,ends_at,amount,currency,status,verified_by,verified_at,payment_reference)"
+                    + " VALUES(?,?,now()-interval '1 day',now()+interval '1"
+                    + " day',1,'ARS','PAID',?,now(),?)",
                 UUID.randomUUID(),
                 contract,
                 DemoIds.id("user:admin@demo.invalid"),
@@ -82,11 +97,29 @@ class PurchaseIntegrationTest {
     @Test
     void acceptIsDurableIdempotentAndWrongConsentCannotReserve() throws Exception {
         JsonNode p = quoted();
+        UUID orderId = UUID.fromString(p.get("orders").get(0).get("id").asText());
+        assertThat(
+                        count(
+                                "SELECT count(*) FROM reservation WHERE order_id=? AND"
+                                        + " status='HELD'",
+                                orderId))
+                .isEqualTo(1);
+        UUID reservation =
+                db.sql("SELECT id FROM reservation WHERE order_id=? AND status='HELD'")
+                        .params(orderId)
+                        .query(UUID.class)
+                        .single();
         String id = p.get("id").asText(), key = UUID.randomUUID().toString();
         var request = Map.of("expectedVersion", p.get("version").asLong());
         var first = post(buyer, "/api/purchases/" + id + "/accept", request, key, 200);
         var second = post(buyer, "/api/purchases/" + id + "/accept", request, key, 200);
         assertThat(second.get("id").asText()).isEqualTo(first.get("id").asText());
+        assertThat(
+                        db.sql("SELECT id FROM reservation WHERE order_id=? AND status='HELD'")
+                                .params(orderId)
+                                .query(UUID.class)
+                                .single())
+                .isEqualTo(reservation);
         assertThat(
                         count(
                                 "SELECT count(*) FROM reservation WHERE order_id=?",
@@ -95,12 +128,14 @@ class PurchaseIntegrationTest {
         post(buyer, "/api/purchases/" + id + "/accept", Map.of("expectedVersion", 999), key, 409);
         assertThat(
                         count(
-                                "SELECT reserved_quantity FROM branch_stock WHERE branch_id=? AND product_id=?",
+                                "SELECT reserved_quantity FROM branch_stock WHERE branch_id=? AND"
+                                        + " product_id=?",
                                 branch,
                                 product))
                 .isEqualTo(1);
         sql(
-                "UPDATE product SET name='Nombre nuevo del catálogo',presentation='Presentación nueva' WHERE id=?",
+                "UPDATE product SET name='Nombre nuevo del catálogo',presentation='Presentación"
+                        + " nueva' WHERE id=?",
                 product);
         sql("UPDATE branch SET name='Nombre nuevo sucursal' WHERE id=?", branch);
         var history = get(buyer, "/api/purchases/" + id);
@@ -114,7 +149,8 @@ class PurchaseIntegrationTest {
     void changedCatalogPriceRequiresNewExplicitConsent() throws Exception {
         JsonNode p = quoted();
         sql(
-                "UPDATE branch_stock SET price=1700,version=version+1 WHERE branch_id=? AND product_id=?",
+                "UPDATE branch_stock SET price=1700,version=version+1 WHERE branch_id=? AND"
+                        + " product_id=?",
                 branch,
                 product);
         var body =
@@ -127,10 +163,11 @@ class PurchaseIntegrationTest {
         assertThat(body.get("code").asText()).isEqualTo("QUOTE_CHANGED");
         assertThat(
                         count(
-                                "SELECT reserved_quantity FROM branch_stock WHERE branch_id=? AND product_id=?",
+                                "SELECT reserved_quantity FROM branch_stock WHERE branch_id=? AND"
+                                        + " product_id=?",
                                 branch,
                                 product))
-                .isZero();
+                .isEqualTo(1);
     }
 
     @Test
@@ -145,7 +182,8 @@ class PurchaseIntegrationTest {
                         200);
         UUID purchase = UUID.fromString(p.get("id").asText());
         sql(
-                "UPDATE reservation SET expires_at=now()-interval '1 minute' WHERE branch_id=? AND product_id=?",
+                "UPDATE reservation SET expires_at=now()-interval '1 minute' WHERE branch_id=? AND"
+                        + " product_id=?",
                 branch,
                 product);
         assertThat(payments.expirePurchase(purchase)).isTrue();
@@ -154,14 +192,461 @@ class PurchaseIntegrationTest {
                 .isEqualTo("CANCELLED");
         assertThat(
                         count(
-                                "SELECT reserved_quantity FROM branch_stock WHERE branch_id=? AND product_id=?",
+                                "SELECT reserved_quantity FROM branch_stock WHERE branch_id=? AND"
+                                        + " product_id=?",
                                 branch,
                                 product))
                 .isZero();
         assertThat(
                         count(
-                                "SELECT count(*) FROM audit_event WHERE entity_id=? AND action='SYSTEM_RESERVATION_EXPIRY' AND actor_user_id IS NULL",
+                                "SELECT count(*) FROM audit_event WHERE entity_id=? AND"
+                                        + " action='SYSTEM_RESERVATION_EXPIRY' AND actor_user_id IS"
+                                        + " NULL",
                                 purchase))
+                .isEqualTo(1);
+    }
+
+    @Test
+    void expiredQuoteReleasesOnceAndRequiresNewQuoteWithoutDuplicatingHeldStock() throws Exception {
+        var p = quoted();
+        UUID purchase = UUID.fromString(p.get("id").asText());
+        sql(
+                "UPDATE quote SET expires_at=now()-interval '1 minute' WHERE purchase_id=? AND"
+                        + " status='ISSUED'",
+                purchase);
+        assertThat(purchases.expireQuote(purchase)).isTrue();
+        assertThat(purchases.expireQuote(purchase)).isFalse();
+        assertThat(
+                        count(
+                                "SELECT reserved_quantity FROM branch_stock WHERE branch_id=? AND"
+                                        + " product_id=?",
+                                branch,
+                                product))
+                .isZero();
+        assertThat(
+                        count(
+                                "SELECT count(*) FROM audit_event WHERE entity_id=? AND"
+                                        + " action='SYSTEM_QUOTE_EXPIRY' AND actor_user_id IS NULL",
+                                purchase))
+                .isEqualTo(1);
+        p = get(buyer, "/api/purchases/" + purchase);
+        assertThat(p.get("status").asText()).isEqualTo("UNAVAILABLE");
+        p =
+                post(
+                        buyer,
+                        "/api/purchases/" + purchase + "/reroute",
+                        Map.of("expectedVersion", p.get("version").asLong()),
+                        null,
+                        200);
+        var order = p.get("orders").get(0);
+        p =
+                post(
+                        pharmacist,
+                        "/api/orders/" + order.get("id").asText() + "/review",
+                        review(order.get("version").asLong()),
+                        null,
+                        200);
+        assertThat(p.get("status").asText()).isEqualTo("QUOTED");
+        assertThat(
+                        count(
+                                "SELECT count(*) FROM quote WHERE purchase_id=? AND"
+                                        + " status='ISSUED'",
+                                purchase))
+                .isEqualTo(1);
+        assertThat(
+                        count(
+                                "SELECT count(*) FROM reservation r JOIN child_order o ON"
+                                    + " o.id=r.order_id WHERE o.purchase_id=? AND r.status='HELD'",
+                                purchase))
+                .isEqualTo(1);
+        assertThat(
+                        count(
+                                "SELECT reserved_quantity FROM branch_stock WHERE branch_id=? AND"
+                                        + " product_id=?",
+                                branch,
+                                product))
+                .isEqualTo(1);
+    }
+
+    @Test
+    void clinicalRejectionDoesNotSeekAnotherPharmacyAndSamePrescriptionHashStaysBlocked()
+            throws Exception {
+        sql("UPDATE product SET requires_prescription=true WHERE id=?", product);
+        UUID alternate = UUID.randomUUID();
+        sql(
+                "INSERT INTO"
+                    + " branch(id,name,address,latitude,longitude,verified,agreement_accepted,pickup_enabled)"
+                    + " VALUES(?,'Alternativa sanitaria"
+                    + " test','Ficticia',-32.89,-68.85,true,true,true)",
+                alternate);
+        sql(
+                "INSERT INTO branch_stock(branch_id,product_id,quantity,price) VALUES(?,?,1,1500)",
+                alternate,
+                product);
+        UUID original = buyerEvidence("PRESCRIPTION");
+        var request =
+                new HashMap<>(createRequest(List.of(Map.of("productId", product, "quantity", 1))));
+        request.put("prescriptionDocumentId", original);
+        var p = post(buyer, "/api/purchases", request, null, 200);
+        UUID purchase = UUID.fromString(p.get("id").asText());
+        var order = p.get("orders").get(0);
+        p =
+                post(
+                        pharmacist,
+                        "/api/orders/" + order.get("id").asText() + "/review",
+                        Map.of(
+                                "expectedVersion",
+                                order.get("version").asLong(),
+                                "decision",
+                                "REJECT",
+                                "rejectionKind",
+                                "CLINICAL",
+                                "reason",
+                                "La versión de receta no acredita una indicación utilizable;"
+                                        + " solicitar original corregido"),
+                        null,
+                        200);
+        assertThat(p.get("status").asText()).isEqualTo("REJECTED");
+        assertThat(count("SELECT count(*) FROM child_order WHERE purchase_id=?", purchase))
+                .isEqualTo(1);
+        assertThat(count("SELECT count(*) FROM routing_attempt WHERE purchase_id=?", purchase))
+                .isEqualTo(1);
+        assertThat(
+                        count(
+                                "SELECT count(*) FROM reservation r JOIN child_order o ON"
+                                    + " o.id=r.order_id WHERE o.purchase_id=? AND r.status='HELD'",
+                                purchase))
+                .isZero();
+        assertThat(
+                        count(
+                                "SELECT count(*) FROM prescription WHERE document_id=? AND"
+                                        + " status='REJECTED'",
+                                original))
+                .isEqualTo(1);
+        UUID duplicate = buyerEvidence("PRESCRIPTION");
+        sql(
+                "UPDATE document SET sha256=(SELECT sha256 FROM document WHERE id=?) WHERE id=?",
+                original,
+                duplicate);
+        request.put("prescriptionDocumentId", duplicate);
+        var rejected = post(buyer, "/api/purchases", request, null, 409);
+        assertThat(rejected.get("code").asText()).isEqualTo("PRESCRIPTION_BLOCKED");
+        assertThat(count("SELECT count(*) FROM prescription WHERE document_id=?", duplicate))
+                .isZero();
+    }
+
+    @Test
+    void receiverWithSameNameAndDifferentIdentityStillNeedsAnAuthorization() throws Exception {
+        var request =
+                new HashMap<>(createRequest(List.of(Map.of("productId", product, "quantity", 1))));
+        request.put("receiverIdentity", "88776655");
+        assertThat(post(buyer, "/api/purchases", request, null, 400).get("code").asText())
+                .isEqualTo("RECEIVER_NAME_REQUIRED");
+        request.put("receiverName", request.get("beneficiaryName"));
+        assertThat(post(buyer, "/api/purchases", request, null, 400).get("code").asText())
+                .isEqualTo("AUTHORIZATION_REQUIRED");
+    }
+
+    @Test
+    void familyAuthorizationIsPerPurchaseAndRevocationBlocksAcceptance() throws Exception {
+        UUID note = buyerEvidence("FAMILY_AUTHORIZATION");
+        var request =
+                new HashMap<>(createRequest(List.of(Map.of("productId", product, "quantity", 1))));
+        request.put("thirdParty", true);
+        request.put("beneficiaryName", "María Torres");
+        request.put("beneficiaryBirthDate", "1960-06-15");
+        request.put("beneficiaryIdentity", "14222333");
+        request.put("authorizationDocumentId", note);
+        var p = post(buyer, "/api/purchases", request, null, 200);
+        UUID purchase = UUID.fromString(p.get("id").asText());
+        assertThat(
+                        count(
+                                "SELECT count(*) FROM family_authorization fa JOIN purchase p ON"
+                                        + " p.family_authorization_id=fa.id WHERE p.id=? AND"
+                                        + " fa.scope='BUY_AND_RECEIVE' AND"
+                                        + " fa.receiver_identity='14222333'",
+                                purchase))
+                .isEqualTo(1);
+        assertThat(post(buyer, "/api/purchases", request, null, 409).get("code").asText())
+                .isEqualTo("AUTHORIZATION_ALREADY_USED");
+        UUID sameContent = buyerEvidence("FAMILY_AUTHORIZATION");
+        sql(
+                "UPDATE document SET sha256=(SELECT sha256 FROM document WHERE id=?) WHERE id=?",
+                note,
+                sameContent);
+        request.put("authorizationDocumentId", sameContent);
+        assertThat(post(buyer, "/api/purchases", request, null, 409).get("code").asText())
+                .isEqualTo("AUTHORIZATION_ALREADY_USED");
+        var order = p.get("orders").get(0);
+        p =
+                post(
+                        pharmacist,
+                        "/api/orders/" + order.get("id").asText() + "/review",
+                        review(order.get("version").asLong()),
+                        null,
+                        200);
+        assertThat(p.get("status").asText()).isEqualTo("QUOTED");
+        p =
+                post(
+                        buyer,
+                        "/api/purchases/" + purchase + "/authorization/revoke",
+                        Map.of("expectedVersion", p.get("version").asLong()),
+                        null,
+                        200);
+        assertThat(
+                        post(
+                                        buyer,
+                                        "/api/purchases/" + purchase + "/accept",
+                                        Map.of("expectedVersion", p.get("version").asLong()),
+                                        null,
+                                        409)
+                                .get("code")
+                                .asText())
+                .isEqualTo("AUTHORIZATION_INVALID");
+        assertThat(
+                        count(
+                                "SELECT count(*) FROM quote WHERE purchase_id=? AND"
+                                        + " status='ACCEPTED'",
+                                purchase))
+                .isZero();
+    }
+
+    @Test
+    void replacedFamilyNoteRemainsUsedIncludingReuploadsWithTheSameHash() throws Exception {
+        UUID originalNote = buyerEvidence("FAMILY_AUTHORIZATION");
+        UUID replacementNote = buyerEvidence("FAMILY_AUTHORIZATION");
+        var request =
+                new HashMap<>(createRequest(List.of(Map.of("productId", product, "quantity", 1))));
+        request.put("thirdParty", true);
+        request.put("beneficiaryName", "María Torres");
+        request.put("beneficiaryBirthDate", "1960-06-15");
+        request.put("beneficiaryIdentity", "14222333");
+        request.put("authorizationDocumentId", originalNote);
+        var first = post(buyer, "/api/purchases", request, null, 200);
+        UUID purchase = UUID.fromString(first.get("id").asText());
+        var changed =
+                post(
+                        buyer,
+                        "/api/purchases/" + purchase + "/authorization",
+                        Map.of(
+                                "expectedVersion",
+                                first.get("version").asLong(),
+                                "documentId",
+                                replacementNote),
+                        null,
+                        200);
+        assertThat(changed.get("authorizationDocumentId").asText())
+                .isEqualTo(replacementNote.toString());
+        assertThat(
+                        count(
+                                "SELECT count(*) FROM family_authorization fa JOIN purchase p ON"
+                                        + " p.family_authorization_id=fa.id WHERE p.id=? AND"
+                                        + " fa.document_id=? AND fa.status='PENDING'",
+                                purchase,
+                                replacementNote))
+                .isEqualTo(1);
+        assertThat(post(buyer, "/api/purchases", request, null, 409).get("code").asText())
+                .isEqualTo("AUTHORIZATION_ALREADY_USED");
+        UUID sameContent = buyerEvidence("FAMILY_AUTHORIZATION");
+        sql(
+                "UPDATE document SET sha256=(SELECT sha256 FROM document WHERE id=?) WHERE id=?",
+                originalNote,
+                sameContent);
+        request.put("authorizationDocumentId", sameContent);
+        assertThat(post(buyer, "/api/purchases", request, null, 409).get("code").asText())
+                .isEqualTo("AUTHORIZATION_ALREADY_USED");
+        assertThat(
+                        post(
+                                        buyer,
+                                        "/api/purchases/" + purchase + "/authorization",
+                                        Map.of(
+                                                "expectedVersion",
+                                                changed.get("version").asLong(),
+                                                "documentId",
+                                                sameContent),
+                                        null,
+                                        409)
+                                .get("code")
+                                .asText())
+                .isEqualTo("AUTHORIZATION_ALREADY_USED");
+        assertThat(
+                        count(
+                                "SELECT count(*) FROM family_authorization WHERE document_id IN"
+                                        + " (?,?)",
+                                originalNote,
+                                sameContent))
+                .isZero();
+        assertThat(
+                        count(
+                                "SELECT count(*) FROM family_authorization fa JOIN purchase p ON"
+                                        + " p.family_authorization_id=fa.id WHERE p.id=? AND"
+                                        + " fa.document_id=?",
+                                purchase,
+                                replacementNote))
+                .isEqualTo(1);
+    }
+
+    @Test
+    void reroutingAnExpensivePurchaseRequiresTwoNewProfessionalReviews() throws Exception {
+        BigDecimal expensivePrice =
+                context.getBean(ar.emedicapp.config.OperationalConfigService.class)
+                        .current()
+                        .highValueAmount()
+                        .add(new BigDecimal("100.00"));
+        sql(
+                "UPDATE branch_stock SET price=? WHERE branch_id=? AND product_id=?",
+                expensivePrice,
+                branch,
+                product);
+        var secondProfessional = scopedProfessional();
+        var first = create();
+        first =
+                post(
+                        pharmacist,
+                        "/api/orders/" + first.get("orders").get(0).get("id").asText() + "/review",
+                        review(orderVersion(first)),
+                        null,
+                        200);
+        assertThat(first.get("status").asText()).isEqualTo("ROUTING");
+        first =
+                post(
+                        secondProfessional.session(),
+                        "/api/orders/" + first.get("orders").get(0).get("id").asText() + "/review",
+                        review(orderVersion(first)),
+                        null,
+                        200);
+        assertThat(first.get("status").asText()).isEqualTo("QUOTED");
+        UUID purchase = UUID.fromString(first.get("id").asText());
+        UUID previousQuote =
+                db.sql("SELECT id FROM quote WHERE purchase_id=? AND status='ISSUED'")
+                        .params(purchase)
+                        .query(UUID.class)
+                        .single();
+        var rerouted =
+                post(
+                        buyer,
+                        "/api/purchases/" + purchase + "/reroute",
+                        Map.of("expectedVersion", first.get("version").asLong()),
+                        null,
+                        200);
+        var once =
+                post(
+                        pharmacist,
+                        "/api/orders/"
+                                + rerouted.get("orders").get(0).get("id").asText()
+                                + "/review",
+                        review(orderVersion(rerouted)),
+                        null,
+                        200);
+        assertThat(once.get("status").asText()).isEqualTo("ROUTING");
+        assertThat(once.get("orders").get(0).get("reviewCount").asLong()).isEqualTo(1);
+        assertThat(
+                        count(
+                                "SELECT count(*) FROM quote WHERE purchase_id=? AND"
+                                        + " status='ISSUED'",
+                                purchase))
+                .isZero();
+        assertThat(
+                        count(
+                                "SELECT reserved_quantity FROM branch_stock WHERE branch_id=? AND"
+                                        + " product_id=?",
+                                branch,
+                                product))
+                .isZero();
+        var twice =
+                post(
+                        secondProfessional.session(),
+                        "/api/orders/" + once.get("orders").get(0).get("id").asText() + "/review",
+                        review(orderVersion(once)),
+                        null,
+                        200);
+        assertThat(twice.get("status").asText()).isEqualTo("QUOTED");
+        assertThat(
+                        db.sql("SELECT id FROM quote WHERE purchase_id=? AND status='ISSUED'")
+                                .params(purchase)
+                                .query(UUID.class)
+                                .single())
+                .isNotEqualTo(previousQuote);
+        assertThat(
+                        count(
+                                "SELECT count(*) FROM quote WHERE id=? AND status='SUPERSEDED'",
+                                previousQuote))
+                .isEqualTo(1);
+        assertThat(
+                        count(
+                                "SELECT reserved_quantity FROM branch_stock WHERE branch_id=? AND"
+                                        + " product_id=?",
+                                branch,
+                                product))
+                .isEqualTo(1);
+    }
+
+    @Test
+    void expensiveQuoteCannotBeAcceptedAfterSecondReviewersBranchPermissionIsRevoked()
+            throws Exception {
+        BigDecimal expensivePrice =
+                context.getBean(ar.emedicapp.config.OperationalConfigService.class)
+                        .current()
+                        .highValueAmount()
+                        .add(new BigDecimal("100.00"));
+        sql(
+                "UPDATE branch_stock SET price=? WHERE branch_id=? AND product_id=?",
+                expensivePrice,
+                branch,
+                product);
+        var secondProfessional = scopedProfessional();
+        var first = create();
+        first =
+                post(
+                        pharmacist,
+                        "/api/orders/" + first.get("orders").get(0).get("id").asText() + "/review",
+                        review(orderVersion(first)),
+                        null,
+                        200);
+        first =
+                post(
+                        secondProfessional.session(),
+                        "/api/orders/" + first.get("orders").get(0).get("id").asText() + "/review",
+                        review(orderVersion(first)),
+                        null,
+                        200);
+        assertThat(first.get("status").asText()).isEqualTo("QUOTED");
+        UUID purchase = UUID.fromString(first.get("id").asText());
+        sql(
+                "UPDATE membership SET active=false WHERE user_id=? AND branch_id=? AND"
+                        + " role='PHARMACIST'",
+                secondProfessional.id(),
+                branch);
+        assertThat(
+                        post(
+                                        buyer,
+                                        "/api/purchases/" + purchase + "/accept",
+                                        Map.of("expectedVersion", first.get("version").asLong()),
+                                        null,
+                                        409)
+                                .get("code")
+                                .asText())
+                .isEqualTo("QUOTE_REVIEW_REVOKED");
+        assertThat(
+                        count(
+                                "SELECT count(*) FROM quote WHERE purchase_id=? AND"
+                                        + " status='ACCEPTED'",
+                                purchase))
+                .isZero();
+        assertThat(
+                        count(
+                                "SELECT count(*) FROM child_order WHERE purchase_id=? AND"
+                                        + " status='ACCEPTED'",
+                                purchase))
+                .isZero();
+        assertThat(count("SELECT count(*) FROM purchase WHERE id=? AND status='QUOTED'", purchase))
+                .isEqualTo(1);
+        assertThat(
+                        count(
+                                "SELECT reserved_quantity FROM branch_stock WHERE branch_id=? AND"
+                                        + " product_id=?",
+                                branch,
+                                product))
                 .isEqualTo(1);
     }
 
@@ -180,21 +665,28 @@ class PurchaseIntegrationTest {
     }
 
     @Test
-    void twoConcurrentAcceptancesCannotReserveLastUnitTwice() throws Exception {
-        JsonNode first = quoted(), second = quoted();
+    void twoBuyersCompeteForLastUnitWhenQuotesAreIssued() throws Exception {
+        JsonNode first = create();
+        Session secondBuyer = unrelatedBuyer();
+        var secondProfile = get(secondBuyer, "/api/auth/me");
+        var secondRequest =
+                new HashMap<>(createRequest(List.of(Map.of("productId", product, "quantity", 1))));
+        secondRequest.put("beneficiaryName", secondProfile.get("name").asText());
+        secondRequest.put("beneficiaryBirthDate", secondProfile.get("birthDate").asText());
+        JsonNode second = post(secondBuyer, "/api/purchases", secondRequest, null, 200);
         CountDownLatch gate = new CountDownLatch(1);
         try (var pool = Executors.newFixedThreadPool(2)) {
             Future<Integer> a =
                     pool.submit(
                             () -> {
                                 gate.await();
-                                return acceptStatus(first);
+                                return quoteStatus(first);
                             });
             Future<Integer> b =
                     pool.submit(
                             () -> {
                                 gate.await();
-                                return acceptStatus(second);
+                                return quoteStatus(second);
                             });
             gate.countDown();
             assertThat(List.of(a.get(20, TimeUnit.SECONDS), b.get(20, TimeUnit.SECONDS)))
@@ -202,13 +694,15 @@ class PurchaseIntegrationTest {
         }
         assertThat(
                         count(
-                                "SELECT reserved_quantity FROM branch_stock WHERE branch_id=? AND product_id=?",
+                                "SELECT reserved_quantity FROM branch_stock WHERE branch_id=? AND"
+                                        + " product_id=?",
                                 branch,
                                 product))
                 .isEqualTo(1);
         assertThat(
                         count(
-                                "SELECT count(*) FROM reservation WHERE branch_id=? AND product_id=? AND status='HELD'",
+                                "SELECT count(*) FROM reservation WHERE branch_id=? AND"
+                                        + " product_id=? AND status='HELD'",
                                 branch,
                                 product))
                 .isEqualTo(1);
@@ -223,13 +717,16 @@ class PurchaseIntegrationTest {
                 context.getBean(org.springframework.security.crypto.password.PasswordEncoder.class)
                         .encode("DemoMedicapp2026!");
         sql(
-                "INSERT INTO app_user(id,email,name,password_hash,birth_date) VALUES(?,?,'Profesional scope',?,DATE '1990-01-01')",
+                "INSERT INTO app_user(id,email,name,password_hash,birth_date,email_verified,dni)"
+                    + " VALUES(?,?,'Profesional scope',?,DATE"
+                    + " '1990-01-01',true,lpad(floor(random()*1000000000000)::bigint::text,12,'0'))",
                 user,
                 email,
                 hash);
         sql("INSERT INTO user_role(user_id,role) VALUES(?,'PHARMACIST'),(?,'DRIVER')", user, user);
         sql(
-                "INSERT INTO branch(id,name,address,latitude,longitude) VALUES(?,'Otra test','Ficticia',0,0)",
+                "INSERT INTO branch(id,name,address,latitude,longitude) VALUES(?,'Otra"
+                        + " test','Ficticia',0,0)",
                 other);
         membership(user, other, "PHARMACIST");
         membership(user, branch, "DRIVER");
@@ -281,7 +778,11 @@ class PurchaseIntegrationTest {
                                 "evidenceDocumentId",
                                 receipt,
                                 "verifiedExternally",
-                                true),
+                                true,
+                                "amount",
+                                orderTotal(order),
+                                "currency",
+                                "ARS"),
                         null,
                         200);
         p =
@@ -317,15 +818,7 @@ class PurchaseIntegrationTest {
         post(
                 pharmacist,
                 "/api/orders/" + order + "/pickup-complete",
-                Map.of(
-                        "expectedVersion",
-                        version,
-                        "code",
-                        wrong,
-                        "recipientVerified",
-                        true,
-                        "note",
-                        "Comprobación física test"),
+                receiptRequest(order, version, wrong, "Comprobación física test"),
                 null,
                 409);
         assertThat(
@@ -337,36 +830,21 @@ class PurchaseIntegrationTest {
                 post(
                         pharmacist,
                         "/api/orders/" + order + "/pickup-complete",
-                        Map.of(
-                                "expectedVersion",
-                                version,
-                                "code",
-                                code,
-                                "recipientVerified",
-                                true,
-                                "note",
-                                "Comprobación física test"),
+                        receiptRequest(order, version, code, "Comprobación física test"),
                         null,
                         200);
         assertThat(p.get("status").asText()).isEqualTo("COMPLETED");
         assertThat(
                         count(
-                                "SELECT quantity FROM branch_stock WHERE branch_id=? AND product_id=?",
+                                "SELECT quantity FROM branch_stock WHERE branch_id=? AND"
+                                        + " product_id=?",
                                 branch,
                                 product))
                 .isZero();
         post(
                 pharmacist,
                 "/api/orders/" + order + "/pickup-complete",
-                Map.of(
-                        "expectedVersion",
-                        orderVersion(p),
-                        "code",
-                        code,
-                        "recipientVerified",
-                        true,
-                        "note",
-                        "Repetido test"),
+                receiptRequest(order, orderVersion(p), code, "Repetido test"),
                 null,
                 409);
         assertThat(get(buyer, "/api/purchases/" + purchase).get("status").asText())
@@ -382,7 +860,9 @@ class PurchaseIntegrationTest {
                 context.getBean(org.springframework.security.crypto.password.PasswordEncoder.class)
                         .encode("DemoMedicapp2026!");
         sql(
-                "INSERT INTO app_user(id,email,name,password_hash,birth_date) VALUES(?,?,'Operador mixto test',?,DATE '1990-01-01')",
+                "INSERT INTO app_user(id,email,name,password_hash,birth_date,email_verified,dni)"
+                    + " VALUES(?,?,'Operador mixto test',?,DATE"
+                    + " '1990-01-01',true,lpad(floor(random()*1000000000000)::bigint::text,12,'0'))",
                 user,
                 email,
                 hash);
@@ -411,7 +891,11 @@ class PurchaseIntegrationTest {
                         "evidenceDocumentId",
                         evidence("PAYMENT_RECEIPT"),
                         "verifiedExternally",
-                        true);
+                        true,
+                        "amount",
+                        orderTotal(order),
+                        "currency",
+                        "ARS");
         String key = UUID.randomUUID().toString();
         p = post(operator, "/api/orders/" + order + "/payment", request, key, 200);
         assertThat(p.get("orders").get(0).has("beneficiary")).isTrue();
@@ -435,7 +919,10 @@ class PurchaseIntegrationTest {
                         null,
                         200);
         String order = p.get("orders").get(0).get("id").asText();
-        UUID receipt = evidence("PAYMENT_RECEIPT");
+        UUID receipt = evidence("PAYMENT_RECEIPT"),
+                invoice = evidence("INVOICE"),
+                credit = evidence("INVOICE"),
+                refundReceipt = evidence("PAYMENT_RECEIPT");
         p =
                 post(
                         pharmacist,
@@ -448,7 +935,24 @@ class PurchaseIntegrationTest {
                                 "evidenceDocumentId",
                                 receipt,
                                 "verifiedExternally",
-                                true),
+                                true,
+                                "amount",
+                                orderTotal(order),
+                                "currency",
+                                "ARS"),
+                        null,
+                        200);
+        p =
+                post(
+                        pharmacist,
+                        "/api/orders/" + order + "/invoice",
+                        Map.of(
+                                "expectedVersion",
+                                orderVersion(p),
+                                "reference",
+                                "FACTURA-" + order,
+                                "evidenceDocumentId",
+                                invoice),
                         null,
                         200);
         p =
@@ -475,10 +979,53 @@ class PurchaseIntegrationTest {
                 .isEqualByComparingTo(new BigDecimal("1500.00"));
         assertThat(
                         count(
-                                "SELECT reserved_quantity FROM branch_stock WHERE branch_id=? AND product_id=?",
+                                "SELECT reserved_quantity FROM branch_stock WHERE branch_id=? AND"
+                                        + " product_id=?",
                                 branch,
                                 product))
                 .isZero();
+        var refund =
+                Map.of(
+                        "expectedVersion",
+                        orderVersion(p),
+                        "reference",
+                        "TEST-REFUND-" + order,
+                        "refundId",
+                        p.get("orders").get(0).get("refunds").get(0).get("id").asText(),
+                        "evidenceDocumentId",
+                        refundReceipt,
+                        "verifiedExternally",
+                        true,
+                        "amount",
+                        orderTotal(order),
+                        "currency",
+                        "ARS");
+        assertThat(
+                        post(pharmacist, "/api/orders/" + order + "/refund", refund, null, 409)
+                                .get("code")
+                                .asText())
+                .isEqualTo("CREDIT_NOTE_REQUIRED");
+        p =
+                post(
+                        pharmacist,
+                        "/api/orders/" + order + "/fiscal-adjustment",
+                        Map.of(
+                                "expectedVersion",
+                                orderVersion(p),
+                                "kind",
+                                "CREDIT",
+                                "reference",
+                                "NC-" + order,
+                                "amount",
+                                "1500.00",
+                                "currency",
+                                "ARS",
+                                "evidenceDocumentId",
+                                credit,
+                                "reason",
+                                "Nota de crédito emitida por cancelación total de la factura"),
+                        null,
+                        200);
         p =
                 post(
                         pharmacist,
@@ -488,15 +1035,42 @@ class PurchaseIntegrationTest {
                                 orderVersion(p),
                                 "reference",
                                 "TEST-REFUND-" + order,
+                                "refundId",
+                                p.get("orders").get(0).get("refunds").get(0).get("id").asText(),
                                 "evidenceDocumentId",
-                                receipt,
+                                refundReceipt,
                                 "verifiedExternally",
-                                true),
+                                true,
+                                "amount",
+                                orderTotal(order),
+                                "currency",
+                                "ARS"),
                         null,
                         200);
         assertThat(p.get("status").asText()).isEqualTo("CANCELLED");
         assertThat(p.get("orders").get(0).get("refunds").get(0).get("status").asText())
                 .isEqualTo("VERIFIED");
+        for (UUID published : List.of(invoice, credit, refundReceipt)) {
+            assertThat(get(buyer, "/api/documents/" + published + "/metadata").get("id").asText())
+                    .isEqualTo(published.toString());
+            mvc.perform(
+                            org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get(
+                                            "/api/documents/" + published + "/metadata")
+                                    .session(unrelatedBuyer().session()))
+                    .andExpect(status().isForbidden());
+            mvc.perform(
+                            org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get(
+                                            "/api/documents/" + published + "/metadata")
+                                    .session(login("cadete@demo.invalid").session()))
+                    .andExpect(status().isForbidden());
+        }
+        for (UUID privateEvidence :
+                List.of(receipt, evidence("OTHER"), evidence("HEALTH_COVERAGE")))
+            mvc.perform(
+                            org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get(
+                                            "/api/documents/" + privateEvidence + "/metadata")
+                                    .session(buyer.session()))
+                    .andExpect(status().isForbidden());
     }
 
     @Test
@@ -523,7 +1097,24 @@ class PurchaseIntegrationTest {
                                 "evidenceDocumentId",
                                 evidence("PAYMENT_RECEIPT"),
                                 "verifiedExternally",
-                                true),
+                                true,
+                                "amount",
+                                orderTotal(order),
+                                "currency",
+                                "ARS"),
+                        null,
+                        200);
+        p =
+                post(
+                        pharmacist,
+                        "/api/orders/" + order + "/invoice",
+                        Map.of(
+                                "expectedVersion",
+                                orderVersion(p),
+                                "reference",
+                                "FACTURA-INCIDENTE-" + order,
+                                "evidenceDocumentId",
+                                evidence("INVOICE")),
                         null,
                         200);
         p =
@@ -550,6 +1141,8 @@ class PurchaseIntegrationTest {
                                 orderVersion(p),
                                 "reason",
                                 "Incidencia física test",
+                                "kind",
+                                "OTHER",
                                 "evidenceDocumentId",
                                 proof),
                         null,
@@ -575,13 +1168,16 @@ class PurchaseIntegrationTest {
                 .isEqualTo("RESOLVED");
         assertThat(
                         count(
-                                "SELECT quantity FROM branch_stock WHERE branch_id=? AND product_id=?",
+                                "SELECT quantity FROM branch_stock WHERE branch_id=? AND"
+                                        + " product_id=?",
                                 branch,
                                 product))
                 .isZero();
         assertThat(
                         count(
-                                "SELECT count(*) FROM custody_event WHERE fulfillment_id=(SELECT id FROM fulfillment WHERE order_id=?) AND kind IN ('COLLECTED','DELIVERED','RETURNED')",
+                                "SELECT count(*) FROM custody_event WHERE fulfillment_id=(SELECT id"
+                                        + " FROM fulfillment WHERE order_id=?) AND kind IN"
+                                        + " ('COLLECTED','DELIVERED','RETURNED')",
                                 UUID.fromString(order)))
                 .isZero();
     }
@@ -590,10 +1186,13 @@ class PurchaseIntegrationTest {
     void partialPaymentCannotStartAnyChildFulfillment() throws Exception {
         UUID secondBranch = UUID.randomUUID(), secondProduct = UUID.randomUUID();
         sql(
-                "INSERT INTO branch(id,name,address,latitude,longitude,verified,agreement_accepted,pickup_enabled) VALUES(?,'Fallback aislado test','Ficticia',-32.9,-68.85,true,true,true)",
+                "INSERT INTO"
+                    + " branch(id,name,address,latitude,longitude,verified,agreement_accepted,pickup_enabled)"
+                    + " VALUES(?,'Fallback aislado test','Ficticia',-32.9,-68.85,true,true,true)",
                 secondBranch);
         sql(
-                "INSERT INTO product(id,code,name,presentation) VALUES(?,?,'Segundo producto test','Envase test')",
+                "INSERT INTO product(id,code,name,presentation) VALUES(?,?,'Segundo producto"
+                        + " test','Envase test')",
                 secondProduct,
                 "TEST-" + secondProduct);
         sql(
@@ -656,7 +1255,11 @@ class PurchaseIntegrationTest {
                                 "evidenceDocumentId",
                                 evidence("PAYMENT_RECEIPT"),
                                 "verifiedExternally",
-                                true),
+                                true,
+                                "amount",
+                                orderTotal(order),
+                                "currency",
+                                "ARS"),
                         null,
                         200);
         assertThat(p.get("status").asText()).isEqualTo("PARTIALLY_PAID");
@@ -671,29 +1274,35 @@ class PurchaseIntegrationTest {
         assertThat(denied.get("code").asText()).isEqualTo("GROUP_NOT_READY");
         assertThat(
                         count(
-                                "SELECT count(*) FROM child_order WHERE purchase_id=? AND status='PREPARING'",
+                                "SELECT count(*) FROM child_order WHERE purchase_id=? AND"
+                                        + " status='PREPARING'",
                                 UUID.fromString(p.get("id").asText())))
                 .isZero();
         UUID purchase = UUID.fromString(p.get("id").asText());
         sql(
-                "UPDATE reservation SET expires_at=now()-interval '1 minute' WHERE order_id IN(SELECT id FROM child_order WHERE purchase_id=?)",
+                "UPDATE reservation SET expires_at=now()-interval '1 minute' WHERE order_id"
+                        + " IN(SELECT id FROM child_order WHERE purchase_id=?)",
                 purchase);
         assertThat(payments.expirePurchase(purchase)).isTrue();
         p = get(buyer, "/api/purchases/" + purchase);
         assertThat(p.get("status").asText()).isEqualTo("COMPENSATING");
         assertThat(
                         count(
-                                "SELECT count(*) FROM child_order WHERE purchase_id=? AND status<>'CANCELLED'",
+                                "SELECT count(*) FROM child_order WHERE purchase_id=? AND"
+                                        + " status<>'CANCELLED'",
                                 purchase))
                 .isZero();
         assertThat(
                         count(
-                                "SELECT count(*) FROM refund r JOIN payment pay ON pay.id=r.payment_id WHERE pay.order_id=? AND r.requested_by IS NULL AND r.amount=1500 AND r.status='REQUESTED'",
+                                "SELECT count(*) FROM refund r JOIN payment pay ON"
+                                    + " pay.id=r.payment_id WHERE pay.order_id=? AND r.requested_by"
+                                    + " IS NULL AND r.amount=1500 AND r.status='REQUESTED'",
                                 UUID.fromString(order)))
                 .isEqualTo(1);
         assertThat(
                         count(
-                                "SELECT reserved_quantity FROM branch_stock WHERE branch_id=? AND product_id=?",
+                                "SELECT reserved_quantity FROM branch_stock WHERE branch_id=? AND"
+                                        + " product_id=?",
                                 branch,
                                 product))
                 .isZero();
@@ -733,16 +1342,19 @@ class PurchaseIntegrationTest {
                 context.getBean(org.springframework.security.crypto.password.PasswordEncoder.class)
                         .encode("DemoMedicapp2026!");
         sql(
-                "INSERT INTO app_user(id,email,name,password_hash,birth_date) VALUES(?,?,'Segundo profesional test',?,DATE '1990-01-01')",
+                "INSERT INTO app_user(id,email,name,password_hash,birth_date,email_verified,dni)"
+                    + " VALUES(?,?,'Segundo profesional test',?,DATE"
+                    + " '1990-01-01',true,lpad(floor(random()*1000000000000)::bigint::text,12,'0'))",
                 professional,
                 email,
                 hash);
         sql("INSERT INTO user_role(user_id,role) VALUES(?,'PHARMACIST')", professional);
         membership(professional, branch, "PHARMACIST");
+        Session secondReviewer = login(email);
         o = p.get("orders").get(0);
         p =
                 post(
-                        login(email),
+                        secondReviewer,
                         "/api/orders/" + o.get("id").asText() + "/review",
                         review(o.get("version").asLong()),
                         null,
@@ -768,7 +1380,11 @@ class PurchaseIntegrationTest {
                                 "evidenceDocumentId",
                                 evidence("PAYMENT_RECEIPT"),
                                 "verifiedExternally",
-                                true),
+                                true,
+                                "amount",
+                                orderTotal(order),
+                                "currency",
+                                "ARS"),
                         null,
                         200);
         p =
@@ -780,6 +1396,52 @@ class PurchaseIntegrationTest {
                                 p.get("version").asLong(),
                                 "reason",
                                 "Cancelación alto valor test"),
+                        null,
+                        200);
+        assertThat(p.get("status").asText()).isEqualTo("COMPENSATING");
+        assertThat(p.get("orders").get(0).get("cancellationPending").asBoolean()).isTrue();
+        assertThat(p.get("orders").get(0).get("refunds").size()).isZero();
+        UUID cancellationEvidence = evidence("OTHER");
+        p =
+                post(
+                        pharmacist,
+                        "/api/orders/" + order + "/financial-control",
+                        Map.of(
+                                "expectedVersion",
+                                orderVersion(p),
+                                "operation",
+                                "CANCEL",
+                                "reason",
+                                "Primer farmacéutico verificó la cancelación de alto valor",
+                                "evidenceDocumentId",
+                                cancellationEvidence),
+                        null,
+                        200);
+        p =
+                post(
+                        secondReviewer,
+                        "/api/orders/" + order + "/financial-control",
+                        Map.of(
+                                "expectedVersion",
+                                orderVersion(p),
+                                "operation",
+                                "CANCEL",
+                                "reason",
+                                "Segundo farmacéutico verificó las mismas condiciones de"
+                                        + " cancelación",
+                                "evidenceDocumentId",
+                                cancellationEvidence),
+                        null,
+                        200);
+        p =
+                post(
+                        buyer,
+                        "/api/purchases/" + p.get("id").asText() + "/cancel",
+                        Map.of(
+                                "expectedVersion",
+                                p.get("version").asLong(),
+                                "reason",
+                                "Confirmación de la cancelación de alto valor controlada"),
                         null,
                         200);
         assertThat(p.get("orders").get(0).get("refunds").get(0).get("amount").isTextual()).isTrue();
@@ -829,7 +1491,8 @@ class PurchaseIntegrationTest {
         assertThat(count("SELECT count(*) FROM payment WHERE order_id=?", order)).isZero();
         assertThat(
                         count(
-                                "SELECT count(*) FROM audit_event WHERE entity_id=? AND action='CUSTOMER_PAYMENT_REPORTED'",
+                                "SELECT count(*) FROM audit_event WHERE entity_id=? AND"
+                                        + " action='CUSTOMER_PAYMENT_REPORTED'",
                                 order))
                 .isEqualTo(1);
         assertThat(get(pharmacist, "/api/documents/" + receipt + "/metadata").get("id").asText())
@@ -857,7 +1520,11 @@ class PurchaseIntegrationTest {
                         "evidenceDocumentId",
                         receipt,
                         "verifiedExternally",
-                        false),
+                        false,
+                        "amount",
+                        orderTotal(order),
+                        "currency",
+                        "ARS"),
                 null,
                 400);
         assertThat(count("SELECT count(*) FROM payment WHERE order_id=?", order)).isZero();
@@ -873,16 +1540,75 @@ class PurchaseIntegrationTest {
                                 "evidenceDocumentId",
                                 receipt,
                                 "verifiedExternally",
-                                true),
+                                true,
+                                "amount",
+                                orderTotal(order),
+                                "currency",
+                                "ARS"),
                         null,
                         200);
         assertThat(verified.get("status").asText()).isEqualTo("PAID");
         assertThat(
                         count(
-                                "SELECT count(*) FROM payment WHERE order_id=? AND status='VERIFIED' AND evidence_document_id=?",
+                                "SELECT count(*) FROM payment WHERE order_id=? AND"
+                                        + " status='VERIFIED' AND evidence_document_id=?",
                                 order,
                                 receipt))
                 .isEqualTo(1);
+    }
+
+    @Test
+    void bankConfirmationRequiresRealAmountCurrencyAndDoesNotInventFullSettlement()
+            throws Exception {
+        var p = accepted();
+        String order = p.get("orders").get(0).get("id").asText();
+        var request =
+                new HashMap<String, Object>(
+                        Map.of(
+                                "expectedVersion",
+                                orderVersion(p),
+                                "reference",
+                                "PARCIAL-" + order,
+                                "evidenceDocumentId",
+                                evidence("PAYMENT_RECEIPT"),
+                                "verifiedExternally",
+                                true));
+        assertThat(
+                        post(pharmacist, "/api/orders/" + order + "/payment", request, null, 400)
+                                .get("code")
+                                .asText())
+                .isEqualTo("AMOUNT_INVALID");
+        request.put("amount", "500.00");
+        request.put("currency", "USD");
+        assertThat(
+                        post(pharmacist, "/api/orders/" + order + "/payment", request, null, 400)
+                                .get("code")
+                                .asText())
+                .isEqualTo("CURRENCY_MISMATCH");
+        assertThat(count("SELECT count(*) FROM payment WHERE order_id=?", UUID.fromString(order)))
+                .isZero();
+        request.put("currency", "ARS");
+        p = post(pharmacist, "/api/orders/" + order + "/payment", request, null, 200);
+        assertThat(p.get("orders").get(0).get("status").asText()).isEqualTo("ACCEPTED");
+        assertThat(
+                        db.sql("SELECT sum(amount) FROM payment WHERE order_id=?")
+                                .params(UUID.fromString(order))
+                                .query(BigDecimal.class)
+                                .single())
+                .isEqualByComparingTo("500.00");
+        request.put("expectedVersion", orderVersion(p));
+        request.put("reference", "SALDO-" + order);
+        request.put("amount", "1100.00");
+        assertThat(
+                        post(pharmacist, "/api/orders/" + order + "/payment", request, null, 409)
+                                .get("code")
+                                .asText())
+                .isEqualTo("PAYMENT_EXCEEDS_BALANCE");
+        request.put("amount", "1000.00");
+        p = post(pharmacist, "/api/orders/" + order + "/payment", request, null, 200);
+        assertThat(p.get("orders").get(0).get("status").asText()).isEqualTo("PAID");
+        assertThat(count("SELECT count(*) FROM payment WHERE order_id=?", UUID.fromString(order)))
+                .isEqualTo(2);
     }
 
     @Test
@@ -921,7 +1647,8 @@ class PurchaseIntegrationTest {
                 403);
         assertThat(
                         count(
-                                "SELECT count(*) FROM child_order WHERE id=? AND snapshot->'paymentSubmission' IS NOT NULL",
+                                "SELECT count(*) FROM child_order WHERE id=? AND"
+                                        + " snapshot->'paymentSubmission' IS NOT NULL",
                                 order))
                 .isZero();
         assertThat(count("SELECT count(*) FROM payment WHERE order_id=?", order)).isZero();
@@ -935,7 +1662,8 @@ class PurchaseIntegrationTest {
         UUID order = UUID.fromString(p.get("orders").get(0).get("id").asText());
         UUID receipt = buyerEvidence("PAYMENT_RECEIPT");
         sql(
-                "UPDATE reservation SET expires_at=now()-interval '1 minute' WHERE order_id=? AND status='HELD'",
+                "UPDATE reservation SET expires_at=now()-interval '1 minute' WHERE order_id=? AND"
+                        + " status='HELD'",
                 order);
         JsonNode denied =
                 post(
@@ -954,13 +1682,15 @@ class PurchaseIntegrationTest {
                 .isIn("RESERVATION_EXPIRED", "PAYMENT_REPORT_STATE_INVALID", "VERSION_MISMATCH");
         assertThat(
                         count(
-                                "SELECT count(*) FROM child_order WHERE id=? AND snapshot->'paymentSubmission' IS NOT NULL",
+                                "SELECT count(*) FROM child_order WHERE id=? AND"
+                                        + " snapshot->'paymentSubmission' IS NOT NULL",
                                 order))
                 .isZero();
         assertThat(count("SELECT count(*) FROM payment WHERE order_id=?", order)).isZero();
         assertThat(
                         count(
-                                "SELECT count(*) FROM audit_event WHERE entity_id=? AND action='CUSTOMER_PAYMENT_REPORTED'",
+                                "SELECT count(*) FROM audit_event WHERE entity_id=? AND"
+                                        + " action='CUSTOMER_PAYMENT_REPORTED'",
                                 order))
                 .isZero();
     }
@@ -1007,8 +1737,13 @@ class PurchaseIntegrationTest {
                         evidence,
                         "verifiedExternally",
                         true,
+                        "amount",
+                        orderTotal(order),
+                        "currency",
+                        "ARS",
                         "reason",
-                        "Se comprobó el ingreso completo en la cuenta de la farmacia después de la cancelación");
+                        "Se comprobó el ingreso completo en la cuenta de la farmacia después de la"
+                                + " cancelación");
         String key = UUID.randomUUID().toString();
         p =
                 post(
@@ -1031,28 +1766,34 @@ class PurchaseIntegrationTest {
                 .isEqualTo("REFUND_REQUESTED");
         assertThat(
                         count(
-                                "SELECT count(*) FROM payment WHERE order_id=? AND amount=1500 AND status='VERIFIED'",
+                                "SELECT count(*) FROM payment WHERE order_id=? AND amount=1500 AND"
+                                        + " status='VERIFIED'",
                                 order))
                 .isEqualTo(1);
         assertThat(
                         count(
-                                "SELECT count(*) FROM refund r JOIN payment pay ON pay.id=r.payment_id WHERE pay.order_id=? AND r.amount=pay.amount AND r.status='REQUESTED'",
+                                "SELECT count(*) FROM refund r JOIN payment pay ON"
+                                        + " pay.id=r.payment_id WHERE pay.order_id=? AND"
+                                        + " r.amount=pay.amount AND r.status='REQUESTED'",
                                 order))
                 .isEqualTo(1);
         assertThat(
                         count(
-                                "SELECT count(*) FROM reservation WHERE order_id=? AND status='HELD'",
+                                "SELECT count(*) FROM reservation WHERE order_id=? AND"
+                                        + " status='HELD'",
                                 order))
                 .isZero();
         assertThat(
                         count(
-                                "SELECT reserved_quantity FROM branch_stock WHERE branch_id=? AND product_id=?",
+                                "SELECT reserved_quantity FROM branch_stock WHERE branch_id=? AND"
+                                        + " product_id=?",
                                 branch,
                                 product))
                 .isZero();
         assertThat(
                         count(
-                                "SELECT quantity FROM branch_stock WHERE branch_id=? AND product_id=?",
+                                "SELECT quantity FROM branch_stock WHERE branch_id=? AND"
+                                        + " product_id=?",
                                 branch,
                                 product))
                 .isEqualTo(1);
@@ -1103,7 +1844,8 @@ class PurchaseIntegrationTest {
                                 "verifiedExternally",
                                 true,
                                 "reason",
-                                "Se revisó el extracto y el banco confirmó que la farmacia no recibió esa transferencia"),
+                                "Se revisó el extracto y el banco confirmó que la farmacia no"
+                                        + " recibió esa transferencia"),
                         null,
                         200);
         assertThat(p.get("status").asText()).isEqualTo("CANCELLED");
@@ -1113,23 +1855,27 @@ class PurchaseIntegrationTest {
         assertThat(count("SELECT count(*) FROM payment WHERE order_id=?", order)).isZero();
         assertThat(
                         count(
-                                "SELECT count(*) FROM refund r JOIN payment pay ON pay.id=r.payment_id WHERE pay.order_id=?",
+                                "SELECT count(*) FROM refund r JOIN payment pay ON"
+                                        + " pay.id=r.payment_id WHERE pay.order_id=?",
                                 order))
                 .isZero();
         assertThat(
                         count(
-                                "SELECT count(*) FROM reservation WHERE order_id=? AND status='HELD'",
+                                "SELECT count(*) FROM reservation WHERE order_id=? AND"
+                                        + " status='HELD'",
                                 order))
                 .isZero();
         assertThat(
                         count(
-                                "SELECT reserved_quantity FROM branch_stock WHERE branch_id=? AND product_id=?",
+                                "SELECT reserved_quantity FROM branch_stock WHERE branch_id=? AND"
+                                        + " product_id=?",
                                 branch,
                                 product))
                 .isZero();
         assertThat(
                         count(
-                                "SELECT quantity FROM branch_stock WHERE branch_id=? AND product_id=?",
+                                "SELECT quantity FROM branch_stock WHERE branch_id=? AND"
+                                        + " product_id=?",
                                 branch,
                                 product))
                 .isEqualTo(1);
@@ -1231,14 +1977,18 @@ class PurchaseIntegrationTest {
     void historicalOtherCoverageEvidenceRemainsPrivateAndCanOnlyBeReusedForItsOriginalOrder()
             throws Exception {
         sql(
-                "UPDATE branch_stock SET price=2000000 WHERE branch_id=? AND product_id=?",
+                "UPDATE branch_stock SET price=2000000,quantity=2 WHERE branch_id=? AND"
+                        + " product_id=?",
                 branch,
                 product);
         JsonNode p = create();
         UUID order = UUID.fromString(p.get("orders").get(0).get("id").asText()),
                 legacy = evidence("OTHER");
         sql(
-                "INSERT INTO review(id,order_id,branch_id,kind,status,reviewed_by,reason,evidence_document_id) VALUES(?,?,?,'COVERAGE','APPROVED',?,'Autorizacion historica comprobada',?)",
+                "INSERT INTO"
+                    + " review(id,order_id,branch_id,kind,status,reviewed_by,reason,evidence_document_id)"
+                    + " VALUES(?,?,?,'COVERAGE','APPROVED',?,'Autorizacion historica"
+                    + " comprobada',?)",
                 UUID.randomUUID(),
                 order,
                 branch,
@@ -1327,7 +2077,9 @@ class PurchaseIntegrationTest {
                 context.getBean(org.springframework.security.crypto.password.PasswordEncoder.class)
                         .encode("DemoMedicapp2026!");
         sql(
-                "INSERT INTO app_user(id,email,name,password_hash,birth_date) VALUES(?,?,'Profesional cobertura test',?,DATE '1980-01-01')",
+                "INSERT INTO app_user(id,email,name,password_hash,birth_date,email_verified,dni)"
+                    + " VALUES(?,?,'Profesional cobertura test',?,DATE"
+                    + " '1980-01-01',true,lpad(floor(random()*1000000000000)::bigint::text,12,'0'))",
                 user,
                 email,
                 hash);
@@ -1358,7 +2110,9 @@ class PurchaseIntegrationTest {
                 context.getBean(org.springframework.security.crypto.password.PasswordEncoder.class)
                         .encode("DemoMedicapp2026!");
         sql(
-                "INSERT INTO app_user(id,email,name,password_hash,birth_date) VALUES(?,?,'Comprador ajeno test',?,DATE '1990-01-01')",
+                "INSERT INTO app_user(id,email,name,password_hash,birth_date,email_verified,dni)"
+                    + " VALUES(?,?,'Comprador ajeno test',?,DATE"
+                    + " '1990-01-01',true,lpad(floor(random()*1000000000000)::bigint::text,12,'0'))",
                 user,
                 email,
                 hash);
@@ -1369,28 +2123,29 @@ class PurchaseIntegrationTest {
     private UUID buyerEvidence(String kind) {
         UUID id = UUID.randomUUID();
         sql(
-                "INSERT INTO document(id,owner_user_id,kind,original_name,content_type,size_bytes,storage_key,sha256) VALUES(?,?,?,'comprobante-comprador-test.pdf','application/pdf',10,?,?)",
+                "INSERT INTO"
+                    + " document(id,owner_user_id,kind,original_name,content_type,size_bytes,storage_key,sha256)"
+                    + " VALUES(?,?,?,'comprobante-comprador-test.pdf','application/pdf',10,?,?)",
                 id,
                 DemoIds.id("user:comprador@demo.invalid"),
                 kind,
                 id.toString(),
-                "b".repeat(64));
+                id.toString().replace("-", "").repeat(2));
         return id;
     }
 
-    private int acceptStatus(JsonNode p) throws Exception {
+    private int quoteStatus(JsonNode p) throws Exception {
+        var order = p.get("orders").get(0);
         return mvc.perform(
                         org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post(
-                                        "/api/purchases/" + p.get("id").asText() + "/accept")
-                                .session(buyer.session())
-                                .header(buyer.header(), buyer.token())
+                                        "/api/orders/" + order.get("id").asText() + "/review")
+                                .session(pharmacist.session())
+                                .header(pharmacist.header(), pharmacist.token())
                                 .header("Idempotency-Key", UUID.randomUUID().toString())
                                 .contentType("application/json")
                                 .content(
                                         json.writeValueAsString(
-                                                Map.of(
-                                                        "expectedVersion",
-                                                        p.get("version").asLong()))))
+                                                review(order.get("version").asLong()))))
                 .andReturn()
                 .getResponse()
                 .getStatus();
@@ -1459,10 +2214,43 @@ class PurchaseIntegrationTest {
         return p.get("orders").get(0).get("version").asLong();
     }
 
+    private BigDecimal orderTotal(Object order) {
+        return db.sql("SELECT total FROM child_order WHERE id=?")
+                .params(UUID.fromString(order.toString()))
+                .query(BigDecimal.class)
+                .single();
+    }
+
+    private Map<String, Object> receiptRequest(
+            String order, long version, String code, String note) {
+        var fulfillment =
+                db.sql("SELECT receiver_name,receiver_identity FROM fulfillment WHERE order_id=?")
+                        .params(UUID.fromString(order))
+                        .query()
+                        .singleRow();
+        return Map.of(
+                "expectedVersion",
+                version,
+                "code",
+                code,
+                "recipientVerified",
+                true,
+                "note",
+                note,
+                "recipientName",
+                fulfillment.get("receiver_name"),
+                "recipientIdentity",
+                fulfillment.get("receiver_identity"),
+                "packageMatches",
+                true);
+    }
+
     private UUID evidence(String kind) {
         UUID id = UUID.randomUUID();
         sql(
-                "INSERT INTO document(id,owner_user_id,kind,branch_id,original_name,content_type,size_bytes,storage_key,sha256) VALUES(?,?,?,?,?,'application/pdf',10,?,?)",
+                "INSERT INTO"
+                    + " document(id,owner_user_id,kind,branch_id,original_name,content_type,size_bytes,storage_key,sha256)"
+                    + " VALUES(?,?,?,?,?,'application/pdf',10,?,?)",
                 id,
                 DemoIds.id("user:farmaceutico@demo.invalid"),
                 kind,

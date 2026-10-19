@@ -1,5 +1,5 @@
 {
-  "version": 1,
+  "version": "2026-10-15-chain-logo",
   "numericContract": "Importes, latitud y longitud se devuelven como texto decimal. Cantidades y versiones son números. UUID son strings.",
   "optimisticConcurrency": "POST usa version 0. PUT administrativo usa la version recibida. Stock usa expectedVersion; 0 solo crea una oferta nueva. Conflicto devuelve HTTP 409.",
   "public": [
@@ -13,7 +13,14 @@
       "method": "GET",
       "path": "/api/catalog/branches",
       "response": "Branch[]",
-      "filter": "Activas, verificadas, adheridas, cadena activa y sin suspensión por impago. Datos privados de pago/capacidad se omiten."
+      "filter": "Activas, verificadas, adheridas, cadena activa y sin suspensión por impago. Datos privados de pago/capacidad se omiten. Incluye chainLogoUrl heredado de la cadena."
+    },
+    {
+      "method": "GET",
+      "path": "/api/catalog/chains/{id}/logo",
+      "response": "image/png",
+      "permission": "Sesión autenticada. Cadena inactiva: sólo ADMIN. Sin logo: 404.",
+      "cache": "URL versionada mediante ?v=version de la cadena."
     }
   ],
   "admin": [
@@ -113,6 +120,40 @@
       "path": "/api/admin/settings",
       "body": "SettingsInput",
       "response": "Settings"
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/users/lookup?email=correo",
+      "roles": [
+        "ADMIN",
+        "PHARMACY_ADMIN"
+      ],
+      "response": "Cuenta activa y confirmada por correo exacto, para asignar membresía"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/admin/users/{id}/access",
+      "roles": [
+        "ADMIN"
+      ],
+      "request": {
+        "expectedVersion": 1,
+        "active": true,
+        "roles": [
+          "BUYER"
+        ]
+      },
+      "response": "UserOption; incrementa versión de acceso y credenciales"
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/invoice-issues",
+      "roles": [
+        "ADMIN",
+        "PHARMACY_ADMIN"
+      ],
+      "response": "Array con id de pedido, branchId, branchName, orderVersion, status, reason, reportedAt y attemptCount. Sólo alertas activas, máximo 200.",
+      "scope": "ADMIN ve todas; PHARMACY_ADMIN sólo sucursales con membresía activa propia. Sin beneficiarios, receta, documentos privados ni datos de medicamentos."
     }
   ],
   "branchOperators": [
@@ -181,12 +222,15 @@
       "id": "uuid",
       "name": "string",
       "active": "boolean",
-      "version": "number"
+      "version": "number",
+      "logoUrl": "string|null; URL local versionada, sin incluir los bytes en el catálogo"
     },
     "ChainInput": {
       "name": "string required <=200",
       "active": "boolean",
-      "version": "number"
+      "version": "number",
+      "logoDataUrl": "string|null optional; data:image/png;base64,... o data:image/jpeg;base64,...; máximo 2 MiB decodificados y 4096x4096 píxeles; null u omisión conserva la imagen actual",
+      "removeLogo": "boolean optional default false; elimina el logo al guardar; incompatible con logoDataUrl no null"
     },
     "Branch": {
       "id": "uuid",
@@ -211,7 +255,8 @@
       "subscriptionState": "PAID|GRACE|SUSPENDED|NONE",
       "deliveryRadiusKm": "positive decimal string",
       "opensAt": "HH:mm|null",
-      "closesAt": "HH:mm|null"
+      "closesAt": "HH:mm|null",
+      "chainLogoUrl": "string|null; logoUrl de la cadena, todas sus sucursales heredan la misma imagen"
     },
     "BranchInput": {
       "chainId": "uuid|null",
@@ -384,10 +429,14 @@
       "id": "uuid",
       "email": "string",
       "name": "string",
-      "roles": "ADMIN|BUYER|PHARMACY|PHARMACIST|DRIVER[]",
+      "roles": "ADMIN|PHARMACY_ADMIN|BUYER|PHARMACY|PHARMACIST|DRIVER[]",
       "branchIds": "uuid[] (alcance agregado de sucursales; no habilita un rol clínico por sí solo)",
       "birthDate": "YYYY-MM-DD|null; nacimiento propio de la cuenta",
-      "branchRoles": "object keyed by branch UUID; each value is PHARMACY|PHARMACIST|DRIVER[] for active memberships and current global roles"
+      "branchRoles": "object keyed by branch UUID; each value is PHARMACY_ADMIN|PHARMACY|PHARMACIST|DRIVER[] for active memberships and current global roles",
+      "emailVerified": "boolean; true en un perfil autenticado habilitado",
+      "dni": "string|null; DNI propio utilizado al comprar o recibir para sí mismo",
+      "phone": "string|null; teléfono propio",
+      "address": "string|null; domicilio declarado propio"
     }
   },
   "subscriptionRules": [
@@ -429,5 +478,15 @@
     "ADMIN permite catálogos, configuración y existencias administrativas; no concede acceso a recetas ni credenciales clínicas por ese rol.",
     "Stock y lotes: ADMIN o rol global PHARMACY/PHARMACIST con membresía activa del mismo rol en la sucursal. El servidor relee el permiso actual en cada operación.",
     "Datos privados clínicos y comerciales de una compra se proyectan según su propietario, el rol vigente y la sucursal exacta; consultar docs/api-compras.json."
-  ]
+  ],
+  "scope": "ADMIN administra plataforma. PHARMACY_ADMIN recibe sólo sus sucursales, membresías y personal; no planes, suscripciones, acreditaciones ni usuarios globales. La revocación de accesos invalida sesiones y protege último administrador global/de sucursal.",
+  "qaSettings": {
+    "taskAcceptanceMinutes": "1–240",
+    "pickupDeadlineHours": "1–168",
+    "receiptCodeMinutes": "1–60",
+    "driverMember": {
+      "available": "boolean",
+      "capacity": "1–20"
+    }
+  }
 }

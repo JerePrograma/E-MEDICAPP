@@ -1,6 +1,7 @@
 package ar.emedicapp.catalog;
 
 import jakarta.validation.constraints.*;
+
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
@@ -33,10 +34,22 @@ public final class CatalogDtos {
             @Min(0) long version,
             Map<String, Object> metadata) {}
 
-    public record Chain(UUID id, String name, boolean active, long version) {}
+    public record Chain(UUID id, String name, boolean active, long version, String logoUrl) {}
 
     public record ChainInput(
-            @NotBlank @Size(max = 200) String name, boolean active, @Min(0) long version) {}
+            @NotBlank @Size(max = 200) String name,
+            boolean active,
+            @Min(0) long version,
+            @Size(max = ChainLogoImage.MAX_DATA_URL_LENGTH) String logoDataUrl,
+            Boolean removeLogo) {
+        public ChainInput {
+            removeLogo = Boolean.TRUE.equals(removeLogo);
+        }
+
+        public ChainInput(String name, boolean active, long version) {
+            this(name, active, version, null, false);
+        }
+    }
 
     public record Branch(
             UUID id,
@@ -61,7 +74,8 @@ public final class CatalogDtos {
             Map<String, Object> capabilities,
             long version,
             boolean subscriptionEligible,
-            String subscriptionState) {}
+            String subscriptionState,
+            String chainLogoUrl) {}
 
     public record BranchInput(
             UUID chainId,
@@ -187,17 +201,31 @@ public final class CatalogDtos {
             UUID capabilityEvidenceDocumentId,
             String capabilityVerifiedAt,
             UUID capabilityVerifiedBy,
-            long version) {}
+            long version,
+            boolean available,
+            int capacity) {}
 
     public record MemberInput(
             @NotNull UUID userId,
             @NotNull UUID branchId,
-            @NotBlank @Pattern(regexp = "PHARMACY|PHARMACIST|DRIVER") String role,
+            @NotBlank @Pattern(regexp = "PHARMACY_ADMIN|PHARMACY|PHARMACIST|DRIVER") String role,
             boolean active,
             boolean coldChainCapable,
             boolean restrictedCapable,
             UUID capabilityEvidenceDocumentId,
-            @Min(0) long version) {}
+            @Min(0) long version,
+            Boolean available,
+            @Min(1) @Max(20) Integer capacity) {}
 
-    public record UserOption(UUID id, String name, String email, boolean active) {}
+    public record UserOption(
+            UUID id,
+            String name,
+            String email,
+            boolean active,
+            boolean emailVerified,
+            long version,
+            java.util.Set<String> roles) {}
+
+    public record UserAccessInput(
+            boolean active, @NotNull java.util.Set<String> roles, @Min(1) long expectedVersion) {}
 }

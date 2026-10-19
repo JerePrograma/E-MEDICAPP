@@ -5,7 +5,6 @@ import {
   Button,
   Card,
   CardContent,
-  Chip,
   CircularProgress,
   Dialog,
   DialogActions,
@@ -19,6 +18,9 @@ import {
   FormControlLabel,
   Checkbox,
   Stack,
+  Step,
+  StepLabel,
+  Stepper,
   TextField,
   Typography,
 } from '@mui/material';
@@ -28,6 +30,10 @@ import { DocumentInput } from '../components/DocumentInput';
 import { CreatePurchase } from './CreatePurchase';
 import { Action, OrderActionDialog } from './OrderActionDialog';
 import { Order, Purchase } from './types';
+import { SubstitutionDialog } from './SubstitutionDialog';
+import { ReplacementPanel } from './ReplacementPanel';
+import { EmptyState, MetricRow, PageHeader, StatusChip } from '../components/PageElements';
+import { pharmacyNextTask, purchaseStep, purchaseSteps } from './presentation';
 
 function buyerGuidance(purchase: Purchase) {
   const pendingRefund = purchase.orders.some((x) =>
@@ -42,7 +48,7 @@ function buyerGuidance(purchase: Purchase) {
     case 'QUOTED':
       return [
         '2. Revisá el presupuesto y decidí',
-        'Confirmá medicamentos, cantidades, cobertura, importe y farmacias. La reserva comienza cuando aceptás expresamente la propuesta vigente.',
+        'Confirmá medicamentos, cantidades, cobertura, importe y farmacias. Las existencias se reservan al emitir esta propuesta, durante su vigencia. Revisá el plazo antes de aceptar.',
       ];
     case 'ACCEPTED':
     case 'PARTIALLY_PAID':
@@ -82,6 +88,11 @@ function buyerGuidance(purchase: Purchase) {
         'Compra cerrada con resolución',
         'El cierre puede incluir una devolución o una solución registrada por la farmacia. Conservá las facturas y consultá los reintegros de cada pedido.',
       ];
+    case 'REJECTED':
+      return [
+        'La compra necesita corregir su documentación',
+        'La farmacia informó un impedimento clínico o de vigencia. Revisá el motivo y resolvé la situación antes de crear una nueva solicitud.',
+      ];
     case 'UNAVAILABLE':
       return [
         'No encontramos disponibilidad para esta solicitud',
@@ -109,6 +120,8 @@ function fulfillmentLabel(order: Order, mode: string) {
         COLLECTED: 'Retirado en la farmacia',
         INCIDENT: 'Incidencia en revisión',
         RESOLVED: 'Cumplimiento cerrado con resolución',
+        RETURN_REQUIRED: 'Paquete pendiente de retorno a la farmacia',
+        RETURNED: 'Paquete retornado; pendiente de resolución',
         CANCELLED: 'Entrega o retiro cancelado',
       } as Record<string, string>
     )[status] ?? label(status)
@@ -118,6 +131,7 @@ function fulfillmentLabel(order: Order, mode: string) {
 export function PurchasePage({ actor }: { actor: Actor }) {
   const cache = useQueryClient();
   const [creating, setCreating] = useState(false);
+  const [substitutingOrder, setSubstitutingOrder] = useState<Order | null>(null);
   const [selected, setSelected] = useState('');
   const [action, setAction] = useState<{ kind: Action; order: Order } | null>(null);
   const [notice, setNotice] = useState('');
@@ -125,6 +139,9 @@ export function PurchasePage({ actor }: { actor: Actor }) {
   const [consentVersion, setConsentVersion] = useState<number | null>(null);
   const [accepting, setAccepting] = useState(false);
   const [cancel, setCancel] = useState(false);
+  const [revoking, setRevoking] = useState(false);
+  const [correctingAuthorization, setCorrectingAuthorization] = useState(false);
+  const [replacementAuthorization, setReplacementAuthorization] = useState('');
   const [cancelReason, setCancelReason] = useState('');
   const [busy, setBusy] = useState(false);
   const [filter, setFilter] = useState('ALL');
@@ -148,6 +165,8 @@ export function PurchasePage({ actor }: { actor: Actor }) {
     refetchInterval: 5000,
   });
   const purchase = details.data;
+  const pendingSubstitutions = purchase?.substitutions?.filter((x) => x.status === 'PENDING') ?? [];
+  const hasPendingSubstitution = pendingSubstitutions.length > 0;
   const buyer = actor.roles.includes('BUYER');
   const pharmacist = actor.roles.includes('PHARMACIST');
   const pharmacy = pharmacist || actor.roles.includes('PHARMACY');
@@ -170,8 +189,8 @@ export function PurchasePage({ actor }: { actor: Actor }) {
       (x) =>
         filter === 'ALL' ||
         (filter === 'OPEN'
-          ? !['COMPLETED', 'CANCELLED', 'RESOLVED', 'UNAVAILABLE'].includes(x.status)
-          : ['COMPLETED', 'CANCELLED', 'RESOLVED', 'UNAVAILABLE'].includes(x.status)),
+          ? !['COMPLETED', 'CANCELLED', 'RESOLVED', 'UNAVAILABLE', 'REJECTED'].includes(x.status)
+          : ['COMPLETED', 'CANCELLED', 'RESOLVED', 'UNAVAILABLE', 'REJECTED'].includes(x.status)),
     ) ?? [];
   const canPrepare =
     !!purchase &&
@@ -240,6 +259,58 @@ export function PurchasePage({ actor }: { actor: Actor }) {
       setBusy(false);
     }
   }
+  async function decideSubstitution(proposalId: string, decision: 'ACCEPT' | 'REJECT') {
+    if (!purchase) return;
+    setBusy(true);
+    setNotice('');
+    try {
+      await api(`/api/purchases/${purchase.id}/substitutions/${proposalId}`, {
+        method: 'POST',
+        idempotent: true,
+        body: { expectedVersion: purchase.version, decision },
+      });
+      await refresh();
+    } catch (error) {
+      setNotice(error instanceof Error ? error.message : 'No se pudo registrar la decisión.');
+    } finally {
+      setBusy(false);
+    }
+  }
+  async function correctAuthorization() {
+    if (!purchase || !replacementAuthorization) return;
+    setBusy(true);
+    try {
+      await api(`/api/purchases/${purchase.id}/authorization`, {
+        method: 'POST',
+        idempotent: true,
+        body: { expectedVersion: purchase.version, documentId: replacementAuthorization },
+      });
+      setCorrectingAuthorization(false);
+      setReplacementAuthorization('');
+      await refresh();
+    } catch (error) {
+      setNotice(error instanceof Error ? error.message : 'No se pudo actualizar la autorización.');
+    } finally {
+      setBusy(false);
+    }
+  }
+  async function revokeAuthorization() {
+    if (!purchase) return;
+    setBusy(true);
+    try {
+      await api(`/api/purchases/${purchase.id}/authorization/revoke`, {
+        method: 'POST',
+        idempotent: true,
+        body: { expectedVersion: purchase.version },
+      });
+      setRevoking(false);
+      await refresh();
+    } catch (error) {
+      setNotice(error instanceof Error ? error.message : 'No se pudo revocar la autorización.');
+    } finally {
+      setBusy(false);
+    }
+  }
   async function reportPayment() {
     if (!paymentOrder || !paymentReference.trim() || !paymentEvidence) {
       setPaymentError(
@@ -286,25 +357,61 @@ export function PurchasePage({ actor }: { actor: Actor }) {
     );
   return (
     <Stack spacing={3}>
-      <Stack
-        direction={{ xs: 'column', sm: 'row' }}
-        spacing={2}
-        sx={{ justifyContent: 'space-between' }}
-      >
-        <Box>
-          <Typography variant="h4">{pharmacy ? 'Solicitudes y pedidos' : 'Mis compras'}</Typography>
-          <Typography color="text.secondary">
-            {pharmacy
-              ? 'Revisión, cobro y cumplimiento por sucursal.'
-              : 'Tus propuestas, pagos y entregas en un solo lugar.'}
-          </Typography>
-        </Box>
-        {buyer && (
-          <Button variant="contained" onClick={() => setCreating(true)}>
-            Nueva compra
-          </Button>
-        )}
-      </Stack>
+      <PageHeader
+        eyebrow={pharmacy ? 'Operación de tu farmacia' : 'Tu espacio personal'}
+        title={pharmacy ? 'Solicitudes y pedidos' : 'Mis compras'}
+        description={
+          pharmacy
+            ? 'Revisá cada solicitud, comprobá los cobros y resolvé la próxima tarea de tu sucursal.'
+            : 'Propuestas claras, pagos directos y seguimiento por farmacia.'
+        }
+        action={
+          buyer ? (
+            <Button variant="contained" onClick={() => setCreating(true)}>
+              Nueva compra
+            </Button>
+          ) : undefined
+        }
+      />
+      {purchases.data && (
+        <MetricRow
+          metrics={[
+            {
+              label: 'En curso',
+              value: purchases.data.filter(
+                (x) =>
+                  !['COMPLETED', 'CANCELLED', 'RESOLVED', 'UNAVAILABLE', 'REJECTED'].includes(
+                    x.status,
+                  ),
+              ).length,
+            },
+            {
+              label: pharmacy ? 'Por revisar' : 'Propuestas para aceptar',
+              value: purchases.data.filter((x) =>
+                pharmacy
+                  ? x.orders.some(
+                      (o) =>
+                        !o.reviewApproved &&
+                        ['PROPOSED', 'REVIEW_PENDING', 'QUOTED'].includes(o.status),
+                    )
+                  : x.status === 'QUOTED',
+              ).length,
+            },
+            {
+              label: 'Con resolución pendiente',
+              value: purchases.data.filter(
+                (x) =>
+                  x.status === 'COMPENSATING' ||
+                  x.orders.some((o) => o.refunds?.some((r) => r.status !== 'VERIFIED')),
+              ).length,
+            },
+            {
+              label: 'Completadas',
+              value: purchases.data.filter((x) => x.status === 'COMPLETED').length,
+            },
+          ]}
+        />
+      )}
       {notice && (
         <Alert severity="warning" onClose={() => setNotice('')}>
           {notice}
@@ -319,7 +426,18 @@ export function PurchasePage({ actor }: { actor: Actor }) {
           alignItems: 'start',
         }}
       >
-        <Stack spacing={1.5}>
+        <Stack
+          spacing={1.5}
+          sx={{
+            display: { xs: selected ? 'none' : 'flex', md: 'flex' },
+            position: { md: 'sticky' },
+            top: { md: 108 },
+            maxHeight: { md: 'calc(100vh - 125px)' },
+            overflowY: { md: 'auto' },
+            pt: { md: 1.25 },
+            pr: { md: 0.5 },
+          }}
+        >
           <FormControl size="small" fullWidth>
             <InputLabel id="purchase-filter-label">Mostrar compras</InputLabel>
             <Select
@@ -343,16 +461,22 @@ export function PurchasePage({ actor }: { actor: Actor }) {
           {visiblePurchases.map((x) => (
             <Card
               key={x.id}
-              sx={{ border: x.id === selected ? '2px solid #14766f' : '1px solid #dfe8e7' }}
+              sx={{
+                borderColor: x.id === selected ? 'primary.main' : 'divider',
+                bgcolor: x.id === selected ? 'primary.light' : 'background.paper',
+                flexShrink: 0,
+              }}
             >
               <CardContent>
                 <Typography sx={{ fontWeight: 650 }}>
                   Compra {x.id.slice(0, 8).toUpperCase()}
                 </Typography>
-                <Chip size="small" label={label(x.status)} sx={{ my: 1 }} />
+                <Box sx={{ my: 1 }}>
+                  <StatusChip status={x.status} />
+                </Box>
                 <Typography variant="body2">
                   {label(x.mode)} ·{' '}
-                  {['ROUTING', 'UNAVAILABLE'].includes(x.status)
+                  {['ROUTING', 'UNAVAILABLE', 'REJECTED'].includes(x.status)
                     ? 'Importe a confirmar'
                     : money(x.total, x.currency)}
                 </Typography>
@@ -380,31 +504,83 @@ export function PurchasePage({ actor }: { actor: Actor }) {
           ))}
         </Stack>
         {!selected ? (
-          <Card>
-            <CardContent sx={{ p: 4 }}>
-              <Typography variant="h5">Una propuesta clara, antes de pagar.</Typography>
-              <Typography color="text.secondary" sx={{ mt: 2 }}>
-                Cada farmacia informa su disponibilidad y verifica las condiciones. Podés ver el
-                desglose y aceptar antes de que comience la preparación.
-              </Typography>
-            </CardContent>
-          </Card>
+          <EmptyState
+            title={
+              pharmacy
+                ? 'Elegí una solicitud para continuar'
+                : 'Una propuesta clara, antes de pagar.'
+            }
+            description={
+              pharmacy
+                ? 'En el detalle verás las condiciones, los pagos y la próxima tarea de cada sucursal.'
+                : 'Cada farmacia confirma los medicamentos y el importe. Seleccioná una compra para ver el desglose, o iniciá una nueva.'
+            }
+            action={
+              buyer && !purchases.data?.length ? (
+                <Button variant="contained" onClick={() => setCreating(true)}>
+                  Empezar mi primera compra
+                </Button>
+              ) : undefined
+            }
+          />
         ) : details.isPending ? (
           <CircularProgress />
         ) : details.error ? (
           <Alert severity="error">{details.error.message}</Alert>
         ) : (
           purchase && (
-            <Stack spacing={2}>
+            <Stack spacing={2} sx={{ minWidth: 0 }}>
+              <Button
+                sx={{ display: { xs: 'inline-flex', md: 'none' }, alignSelf: 'flex-start' }}
+                onClick={() => setSelected('')}
+              >
+                ← Volver a la bandeja
+              </Button>
               <Card>
                 <CardContent>
                   <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: 'wrap' }}>
                     <Typography variant="h6">
                       Compra {purchase.id.slice(0, 8).toUpperCase()}
                     </Typography>
-                    <Chip label={label(purchase.status)} />
+                    <StatusChip status={purchase.status} />
                   </Stack>
+                  {purchaseStep(purchase.status) >= 0 && (
+                    <Stepper
+                      alternativeLabel
+                      activeStep={purchaseStep(purchase.status)}
+                      sx={{ mt: 3, mb: 2 }}
+                    >
+                      {purchaseSteps.map((title) => (
+                        <Step key={title}>
+                          <StepLabel>{title}</StepLabel>
+                        </Step>
+                      ))}
+                    </Stepper>
+                  )}
                   <Typography sx={{ mt: 1 }}>{label(purchase.mode)}</Typography>
+                  {(purchase.originalPurchaseId ||
+                    activeOrders.some((order) => order.originalPurchaseId)) && (
+                    <Alert severity="info" sx={{ mt: 2 }}>
+                      <Typography variant="body2">
+                        Reposición sin cargo vinculada a la compra original. Usa nuevas unidades y
+                        {purchase.replacementReviewPending ||
+                        activeOrders.some((order) => order.replacementReviewPending)
+                          ? ' requiere revisión de su documentación antes de preparar.'
+                          : ' tiene su documentación revisada. Seguí el estado del pedido vinculado.'}
+                      </Typography>
+                      <Button
+                        onClick={() =>
+                          setSelected(
+                            purchase.originalPurchaseId ??
+                              activeOrders.find((order) => order.originalPurchaseId)!
+                                .originalPurchaseId!,
+                          )
+                        }
+                      >
+                        Abrir compra original y revisión de reposición
+                      </Button>
+                    </Alert>
+                  )}
                   {purchase.createdAt && (
                     <Typography variant="body2" color="text.secondary">
                       Solicitud del {dateTime(purchase.createdAt)}
@@ -439,7 +615,7 @@ export function PurchasePage({ actor }: { actor: Actor }) {
                     </Alert>
                   )}
                   {purchase.message &&
-                    ['ROUTING', 'QUOTED', 'UNAVAILABLE'].includes(purchase.status) && (
+                    ['ROUTING', 'QUOTED', 'UNAVAILABLE', 'REJECTED'].includes(purchase.status) && (
                       <Alert severity="info" sx={{ mt: 2 }}>
                         {purchase.message}
                       </Alert>
@@ -467,7 +643,7 @@ export function PurchasePage({ actor }: { actor: Actor }) {
                     </Alert>
                   )}
                   <Typography variant="h5" sx={{ my: 2 }}>
-                    {['ROUTING', 'UNAVAILABLE'].includes(purchase.status)
+                    {['ROUTING', 'UNAVAILABLE', 'REJECTED'].includes(purchase.status)
                       ? 'Importe a confirmar por las farmacias'
                       : `Total ${money(purchase.total, purchase.currency)}`}
                   </Typography>
@@ -475,7 +651,7 @@ export function PurchasePage({ actor }: { actor: Actor }) {
                     Envío y uso de E-MEDICAPP sin costo para el comprador.
                   </Typography>
                   <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: 'wrap', mt: 2 }}>
-                    {ownsPurchase && purchase.status === 'QUOTED' && (
+                    {ownsPurchase && !hasPendingSubstitution && purchase.status === 'QUOTED' && (
                       <Button
                         variant="contained"
                         disabled={busy || quoteExpired}
@@ -495,13 +671,14 @@ export function PurchasePage({ actor }: { actor: Actor }) {
                       </Typography>
                     )}
                     {ownsPurchase &&
+                      !hasPendingSubstitution &&
                       ['ROUTING', 'QUOTED', 'UNAVAILABLE'].includes(purchase.status) && (
                         <Button disabled={busy} onClick={() => void command('reroute')}>
                           Buscar una nueva propuesta
                         </Button>
                       )}
                     {ownsPurchase &&
-                      !['COMPLETED', 'CANCELLED', 'UNAVAILABLE', 'RESOLVED'].includes(
+                      !['COMPLETED', 'CANCELLED', 'UNAVAILABLE', 'RESOLVED', 'REJECTED'].includes(
                         purchase.status,
                       ) && (
                         <Button
@@ -517,6 +694,75 @@ export function PurchasePage({ actor }: { actor: Actor }) {
                   </Stack>
                 </CardContent>
               </Card>
+              {pendingSubstitutions.map((proposal) => (
+                <Card key={proposal.id}>
+                  <CardContent>
+                    <Stack spacing={2}>
+                      <Box>
+                        <Typography variant="overline" color="primary">
+                          Alternativa que necesita tu decisión
+                        </Typography>
+                        <Typography variant="h6" component="h2">
+                          Sustitución propuesta
+                        </Typography>
+                        <Typography variant="body2" color="text.secondary">
+                          {proposal.branchName} informa una alternativa. Aceptarla permite revisar
+                          una nueva propuesta; todavía no confirma precio, cobertura ni compra.
+                        </Typography>
+                      </Box>
+                      <Box
+                        sx={{
+                          display: 'grid',
+                          gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' },
+                          gap: 2,
+                        }}
+                      >
+                        <Box sx={{ p: 2, bgcolor: 'background.default', borderRadius: 2 }}>
+                          <Typography variant="overline">Solicitaste</Typography>
+                          <Typography sx={{ fontWeight: 650 }}>{proposal.originalName}</Typography>
+                          <Typography variant="body2">
+                            {proposal.originalPresentation} · {proposal.originalQuantity} unidades
+                          </Typography>
+                        </Box>
+                        <Box sx={{ p: 2, bgcolor: 'primary.light', borderRadius: 2 }}>
+                          <Typography variant="overline" color="primary">
+                            La farmacia propone
+                          </Typography>
+                          <Typography sx={{ fontWeight: 650 }}>{proposal.name}</Typography>
+                          <Typography variant="body2">
+                            {proposal.presentation} · {proposal.quantity} unidades
+                          </Typography>
+                        </Box>
+                      </Box>
+                      <Typography variant="body2">Motivo: {proposal.reason}</Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        Disponible para responder hasta {dateTime(proposal.expiresAt)}.
+                      </Typography>
+                      {ownsPurchase ? (
+                        <Stack direction="row" spacing={1}>
+                          <Button
+                            variant="contained"
+                            disabled={busy || new Date(proposal.expiresAt).getTime() <= Date.now()}
+                            onClick={() => void decideSubstitution(proposal.id, 'ACCEPT')}
+                          >
+                            Aceptar alternativa para cotizar
+                          </Button>
+                          <Button
+                            disabled={busy}
+                            onClick={() => void decideSubstitution(proposal.id, 'REJECT')}
+                          >
+                            Rechazar alternativa
+                          </Button>
+                        </Stack>
+                      ) : (
+                        <Alert severity="info">
+                          La revisión espera la decisión explícita del comprador.
+                        </Alert>
+                      )}
+                    </Stack>
+                  </CardContent>
+                </Card>
+              ))}
               {previousOrders.length > 0 &&
                 !['CANCELLED', 'RESOLVED', 'COMPENSATING'].includes(purchase.status) && (
                   <Button
@@ -536,7 +782,9 @@ export function PurchasePage({ actor }: { actor: Actor }) {
                   'PHARMACIST',
                 );
                 const canReview = canOperateBranch(actor, order.branchId, 'PHARMACIST');
-                const isIncident = order.fulfillment?.status === 'INCIDENT';
+                const isIncident = ['INCIDENT', 'RETURN_REQUIRED', 'RETURNED'].includes(
+                  order.fulfillment?.status ?? '',
+                );
                 return (
                   <Card key={order.id}>
                     <CardContent>
@@ -547,8 +795,18 @@ export function PurchasePage({ actor }: { actor: Actor }) {
                           spacing={1}
                         >
                           <Typography variant="h6">{order.branchName}</Typography>
-                          <Chip size="small" label={label(order.status)} />
+                          <StatusChip status={order.status} />
                         </Stack>
+                        {canOperate && (
+                          <Box sx={{ bgcolor: 'primary.light', borderRadius: 2, p: 2 }}>
+                            <Typography variant="overline" color="primary">
+                              Próxima tarea
+                            </Typography>
+                            <Typography variant="body2" sx={{ fontWeight: 650 }}>
+                              {pharmacyNextTask(order, purchase)}
+                            </Typography>
+                          </Box>
+                        )}
                         {order.branchAddress && (
                           <Typography variant="body2" color="text.secondary">
                             {purchase.mode === 'PICKUP' ? 'Retirá en: ' : 'Sucursal: '}
@@ -559,6 +817,23 @@ export function PurchasePage({ actor }: { actor: Actor }) {
                           <Typography variant="body2" color="text.secondary">
                             Factura y cobro: {order.merchantName}
                           </Typography>
+                        )}
+                        {order.invoiceIssue?.active && (
+                          <Alert severity="warning">
+                            <Typography sx={{ fontWeight: 650 }}>
+                              Problema de facturación pendiente
+                            </Typography>
+                            <Typography variant="body2">{order.invoiceIssue.reason}</Typography>
+                            <Typography variant="body2">
+                              La farmacia debe resolver la emisión externa y adjuntar la factura
+                              válida. Reportado el {dateTime(order.invoiceIssue.reportedAt)} ·{' '}
+                              {order.invoiceIssue.attemptCount}{' '}
+                              {order.invoiceIssue.attemptCount === 1
+                                ? 'intento informado'
+                                : 'intentos informados'}
+                              .
+                            </Typography>
+                          </Alert>
                         )}
                         {fulfillmentLabel(order, purchase.mode) && (
                           <Alert
@@ -573,6 +848,90 @@ export function PurchasePage({ actor }: { actor: Actor }) {
                             }
                           >
                             {fulfillmentLabel(order, purchase.mode)}
+                          </Alert>
+                        )}
+                        {order.deliveryMinutes && order.reviewCount > 0 && (
+                          <Typography variant="body2" color="text.secondary">
+                            Plazo informado: {order.deliveryMinutes} minutos para{' '}
+                            {purchase.mode === 'PICKUP'
+                              ? 'estar listo para retirar'
+                              : 'preparación y entrega'}
+                            .
+                          </Typography>
+                        )}
+                        {order.receiverName && (
+                          <Typography variant="body2">
+                            Recibe o retira: {order.receiverName}
+                          </Typography>
+                        )}
+                        {order.cancellationPending && (
+                          <Alert severity="warning">
+                            <Typography sx={{ fontWeight: 650 }}>
+                              Cancelación en revisión
+                            </Typography>
+                            <Typography variant="body2">
+                              La preparación está detenida y las reservas se liberaron. Dos
+                              farmacéuticos deben aprobar la cancelación de alto valor antes de
+                              confirmar el cierre. Motivo: {order.cancellationReason}
+                            </Typography>
+                          </Alert>
+                        )}
+                        {order.authorization && (
+                          <Alert
+                            severity={
+                              order.authorization.status === 'APPROVED' ? 'success' : 'warning'
+                            }
+                          >
+                            <Typography variant="body2">
+                              Autorización de esta compra: {label(order.authorization.status)}.{' '}
+                              {order.authorization.reason}
+                            </Typography>
+                            {ownsPurchase &&
+                              !['COMPLETED', 'CANCELLED', 'RESOLVED', 'REJECTED'].includes(
+                                purchase.status,
+                              ) && (
+                                <Button
+                                  onClick={() => {
+                                    setReplacementAuthorization('');
+                                    setNotice('');
+                                    setCorrectingAuthorization(true);
+                                  }}
+                                >
+                                  Corregir autorización
+                                </Button>
+                              )}
+                            {ownsPurchase &&
+                              !['COMPLETED', 'CANCELLED', 'RESOLVED', 'REJECTED'].includes(
+                                purchase.status,
+                              ) &&
+                              !['REVOKED', 'EXPIRED'].includes(order.authorization.status) && (
+                                <Button color="warning" onClick={() => setRevoking(true)}>
+                                  Revocar autorización de recepción
+                                </Button>
+                              )}
+                          </Alert>
+                        )}
+                        {canOperate && order.fulfillment?.assignmentMessage && (
+                          <Alert severity="warning">{order.fulfillment.assignmentMessage}</Alert>
+                        )}
+                        {order.fulfillment?.taskExpiresAt &&
+                          order.fulfillment.status === 'ASSIGNED' && (
+                            <Typography variant="body2" color="text.secondary">
+                              Aceptación de tarea hasta {dateTime(order.fulfillment.taskExpiresAt)}
+                            </Typography>
+                          )}
+                        {order.fulfillment?.pickupExpiresAt &&
+                          purchase.mode === 'PICKUP' &&
+                          order.status === 'DISPENSED' && (
+                            <Typography variant="body2" color="text.secondary">
+                              Retiro disponible hasta {dateTime(order.fulfillment.pickupExpiresAt)}
+                            </Typography>
+                          )}
+                        {order.fulfillment?.retryScheduledAt && (
+                          <Alert severity="info">
+                            Único reintento coordinado:{' '}
+                            {dateTime(order.fulfillment.retryScheduledAt)}.{' '}
+                            {order.fulfillment.coordinationNote}
                           </Alert>
                         )}
                         {order.highValueRequired && (
@@ -611,6 +970,43 @@ export function PurchasePage({ actor }: { actor: Actor }) {
                             ? `Importe de esta farmacia: ${money(order.total, order.currency)}`
                             : 'Importe de esta farmacia a confirmar.'}
                         </Typography>
+                        {order.paidAmount !== undefined && (
+                          <Box
+                            sx={{
+                              display: 'grid',
+                              gridTemplateColumns: { xs: '1fr 1fr', sm: 'repeat(3,1fr)' },
+                              gap: 2,
+                              bgcolor: 'background.default',
+                              borderRadius: 2,
+                              p: 2,
+                            }}
+                          >
+                            <Box>
+                              <Typography variant="caption" color="text.secondary">
+                                Cobrado
+                              </Typography>
+                              <Typography sx={{ fontWeight: 650 }}>
+                                {money(order.paidAmount, order.currency)}
+                              </Typography>
+                            </Box>
+                            <Box>
+                              <Typography variant="caption" color="text.secondary">
+                                Saldo por pagar
+                              </Typography>
+                              <Typography sx={{ fontWeight: 650 }}>
+                                {money(order.outstandingAmount ?? order.total, order.currency)}
+                              </Typography>
+                            </Box>
+                            <Box>
+                              <Typography variant="caption" color="text.secondary">
+                                Devuelto
+                              </Typography>
+                              <Typography sx={{ fontWeight: 650 }}>
+                                {money(order.refundedAmount ?? '0.00', order.currency)}
+                              </Typography>
+                            </Box>
+                          </Box>
+                        )}
                         {ownsPurchase &&
                           ['ACCEPTED', 'PARTIALLY_PAID'].includes(purchase.status) &&
                           purchase.messages?.paymentPending && (
@@ -670,6 +1066,8 @@ export function PurchasePage({ actor }: { actor: Actor }) {
                           <Alert key={payment.id} severity="info">
                             Pago directo: {money(payment.amount, payment.currency)} ·{' '}
                             {label(payment.status)}
+                            {payment.method &&
+                              ` · ${{ TRANSFER: 'Transferencia bancaria', CASH: 'Efectivo', CARD: 'Tarjeta', OTHER: 'Otro medio comprobado' }[payment.method] ?? 'Medio registrado en la constancia'}`}
                             {payment.external_reference
                               ? ` · Referencia ${payment.external_reference}`
                               : ''}
@@ -684,6 +1082,46 @@ export function PurchasePage({ actor }: { actor: Actor }) {
                             {label(refund.status)}
                           </Alert>
                         ))}
+                        {order.fiscalAdjustments?.map((adjustment) => (
+                          <Box
+                            key={adjustment.id}
+                            sx={{ p: 2, bgcolor: 'background.default', borderRadius: 2 }}
+                          >
+                            <Typography variant="body2">
+                              {adjustment.kind === 'CREDIT' ? 'Nota de crédito' : 'Nota de débito'}:{' '}
+                              {adjustment.reference} ·{' '}
+                              {money(adjustment.amount, adjustment.currency)}
+                            </Typography>
+                            {adjustment.evidence_document_id && (
+                              <Button
+                                component="a"
+                                href={`/api/documents/${adjustment.evidence_document_id}`}
+                                target="_blank"
+                                rel="noopener"
+                              >
+                                Consultar documento fiscal
+                              </Button>
+                            )}
+                          </Box>
+                        ))}
+                        {canOperate &&
+                          order.financialControls?.map((control) => (
+                            <Typography key={control.id} variant="body2" color="text.secondary">
+                              Control de{' '}
+                              {control.operation === 'DISPATCH'
+                                ? 'salida física'
+                                : control.operation === 'CANCEL'
+                                  ? 'cancelación'
+                                  : 'reintegro'}
+                              :{' '}
+                              {control.valid
+                                ? 'aprobación vigente'
+                                : control.approved_by
+                                  ? 'aprobación anterior; hay que comprobar las condiciones actuales'
+                                  : 'primera revisión registrada; falta otro farmacéutico'}
+                              . El servidor comprueba su vigencia.
+                            </Typography>
+                          ))}
                         {ownsPurchase && order.fulfillment?.location && (
                           <Alert severity="info">
                             Última ubicación informada por el cadete:{' '}
@@ -710,6 +1148,91 @@ export function PurchasePage({ actor }: { actor: Actor }) {
                         )}
                         <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: 'wrap' }}>
                           {canReview &&
+                            order.authorization &&
+                            !['CANCELLED', 'RESOLVED', 'DELIVERED', 'PICKED_UP'].includes(
+                              order.status,
+                            ) &&
+                            !['REVOKED', 'EXPIRED'].includes(order.authorization.status) && (
+                              <Button onClick={() => setAction({ kind: 'authorization', order })}>
+                                Verificar autorización
+                              </Button>
+                            )}
+                          {canReview &&
+                            !order.cancellationPending &&
+                            order.highValueRequired &&
+                            ['PAID', 'PREPARING', 'DISPENSED'].includes(order.status) && (
+                              <Button
+                                onClick={() =>
+                                  setAction({ kind: 'financial-control-dispatch', order })
+                                }
+                              >
+                                Revisar control de salida
+                              </Button>
+                            )}
+                          {canReview && order.cancellationPending && (
+                            <Button
+                              onClick={() => setAction({ kind: 'financial-control-cancel', order })}
+                            >
+                              Revisar cancelación de alto valor
+                            </Button>
+                          )}
+                          {canOperate &&
+                            order.cancellationPending &&
+                            order.financialControls?.some(
+                              (control) => control.operation === 'CANCEL' && control.valid,
+                            ) && (
+                              <Button
+                                variant="contained"
+                                color="error"
+                                onClick={() => setAction({ kind: 'cancel', order })}
+                              >
+                                Confirmar cancelación autorizada
+                              </Button>
+                            )}
+                          {canReview &&
+                            order.highValueRequired &&
+                            (order.refunds?.some((r) => r.status !== 'VERIFIED') || isIncident) && (
+                              <Button
+                                onClick={() =>
+                                  setAction({ kind: 'financial-control-refund', order })
+                                }
+                              >
+                                Revisar control de reintegro
+                              </Button>
+                            )}
+                          {canOperate && order.invoiceDocumentId && (
+                            <Button onClick={() => setAction({ kind: 'fiscal-adjustment', order })}>
+                              Registrar nota fiscal
+                            </Button>
+                          )}
+                          {canReview &&
+                            (order.fulfillment?.status === 'RETURN_REQUIRED' ||
+                              (order.fulfillment?.status === 'INCIDENT' &&
+                                order.fulfillment.custodyHolder === 'RECIPIENT')) && (
+                              <Button
+                                variant="contained"
+                                onClick={() => setAction({ kind: 'return-received', order })}
+                              >
+                                {order.fulfillment?.custodyHolder === 'RECIPIENT'
+                                  ? 'Recibir devolución física'
+                                  : 'Registrar recepción física del retorno'}
+                              </Button>
+                            )}
+                          {canOperate && Number(order.netPaidAmount ?? 0) > 0 && (
+                            <Button onClick={() => setAction({ kind: 'refund-request', order })}>
+                              Solicitar reintegro parcial o total
+                            </Button>
+                          )}
+                          {canReview &&
+                            !hasPendingSubstitution &&
+                            purchase.status !== 'REJECTED' &&
+                            ['PROPOSED', 'REVIEW_PENDING', 'QUOTED'].includes(order.status) && (
+                              <Button onClick={() => setSubstitutingOrder(order)}>
+                                Proponer sustitución
+                              </Button>
+                            )}
+                          {canReview &&
+                            !hasPendingSubstitution &&
                             !order.reviewApproved &&
                             ['PROPOSED', 'REVIEW_PENDING', 'QUOTED'].includes(order.status) && (
                               <Button
@@ -748,25 +1271,33 @@ export function PurchasePage({ actor }: { actor: Actor }) {
                                 Verificar pago
                               </Button>
                             )}
-                          {canOperate && order.status === 'PAID' && (
+                          {canOperate && !order.cancellationPending && order.status === 'PAID' && (
                             <Button
                               variant="contained"
-                              disabled={!canPrepare}
+                              disabled={
+                                !canPrepare ||
+                                order.replacementReviewPending ||
+                                purchase.replacementReviewPending
+                              }
                               onClick={() => setAction({ kind: 'prepare', order })}
                             >
                               Preparar
                             </Button>
                           )}
-                          {canReview && order.status === 'PREPARING' && !isIncident && (
-                            <Button
-                              variant="contained"
-                              disabled={!order.invoiceDocumentId}
-                              onClick={() => setAction({ kind: 'dispense', order })}
-                            >
-                              Registrar dispensación
-                            </Button>
-                          )}
+                          {canReview &&
+                            !order.cancellationPending &&
+                            order.status === 'PREPARING' &&
+                            !isIncident && (
+                              <Button
+                                variant="contained"
+                                disabled={!order.invoiceDocumentId}
+                                onClick={() => setAction({ kind: 'dispense', order })}
+                              >
+                                Registrar dispensación
+                              </Button>
+                            )}
                           {canOperate &&
+                            !order.replacementRequestId &&
                             ['PAID', 'PREPARING', 'DISPENSED'].includes(order.status) &&
                             !isIncident && (
                               <Button onClick={() => setAction({ kind: 'invoice', order })}>
@@ -776,6 +1307,16 @@ export function PurchasePage({ actor }: { actor: Actor }) {
                               </Button>
                             )}
                           {canOperate &&
+                            !order.replacementRequestId &&
+                            !order.invoiceDocumentId &&
+                            !order.cancellationPending &&
+                            ['PAID', 'PREPARING', 'DISPENSED'].includes(order.status) && (
+                              <Button onClick={() => setAction({ kind: 'invoice-issue', order })}>
+                                Informar problema de facturación
+                              </Button>
+                            )}
+                          {canOperate &&
+                            !order.cancellationPending &&
                             !isIncident &&
                             order.status === 'DISPENSED' &&
                             purchase.mode === 'DELIVERY' && (
@@ -787,6 +1328,7 @@ export function PurchasePage({ actor }: { actor: Actor }) {
                               </Button>
                             )}
                           {canReview &&
+                            !order.cancellationPending &&
                             !isIncident &&
                             order.status === 'DISPENSED' &&
                             purchase.mode === 'PICKUP' && (
@@ -798,6 +1340,7 @@ export function PurchasePage({ actor }: { actor: Actor }) {
                               </Button>
                             )}
                           {ownsPurchase &&
+                            !order.cancellationPending &&
                             !isIncident &&
                             ['DISPENSED', 'DISPATCHED'].includes(order.status) && (
                               <Button
@@ -828,6 +1371,7 @@ export function PurchasePage({ actor }: { actor: Actor }) {
                               </Button>
                             )}
                           {canOperate &&
+                            !order.cancellationPending &&
                             !isIncident &&
                             ['ACCEPTED', 'PAID', 'PREPARING'].includes(order.status) && (
                               <Button
@@ -847,19 +1391,24 @@ export function PurchasePage({ actor }: { actor: Actor }) {
                                 Conciliar pago informado
                               </Button>
                             )}
-                          {canReview && order.fulfillment?.status === 'INCIDENT' && (
-                            <Button
-                              variant="contained"
-                              onClick={() => setAction({ kind: 'resolve-incident', order })}
-                            >
-                              Resolver incidencia
-                            </Button>
-                          )}
+                          {canReview &&
+                            ['INCIDENT', 'RETURNED'].includes(order.fulfillment?.status ?? '') && (
+                              <Button
+                                variant="contained"
+                                onClick={() => setAction({ kind: 'resolve-incident', order })}
+                              >
+                                Resolver incidencia
+                              </Button>
+                            )}
                           {(ownsPurchase || canOperate) &&
                             order.fulfillment &&
-                            !['CANCELLED', 'RESOLVED', 'INCIDENT'].includes(
-                              order.fulfillment.status,
-                            ) && (
+                            ![
+                              'CANCELLED',
+                              'RESOLVED',
+                              'INCIDENT',
+                              'RETURN_REQUIRED',
+                              'RETURNED',
+                            ].includes(order.fulfillment.status) && (
                               <Button onClick={() => setAction({ kind: 'incident', order })}>
                                 Informar incidencia
                               </Button>
@@ -883,6 +1432,16 @@ export function PurchasePage({ actor }: { actor: Actor }) {
                             Adjuntá la factura emitida por la farmacia antes de registrar la
                             dispensación.
                           </Typography>
+                        )}
+                        {(ownsPurchase || canReview) && order.fulfillment && (
+                          <ReplacementPanel
+                            actor={actor}
+                            order={order}
+                            purchase={purchase}
+                            canReview={canReview}
+                            onOpenPurchase={(id) => setSelected(id)}
+                            onDone={() => void refresh()}
+                          />
                         )}
                         {receipt?.order === order.id &&
                           !isIncident &&
@@ -919,6 +1478,16 @@ export function PurchasePage({ actor }: { actor: Actor }) {
           )
         )}
       </Box>
+      {substitutingOrder && (
+        <SubstitutionDialog
+          order={substitutingOrder}
+          onClose={() => setSubstitutingOrder(null)}
+          onDone={() => {
+            setSubstitutingOrder(null);
+            void refresh();
+          }}
+        />
+      )}
       {action && purchase && (
         <OrderActionDialog
           key={`${action.order.id}:${action.kind}`}
@@ -1011,7 +1580,7 @@ export function PurchasePage({ actor }: { actor: Actor }) {
             {purchase?.quoteExpiresAt && (
               <Typography variant="body2" color="text.secondary">
                 Propuesta vigente hasta {dateTime(purchase.quoteExpiresAt)}. Si cambia la farmacia,
-                el precio o la cobertura, deberás aceptar otra propuesta.
+                el precio, la cobertura o el plazo, deberás aceptar otra propuesta.
               </Typography>
             )}
             {purchase?.orders
@@ -1026,11 +1595,16 @@ export function PurchasePage({ actor }: { actor: Actor }) {
                     </Typography>
                   )}
                   <Typography>
-                    {['ROUTING', 'UNAVAILABLE'].includes(x.status)
+                    {['ROUTING', 'UNAVAILABLE', 'REJECTED'].includes(x.status)
                       ? 'Importe a confirmar'
                       : money(x.total, x.currency)}{' '}
                     · {label(purchase.mode)}
                   </Typography>
+                  {x.deliveryMinutes && (
+                    <Typography variant="body2">
+                      Plazo estimado: {x.deliveryMinutes} minutos.
+                    </Typography>
+                  )}
                   {(x.lines ?? []).map((y) => (
                     <Typography key={y.productId} variant="body2">
                       {y.name} · {y.presentation}: {y.quantity}{' '}
@@ -1048,8 +1622,8 @@ export function PurchasePage({ actor }: { actor: Actor }) {
               </Alert>
             )}
             <Typography variant="body2">
-              Envío: sin costo. Uso de E-MEDICAPP: sin costo. La aceptación reserva el stock durante
-              el plazo informado para completar y verificar todos los pagos.
+              Envío: sin costo. Uso de E-MEDICAPP: sin costo. Las existencias se reservaron al
+              emitir la propuesta. Completá y verificá todos los pagos dentro del plazo informado.
             </Typography>
             {purchase?.messages?.quoteConsent && (
               <Typography>{purchase.messages.quoteConsent}</Typography>
@@ -1058,7 +1632,7 @@ export function PurchasePage({ actor }: { actor: Actor }) {
               control={
                 <Checkbox checked={consent} onChange={(e) => setConsent(e.target.checked)} />
               }
-              label="Acepto expresamente farmacias, presentaciones, cantidades, cobertura, importes y modalidad de esta propuesta"
+              label="Acepto expresamente farmacias, presentaciones, cantidades, cobertura, importes, plazos y modalidad de esta propuesta"
             />
           </Stack>
         </DialogContent>
@@ -1076,6 +1650,74 @@ export function PurchasePage({ actor }: { actor: Actor }) {
         </DialogActions>
       </Dialog>
       <Dialog
+        open={correctingAuthorization}
+        onClose={busy ? undefined : () => setCorrectingAuthorization(false)}
+        fullWidth
+        maxWidth="sm"
+      >
+        <DialogTitle>Corregir autorización de esta compra</DialogTitle>
+        <DialogContent>
+          <Stack spacing={2}>
+            <Alert severity="info">
+              Adjuntá una nota nueva firmada para esta misma compra. Conservá al beneficiario y al
+              receptor informados; la farmacia volverá a revisar identidad, firma y alcance antes de
+              habilitar la recepción.
+            </Alert>
+            {notice && <Alert severity="warning">{notice}</Alert>}
+            <DocumentInput
+              label="Nueva autorización firmada para esta compra"
+              kind="AUTORIZACION"
+              value={replacementAuthorization}
+              onChange={setReplacementAuthorization}
+            />
+          </Stack>
+        </DialogContent>
+        <DialogActions>
+          <Button disabled={busy} onClick={() => setCorrectingAuthorization(false)}>
+            Volver
+          </Button>
+          <Button
+            variant="contained"
+            disabled={busy || !replacementAuthorization}
+            onClick={() => void correctAuthorization()}
+          >
+            {busy ? 'Enviando…' : 'Enviar nota para revisión'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+      <Dialog
+        open={revoking}
+        onClose={busy ? undefined : () => setRevoking(false)}
+        fullWidth
+        maxWidth="sm"
+      >
+        <DialogTitle>Revocar autorización de esta compra</DialogTitle>
+        <DialogContent>
+          <Typography>
+            La persona autorizada dejará de poder recibir o retirar estos pedidos. La farmacia
+            tendrá que resolver la recepción y, si el paquete ya salió, su logística.
+          </Typography>
+          {notice && (
+            <Alert severity="warning" sx={{ mt: 2 }}>
+              {notice}
+            </Alert>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button disabled={busy} onClick={() => setRevoking(false)}>
+            Volver
+          </Button>
+          <Button
+            color="warning"
+            variant="contained"
+            disabled={busy}
+            onClick={() => void revokeAuthorization()}
+          >
+            Revocar autorización
+          </Button>
+        </DialogActions>
+      </Dialog>
+      <Dialog
         open={cancel}
         onClose={busy ? undefined : () => setCancel(false)}
         fullWidth
@@ -1089,7 +1731,9 @@ export function PurchasePage({ actor }: { actor: Actor }) {
               Antes de la dispensación se libera el stock reservado y se solicita el reintegro
               completo de los cobros registrados, sin un tope de importe. La farmacia debe realizar
               y comprobar la devolución. Si algún pedido ya fue dispensado, se abre una incidencia
-              para que la farmacia determine la resolución.
+              para que la farmacia determine la resolución. En pedidos de alto valor, la solicitud
+              detiene la preparación y el cierre queda pendiente de la revisión de dos
+              farmacéuticos.
             </Typography>
             <TextField
               label="Motivo"

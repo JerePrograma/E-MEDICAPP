@@ -1,8 +1,9 @@
 package ar.emedicapp.auth;
 
+import org.springframework.stereotype.Component;
+
 import java.time.Clock;
 import java.util.LinkedHashMap;
-import org.springframework.stereotype.Component;
 
 @Component
 public class LoginRateLimiter {

@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="es-AR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="color-scheme" content="light"><meta name="description" content="Alta real de cuentas y farmacias. Manual guiado de E-MEDICAPP para consultar desde el celular."><title>Alta real de cuentas y farmacias · E-MEDICAPP</title><style>
+:root{color-scheme:light;--green:#176b5b;--dark:#104d43;--ink:#24332e;--muted:#596961;--line:#dce5de;--soft:#e9f3ee;--paper:#fff;--bg:#f5f6f3}
+*{box-sizing:border-box}html{scroll-behavior:smooth;scroll-padding-top:1.5rem}body{margin:0;color:var(--ink);background:var(--bg);font-family:"Segoe UI",system-ui,-apple-system,BlinkMacSystemFont,sans-serif;font-size:17px;line-height:1.7;-webkit-text-size-adjust:100%}
+a{color:var(--green);text-underline-offset:3px;overflow-wrap:anywhere}a:hover{color:var(--dark)}a:focus-visible,summary:focus-visible{outline:3px solid #68a494;outline-offset:4px;border-radius:5px}.skip{position:absolute;left:1rem;top:-5rem;z-index:10;background:white;padding:.8rem 1rem}.skip:focus{top:1rem}
+.topbar{background:var(--paper);border-bottom:1px solid var(--line)}.topbar-inner{max-width:1050px;margin:auto;padding:1rem 1.5rem;display:flex;align-items:center;justify-content:space-between;gap:1rem;flex-wrap:wrap}.brand{display:flex;align-items:center;gap:.65rem;font-weight:800;letter-spacing:-.03em;text-decoration:none;color:var(--green);line-height:1.2}.brand-mark{background:var(--green);color:white;width:34px;height:34px;border-radius:10px;display:grid;place-items:center;font-size:24px;font-weight:600;flex-shrink:0}.brand small{display:block;font-size:11px;letter-spacing:.13em;font-weight:600;color:var(--muted);margin-top:.25rem;text-transform:uppercase}.app-link{display:inline-flex;align-items:center;justify-content:center;min-height:44px;padding:.5rem .95rem;border:1px solid var(--line);border-radius:10px;font-size:14px;font-weight:650;text-decoration:none;line-height:1.3}
+.layout{width:100%;max-width:850px;margin:0 auto;padding:2.5rem 1.5rem 3rem}.index-layout{max-width:1050px}.breadcrumb{font-size:14px;margin:0 0 1.5rem;display:inline-flex;min-height:44px;align-items:center;text-decoration:none;gap:.45rem}.eyebrow{font-size:12px;letter-spacing:.13em;text-transform:uppercase;font-weight:750;color:var(--green);margin:0 0 .8rem}.hero h1{font-size:clamp(1.8rem,4.2vw,2.7rem);line-height:1.14;letter-spacing:-.04em;margin:0 0 1.1rem;font-weight:750;overflow-wrap:anywhere}.hero p{margin:0 0 1rem}.hero>p:first-of-type{font-size:19px;color:var(--muted)}.edition{display:inline-block;font-size:12px;color:var(--muted);padding:.3rem .65rem;background:var(--paper);border:1px solid var(--line);border-radius:100px;margin:.25rem 0 1.5rem}
+.toc{margin:0 0 1.5rem;border:1px solid var(--line);border-radius:14px;background:var(--paper);overflow:hidden}.toc summary{cursor:pointer;font-weight:650;padding:1rem 1.2rem;min-height:48px}.toc[open] summary{border-bottom:1px solid var(--line)}.toc ul{margin:0;padding:.5rem 1.2rem 1rem 2.4rem}.toc li{padding:0;margin:.1rem 0}.toc a{display:inline-flex;align-items:center;min-height:44px;text-decoration:none;font-size:15px;line-height:1.5}
+.section{background:var(--paper);border:1px solid var(--line);border-radius:16px;padding:1.65rem 1.8rem;margin:0 0 1.25rem;scroll-margin-top:1.25rem}.section h2{font-size:1.32rem;line-height:1.3;letter-spacing:-.02em;margin:0 0 1.25rem;font-weight:730;overflow-wrap:anywhere}.section h3{font-size:1.08rem;line-height:1.4;margin:1.5rem 0 .75rem}p{margin:0 0 1rem}p:last-child{margin-bottom:0}ol,ul{padding-left:1.6rem;margin:0 0 1.25rem}li{margin:.7rem 0;padding-left:.3rem;overflow-wrap:anywhere}li::marker{color:var(--green);font-weight:750}strong{font-weight:700}code{font-family:ui-monospace,SFMono-Regular,Consolas,monospace;background:var(--soft);padding:.1rem .3rem;border-radius:5px;font-size:.9em;overflow-wrap:anywhere}blockquote{margin:1rem 0;padding:.8rem 1rem;border-left:3px solid var(--green);background:var(--soft);border-radius:0 8px 8px 0}
+.cards-title{font-size:1.05rem;margin:0 0 1rem;font-weight:700}.guide-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.85rem;margin-bottom:1rem}.guide-card{display:flex;gap:1rem;align-items:flex-start;min-height:120px;text-decoration:none;color:var(--ink);background:var(--paper);border:1px solid var(--line);border-radius:14px;padding:1.2rem}.guide-card:hover{border-color:var(--green);background:#fbfdfb;color:var(--ink)}.guide-card .number{background:var(--soft);color:var(--green);border-radius:9px;min-width:36px;height:36px;display:grid;place-items:center;font-size:13px;font-weight:750}.guide-card strong{display:block;font-size:17px;line-height:1.35;margin:0 0 .45rem}.guide-card p{font-size:14px;line-height:1.55;color:var(--muted);margin:0}.guide-card .arrow{color:var(--green);margin-left:auto;flex-shrink:0;font-size:20px}.real-guide{margin-bottom:2rem;background:var(--soft);border-color:#c8ddd2;min-height:auto}
+.table-wrap{margin:1rem 0;max-width:100%}table{width:100%;border-collapse:collapse;font-size:14px;line-height:1.55}th,td{padding:.8rem .65rem;text-align:left;vertical-align:top;overflow-wrap:anywhere;border-bottom:1px solid var(--line)}th{background:var(--soft);font-weight:700}.credentials td:nth-child(2),.credentials td:nth-child(3){font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:13px}.table-wrap caption{text-align:left;font-size:12px;color:var(--muted);margin:0 0 .5rem}.note{font-size:14px;color:var(--muted)}.text-document{white-space:pre-wrap;overflow-wrap:anywhere;font:inherit;line-height:1.7;margin:0}.footer{font-size:13px;color:var(--muted);padding:.5rem .2rem;display:flex;justify-content:space-between;align-items:center;gap:1rem;flex-wrap:wrap}.footer a{display:inline-flex;align-items:center;min-height:44px}.footer p{margin:0}.bottom-links{display:flex;flex-wrap:wrap;gap:.65rem;margin:1.5rem 0}.bottom-links a{background:var(--paper);border:1px solid var(--line);border-radius:10px;padding:.6rem 1rem;display:inline-flex;min-height:44px;align-items:center;text-decoration:none;font-size:14px}
+@media(max-width:640px){body{font-size:16px;line-height:1.75}.topbar-inner{padding:.85rem 1rem;gap:.7rem}.brand{font-size:17px}.app-link{font-size:12px;padding:.45rem .65rem}.layout{padding:1.75rem 1rem 2rem}.hero>p:first-of-type{font-size:17px}.section{padding:1.3rem 1.1rem;border-radius:13px}.section h2{font-size:1.22rem}.guide-grid{grid-template-columns:1fr;gap:.7rem}.guide-card{min-height:auto;padding:1rem;gap:.8rem}.real-guide{margin-bottom:1.5rem}.toc summary{padding:.9rem 1rem}.toc ul{padding:.4rem 1rem .75rem 2rem}.table-wrap table,.table-wrap tbody,.table-wrap tr,.table-wrap td{display:block;width:100%}.table-wrap thead{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)}.table-wrap tr{border:1px solid var(--line);border-radius:12px;margin-bottom:.8rem;overflow:hidden;background:white}.table-wrap td{border:0;padding:.55rem .85rem;font-size:15px}.table-wrap td:first-child{background:var(--soft);font-weight:700;padding-top:.7rem;padding-bottom:.7rem}.table-wrap td:last-child{padding-bottom:.8rem}.table-wrap td::before{content:attr(data-label);display:block;font-size:11px;letter-spacing:.08em;text-transform:uppercase;font-weight:700;font-family:"Segoe UI",system-ui,sans-serif;color:var(--muted);margin-bottom:.2rem}.credentials td:nth-child(2),.credentials td:nth-child(3){font-size:14px}.section ol,.section ul{padding-left:1.4rem}.section li{padding-left:.15rem;margin:.85rem 0}}
+@media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
+@media print{body{background:white;font-size:11pt;line-height:1.5}.topbar,.breadcrumb,.toc,.bottom-links,.guide-grid,.real-guide,.skip,.edition{display:none}.layout{max-width:none;padding:0}.hero h1{font-size:24pt}.section{border:0;border-radius:0;padding:0;margin:1.5rem 0}.section h2{break-after:avoid;font-size:16pt}li,tr{break-inside:avoid}a{color:inherit;text-decoration:underline}table{font-size:10pt}.footer{border-top:1px solid #ccc;padding-top:.75rem}.footer a{display:none}}
+</style></head>
+<body id="inicio"><a class="skip" href="#contenido">Ir al contenido</a><header class="topbar"><div class="topbar-inner"><a class="brand" href="index.html" aria-label="E-MEDICAPP, inicio de manuales"><span class="brand-mark" aria-hidden="true">+</span><span>E-MEDICAPP<small>Manuales de uso</small></span></a><a class="app-link" href="https://tamper-raving-aversion.ngrok-free.dev" target="_blank" rel="noopener noreferrer">Abrir E-MEDICAPP ↗</a></div></header>
+<main class="layout" id="contenido"><a class="breadcrumb" href="index.html">← Todos los manuales</a><header class="hero"><p class="eyebrow">Guía paso a paso</p><h1>Alta real de cuentas y farmacias</h1><p>Esta guía explica cómo incorporar personas y establecimientos para una operación real. El primer administrador de E-MEDICAPP ya existe: el alta de una nueva farmacia se realiza desde su panel.</p>
+<p>Una <strong>cuenta</strong> representa a una persona. Una <strong>sucursal</strong> representa al establecimiento que recibe pedidos, cobra y factura. Crear una sucursal no crea una cuenta ni una contraseña.</p>
+<span class="edition">Edición HTML · 11/10/2026</span></header><details class="toc"><summary>Ir a una sección · 10 temas</summary><nav aria-label="Secciones del manual"><ul><li><a href="#preparar-el-registro-de-personas">Preparar el registro de personas</a></li><li><a href="#registrar-a-cada-persona">Registrar a cada persona</a></li><li><a href="#incorporar-otro-administrador-de-la-plataforma">Incorporar otro administrador de la plataforma</a></li><li><a href="#dar-de-alta-una-cadena-y-sus-sucursales">Dar de alta una cadena y sus sucursales</a></li><li><a href="#designar-al-administrador-de-sucursal-y-su-equipo">Designar al administrador de sucursal y su equipo</a></li><li><a href="#una-persona-con-varias-funciones-o-sucursales">Una persona con varias funciones o sucursales</a></li><li><a href="#delegar-la-incorporacion-del-equipo">Delegar la incorporación del equipo</a></li><li><a href="#preparar-catalogo-existencias-y-capacidades">Preparar catálogo, existencias y capacidades</a></li><li><a href="#preparar-el-contrato-y-el-pago-mensual">Preparar el contrato y el pago mensual</a></li><li><a href="#comprobar-el-alta-antes-de-operar">Comprobar el alta antes de operar</a></li></ul></nav></details><section class="section" id="preparar-el-registro-de-personas" aria-labelledby="preparar-el-registro-de-personas-titulo"><h2 id="preparar-el-registro-de-personas-titulo">Preparar el registro de personas</h2><p>El envío de correos quedó preparado, pero todavía está pendiente de configuración. Para habilitar registros reales, configurá primero el correo siguiendo la <a href="configuracion-correo.html">guía de configuración</a>.</p>
+<p>Hasta configurar el envío y confirmar el correo, las cuentas nuevas permanecen pendientes y no pueden ingresar. La administración no confirma correos desde el panel.</p>
+<p>Las <strong>7 cuentas temporales de la demo pública</strong> se habilitan expresamente para la demostración. Esa preparación no cambia el registro normal ni habilita automáticamente a las personas que se registren después. En la operación real, cada persona utiliza su propia cuenta y contraseña.</p>
+</section>
+<section class="section" id="registrar-a-cada-persona" aria-labelledby="registrar-a-cada-persona-titulo"><h2 id="registrar-a-cada-persona-titulo">Registrar a cada persona</h2><ol>
+<li>La persona abre E-MEDICAPP y elige registrarse.</li>
+<li>Completa nombre, DNI, fecha de nacimiento, correo, teléfono y domicilio. Debe ser mayor de edad.</li>
+<li>Elige una contraseña propia de al menos 12 caracteres.</li>
+<li>Confirma su correo mediante el enlace recibido. Si vence, solicita otro enlace.</li>
+<li>Inicia sesión con su correo y contraseña.</li>
+</ol>
+<p>Toda cuenta registrada comienza como <strong>Comprador</strong>. El registro no otorga permisos de farmacia ni de administración. Este mismo procedimiento sirve para clientes, empleados, farmacéuticos, cadetes y futuros administradores.</p>
+<p>No se crean personas desde el panel de administración ni se envían invitaciones automáticas. Primero debe existir la cuenta individual.</p>
+</section>
+<section class="section" id="incorporar-otro-administrador-de-la-plataforma" aria-labelledby="incorporar-otro-administrador-de-la-plataforma-titulo"><h2 id="incorporar-otro-administrador-de-la-plataforma-titulo">Incorporar otro administrador de la plataforma</h2><ol>
+<li>La persona se registra y confirma su correo.</li>
+<li>El administrador actual entra en <strong>Administración → Usuarios</strong>.</li>
+<li>Busca la cuenta y elige <strong>Modificar acceso</strong>.</li>
+<li>Agrega <strong>Administración</strong>, conserva los demás roles que correspondan y guarda.</li>
+<li>La persona vuelve a iniciar sesión.</li>
+</ol>
+<p>Este acceso permite administrar toda la plataforma. Los cambios de acceso cierran las sesiones anteriores. La aplicación protege al último administrador activo; para reemplazarlo, primero debe quedar otro administrador habilitado.</p>
+<p>El primer administrador se preparó durante el primer inicio del entorno de operación. Agregar uno nuevo desde <strong>Usuarios</strong> no reemplaza esa cuenta existente.</p>
+</section>
+<section class="section" id="dar-de-alta-una-cadena-y-sus-sucursales" aria-labelledby="dar-de-alta-una-cadena-y-sus-sucursales-titulo"><h2 id="dar-de-alta-una-cadena-y-sus-sucursales-titulo">Dar de alta una cadena y sus sucursales</h2><p>Estos pasos corresponden al administrador de la plataforma.</p>
+<ol>
+<li>Si la farmacia pertenece a una cadena, entra en <strong>Cadenas → Agregar cadena</strong> y guarda su nombre. Para una farmacia independiente, omite este paso.</li>
+<li>Entra en <strong>Sucursales → Agregar sucursal</strong>.</li>
+<li>Selecciona la cadena, si corresponde, y completa nombre, domicilio, latitud y longitud.</li>
+<li>Indica la farmacia que cobra y factura, y sus instrucciones de pago directo.</li>
+<li>Define entrega a domicilio, retiro o ambos; radio de entrega, horarios y disponibilidad de cadete propio.</li>
+<li>Comprueba los datos, la habilitación y el acuerdo de adhesión antes de marcar las verificaciones correspondientes.</li>
+<li>Guarda la sucursal.</li>
+<li>Repite el alta por cada establecimiento.</li>
+</ol>
+<p>En esta versión, una farmacia independiente es una sucursal sin cadena. No hay un alta adicional separada de empresa farmacéutica. La cadena agrupa establecimientos; no tiene una cuenta compartida ni un permiso automático sobre todos ellos.</p>
+<p>El horario se repite diariamente. Si apertura y cierre quedan vacíos, la disponibilidad se controla manualmente. El radio es una referencia de distancia; la farmacia confirma la cobertura real de cada entrega.</p>
+</section>
+<section class="section" id="designar-al-administrador-de-sucursal-y-su-equipo" aria-labelledby="designar-al-administrador-de-sucursal-y-su-equipo-titulo"><h2 id="designar-al-administrador-de-sucursal-y-su-equipo-titulo">Designar al administrador de sucursal y su equipo</h2><ol>
+<li>Cada integrante se registra con su propia cuenta y confirma su correo.</li>
+<li>El administrador de la plataforma entra en <strong>Administración → Miembros → Asignar permiso</strong>.</li>
+<li>Elige persona y sucursal.</li>
+<li>Elige la función que debe cumplir.</li>
+<li>Deja <strong>Permiso activo</strong> marcado y guarda.</li>
+</ol>
+<div class="table-wrap"><table><thead><tr><th scope="col">Función</th><th scope="col">Qué habilita</th></tr></thead><tbody><tr><td data-label="Función">Administrador de sucursal</td><td data-label="Qué habilita">Actualizar datos operativos de las sucursales asignadas y organizar sus miembros.</td></tr>
+<tr><td data-label="Función">Operador de farmacia</td><td data-label="Qué habilita">Gestionar la operación comercial, pedidos, cobros, facturas y stock según las acciones disponibles.</td></tr>
+<tr><td data-label="Función">Farmacéutico</td><td data-label="Qué habilita">Revisar recetas y documentación, y realizar las actuaciones profesionales del circuito.</td></tr>
+<tr><td data-label="Función">Cadete propio</td><td data-label="Qué habilita">Trabajar con las tareas de entrega asignadas.</td></tr></tbody></table></div><p>Asignar el permiso de sucursal agrega también el rol correspondiente a la cuenta. Para actuar sobre un establecimiento se necesitan <strong>la cuenta activa con correo confirmado, el rol y el permiso activo de esa sucursal</strong>.</p>
+<p>El permiso <strong>Administración</strong> de plataforma se otorga desde <strong>Usuarios</strong>, no desde <strong>Miembros</strong>. El administrador de sucursal no puede concederlo.</p>
+</section>
+<section class="section" id="una-persona-con-varias-funciones-o-sucursales" aria-labelledby="una-persona-con-varias-funciones-o-sucursales-titulo"><h2 id="una-persona-con-varias-funciones-o-sucursales-titulo">Una persona con varias funciones o sucursales</h2><ul>
+<li>Para administrar varias sucursales, asigná un permiso de <strong>Administrador de sucursal</strong> por cada establecimiento.</li>
+<li>Para administrar y operar pedidos en la misma sucursal, asigná además <strong>Operador de farmacia</strong> o <strong>Farmacéutico</strong>, según la tarea real de esa persona.</li>
+<li>Para trabajar en dos establecimientos, asigná los permisos que correspondan en cada uno.</li>
+<li>Para retirar una responsabilidad local, desactivá su permiso en <strong>Miembros</strong>. Para suspender toda la cuenta, el administrador de plataforma utiliza <strong>Usuarios → Modificar acceso</strong>.</li>
+</ul>
+<p>Las funciones de administración por sí solas no habilitan revisión clínica, dispensación u operación comercial de pedidos. No existe un permiso separado de administrador de cadena: se asignan las sucursales concretas.</p>
+<p>La aplicación protege al último administrador activo de cada sucursal. Antes de retirar ese permiso, asigná otra persona habilitada.</p>
+</section>
+<section class="section" id="delegar-la-incorporacion-del-equipo" aria-labelledby="delegar-la-incorporacion-del-equipo-titulo"><h2 id="delegar-la-incorporacion-del-equipo-titulo">Delegar la incorporación del equipo</h2><p>Una vez designado, el administrador de sucursal puede incorporar personas en los establecimientos a su cargo.</p>
+<ol>
+<li>Entra en <strong>Miembros → Asignar permiso</strong>.</li>
+<li>Escribe el correo exacto de la persona y elige <strong>Buscar cuenta confirmada</strong>.</li>
+<li>Selecciona la cuenta encontrada y una sucursal a su cargo.</li>
+<li>Elige la función, deja el permiso activo y guarda.</li>
+</ol>
+<p>Puede asignar otro administrador de sucursal, operadores, farmacéuticos y cadetes. No crea cadenas ni nuevas sucursales, no modifica permisos en establecimientos ajenos y no acredita capacidades especiales de transporte o conservación. Esas tareas corresponden a la administración de plataforma.</p>
+</section>
+<section class="section" id="preparar-catalogo-existencias-y-capacidades" aria-labelledby="preparar-catalogo-existencias-y-capacidades-titulo"><h2 id="preparar-catalogo-existencias-y-capacidades-titulo">Preparar catálogo, existencias y capacidades</h2><ol>
+<li>El administrador de plataforma registra los productos en <strong>Productos → Agregar producto</strong>, con presentación, necesidad de receta y condiciones especiales.</li>
+<li>El operador o farmacéutico asignado carga los precios y las existencias de cada sucursal desde <strong>Stock y precios</strong>.</li>
+<li>Registra los lotes, vencimientos y condiciones de conservación cuando correspondan.</li>
+<li>Para capacidades especiales de una sucursal, la administración vuelve a <strong>Sucursales → Modificar</strong>, adjunta la evidencia y acredita las condiciones comprobadas. La sucursal debe estar guardada antes de adjuntar esa documentación.</li>
+<li>Para cadetes, se configura disponibilidad durante el turno y cantidad máxima de tareas simultáneas, entre 1 y 20.</li>
+<li>Para transporte con frío o controles especiales, la administración acredita también la capacidad del cadete para esa sucursal, con su evidencia.</li>
+</ol>
+<p>La carga de un permiso o una marca de capacidad no reemplaza la comprobación real de habilitación, formación y condiciones de operación. Las verificaciones se documentan manualmente en esta versión.</p>
+</section>
+<section class="section" id="preparar-el-contrato-y-el-pago-mensual" aria-labelledby="preparar-el-contrato-y-el-pago-mensual-titulo"><h2 id="preparar-el-contrato-y-el-pago-mensual-titulo">Preparar el contrato y el pago mensual</h2><p>Estos pasos corresponden al administrador de la plataforma.</p>
+<ol>
+<li>En <strong>Planes → Agregar plan mensual</strong>, define el nivel según la cantidad de establecimientos.</li>
+<li>En <strong>Suscripciones → Agregar suscripción</strong>, elige la cadena o farmacia contratante, el plan y las sucursales incluidas.</li>
+<li>Registra el precio contractual y la moneda. Las unidades monetarias simbólicas sirven para definir planes; una suscripción activa requiere un importe real.</li>
+<li>Comprueba el pago fuera de la aplicación.</li>
+<li>Registra el período mensual abonado con inicio, fin, referencia y comprobante.</li>
+<li>Repite la acreditación cuando se abone un nuevo período.</li>
+</ol>
+<p>Guardar una suscripción no cobra dinero ni realiza débitos automáticos. La prioridad comercial se determina con los períodos pagados y verificados y las reglas vigentes de suscripción.</p>
+</section>
+<section class="section" id="comprobar-el-alta-antes-de-operar" aria-labelledby="comprobar-el-alta-antes-de-operar-titulo"><h2 id="comprobar-el-alta-antes-de-operar-titulo">Comprobar el alta antes de operar</h2><ol>
+<li>El equipo ingresa con sus cuentas individuales y comprueba las funciones y sucursales asignadas.</li>
+<li>La farmacia revisa ubicación, medios de entrega o retiro, horarios e instrucciones de pago.</li>
+<li>Confirma precios, existencias, lotes y documentación de capacidades.</li>
+<li>Comprueba que los profesionales y cadetes necesarios estén asignados y disponibles.</li>
+<li>Revisa el contrato y el período abonado cuando corresponda.</li>
+<li>Realiza una compra de prueba acordada con la farmacia y verifica el circuito completo antes de abrir la operación habitual.</li>
+</ol>
+<p>Para consultar cada tarea del equipo, usá los manuales de <a href="02-administrador-plataforma.html">administración de plataforma</a>, <a href="03-administrador-farmacia.html">administración de sucursal</a>, <a href="04-farmaceutico.html">farmacéutico</a>, <a href="05-operador-farmacia.html">operador</a> y <a href="06-cadete.html">cadete</a>.</p>
+</section>
+<nav class="bottom-links" aria-label="Navegación del manual"><a href="index.html">← Todos los manuales</a><a href="#inicio">Volver al inicio ↑</a></nav><footer class="footer"><p>E-MEDICAPP · Guías de uso</p><p>Lectura disponible sin conexión. El acceso a la aplicación necesita Internet.</p></footer></main></body></html>

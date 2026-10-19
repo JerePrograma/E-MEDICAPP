@@ -1,5 +1,14 @@
+-- E-MEDICAPP. Referencia consolidada del modelo, actualizada el 15/10/2026.
+-- PostgreSQL 18.6. 42 tablas de negocio; Flyway conserva su tabla de historial aparte.
+-- Migraciones V1-V14 copiadas en orden. Referencia para una base NUEVA, no actualización manual.
+-- El backend ejecuta las migraciones originales mediante Flyway. No ejecutar este archivo sobre datos existentes.
+-- UUID generados por Java. Fechas UTC. Sin usuarios, contraseñas ni semillas comerciales.
+-- Autorización por servicio y claves de alcance; no se afirma RLS implementada.
+-- Snapshots y registros históricos no se borran desde las APIs administrativas.
+
+-- Fuente: V1__mvp.sql
 -- E-MEDICAPP MVP. PostgreSQL 18.6. Contrato coordinado, 35 tablas.
--- Referencia consolidada V1-V6. Flyway ejecuta las migraciones originales del backend.
+-- Flyway crea este esquema; este archivo no se ejecutó durante su diseño.
 -- UUID generados por Java. Fechas UTC. Sin usuarios, contraseñas ni seeds comerciales.
 -- Autorización por servicio + FK de alcance; no se afirma RLS implementada.
 -- Snapshots y registros históricos no se borran desde las APIs administrativas.
@@ -311,7 +320,8 @@ CREATE INDEX ix_period_contract ON subscription_period(contract_id,ends_at DESC)
 -- paid subscription prioritiza sin usar U.M. como dinero. Config y snapshots versionados.
 -- El propietario stock POS y consumo oficial externo de recetas siguen siendo límites manuales.
 
--- V2: cierre explícito de una incidencia sin afirmar una entrega física inexistente.
+-- Fuente: V2__incident_resolution.sql
+-- Una incidencia cerrada no afirma una entrega física que no ocurrió.
 ALTER TABLE child_order DROP CONSTRAINT child_order_status_check;
 ALTER TABLE child_order ADD CONSTRAINT child_order_status_check CHECK(status IN
  ('PROPOSED','ACCEPTED','PAID','PREPARING','DISPENSED','DISPATCHED','COMPLETED','CANCELLED','RESOLVED'));
@@ -319,7 +329,9 @@ ALTER TABLE fulfillment DROP CONSTRAINT fulfillment_status_check;
 ALTER TABLE fulfillment ADD CONSTRAINT fulfillment_status_check CHECK(status IN
  ('PENDING','PREPARING','READY','ASSIGNED','ACCEPTED','PICKED_UP','DELIVERED','COLLECTED','INCIDENT','CANCELLED','RESOLVED'));
 
--- V3: alcance histórico de un período, precio/moneda en columnas SQL.
+-- Fuente: V3__subscription_period_snapshot.sql
+-- Conservar el alcance y plan con los que se pagó cada período, aunque el contrato
+-- se modifique al finalizarlo. Importe y moneda siguen siendo columnas SQL.
 ALTER TABLE subscription_period ADD COLUMN snapshot jsonb NOT NULL DEFAULT '{}'::jsonb;
 UPDATE subscription_period sp SET snapshot=jsonb_build_object(
  'contractId',sc.id,'contractVersion',sc.version,'planId',sc.plan_id,
@@ -328,16 +340,190 @@ UPDATE subscription_period sp SET snapshot=jsonb_build_object(
  'snapshotOrigin','MIGRATION_CURRENT_CONFIGURATION')
 FROM subscription_contract sc WHERE sc.id=sp.contract_id;
 
--- V4: resolución de compra distinta de la entrega completa.
+-- Fuente: V4__purchase_incident_resolution.sql
+-- Cerrar una compra por resolución de incidencia no equivale a entregarla.
 ALTER TABLE purchase DROP CONSTRAINT purchase_status_check;
 ALTER TABLE purchase ADD CONSTRAINT purchase_status_check CHECK(status IN
  ('DRAFT','ROUTING','QUOTED','ACCEPTED','PARTIALLY_PAID','PAID','FULFILLING','COMPLETED','COMPENSATING','CANCELLED','UNAVAILABLE','RESOLVED'));
 
--- V5: vencimientos automáticos mantienen solicitante NULL y auditoría SYSTEM.
+-- Fuente: V5__system_requested_refunds.sql
+-- Un vencimiento automático registra un origen SYSTEM, sin suplantar al comprador.
+-- El solicitante humano sigue registrado para solicitudes manuales.
 ALTER TABLE refund ALTER COLUMN requested_by DROP NOT NULL;
 ALTER TABLE payment_operation ALTER COLUMN actor_user_id DROP NOT NULL;
 
--- V6: credencial de cobertura con acceso clínico privado.
+-- Fuente: V6__private_health_coverage.sql
 ALTER TABLE document DROP CONSTRAINT document_kind_check;
 ALTER TABLE document ADD CONSTRAINT document_kind_check CHECK
   (kind IN ('PRESCRIPTION','FAMILY_AUTHORIZATION','HEALTH_COVERAGE','PAYMENT_RECEIPT','INVOICE','DELIVERY_PROOF','CAPABILITY','OTHER'));
+
+-- Fuente: V7__auth_verification.sql
+-- Existing DEMO identities and deliberately provisioned administrators keep access.
+-- New consumer accounts are never verified by their registration or by missing SMTP.
+ALTER TABLE app_user
+ ADD COLUMN dni text,
+ ADD COLUMN phone text NOT NULL DEFAULT '',
+ ADD COLUMN address text NOT NULL DEFAULT '',
+ ADD COLUMN email_verified boolean NOT NULL DEFAULT false,
+ ADD COLUMN email_verified_at timestamptz,
+ ADD COLUMN credentials_version bigint NOT NULL DEFAULT 0 CHECK(credentials_version >= 0),
+ ADD CONSTRAINT ck_user_dni CHECK(dni IS NULL OR dni ~ '^[0-9]{7,12}$');
+CREATE UNIQUE INDEX uq_user_dni ON app_user(dni) WHERE dni IS NOT NULL;
+UPDATE app_user u SET email_verified=true,email_verified_at=u.created_at
+ WHERE lower(u.email) LIKE '%@demo.invalid'
+ OR EXISTS(SELECT 1 FROM user_role r WHERE r.user_id=u.id AND r.role='ADMIN');
+
+CREATE TABLE auth_token (
+ id uuid PRIMARY KEY,
+ user_id uuid NOT NULL REFERENCES app_user(id) ON DELETE CASCADE,
+ purpose text NOT NULL CHECK(purpose IN ('VERIFY_EMAIL','RESET_PASSWORD')),
+ token_hash char(64) NOT NULL UNIQUE CHECK(token_hash ~ '^[0-9a-f]{64}$'),
+ created_at timestamptz NOT NULL,
+ expires_at timestamptz NOT NULL,
+ used_at timestamptz,
+ CHECK(expires_at > created_at)
+);
+CREATE UNIQUE INDEX uq_auth_token_pending ON auth_token(user_id,purpose) WHERE used_at IS NULL;
+CREATE INDEX ix_auth_token_user ON auth_token(user_id,created_at DESC);
+
+-- Fuente: V8__fulfillment_finance.sql
+-- Hechos físicos y financieros registrados por operadores; no integra bancos ni emite comprobantes fiscales.
+ALTER TABLE fulfillment DROP CONSTRAINT fulfillment_status_check;
+ALTER TABLE fulfillment ADD CONSTRAINT fulfillment_status_check CHECK (status IN
+ ('PENDING','PREPARING','READY','ASSIGNED','ACCEPTED','PICKED_UP','DELIVERED','COLLECTED','INCIDENT','RETURN_REQUIRED','RETURNED','CANCELLED','RESOLVED'));
+ALTER TABLE fulfillment ADD COLUMN task_expires_at timestamptz;
+ALTER TABLE fulfillment ADD COLUMN pickup_expires_at timestamptz;
+ALTER TABLE fulfillment ADD COLUMN retry_count integer NOT NULL DEFAULT 0 CHECK (retry_count BETWEEN 0 AND 1);
+ALTER TABLE fulfillment ADD COLUMN retry_scheduled_at timestamptz;
+ALTER TABLE fulfillment ADD COLUMN custody_holder text NOT NULL DEFAULT 'PHARMACY' CHECK (custody_holder IN ('PHARMACY','DRIVER','RECIPIENT'));
+ALTER TABLE fulfillment ADD COLUMN return_received_at timestamptz;
+UPDATE fulfillment SET custody_holder=CASE WHEN status='PICKED_UP' THEN 'DRIVER' WHEN status IN ('DELIVERED','COLLECTED') THEN 'RECIPIENT' ELSE 'PHARMACY' END;
+-- Las incidencias históricas conservan la última custodia comprobada, no suponen un retorno.
+UPDATE fulfillment f SET custody_holder='DRIVER' WHERE status='INCIDENT' AND EXISTS
+ (SELECT 1 FROM custody_event e WHERE e.fulfillment_id=f.id AND e.kind='DRIVER_RECEIVED')
+ AND NOT EXISTS (SELECT 1 FROM custody_event e WHERE e.fulfillment_id=f.id AND e.kind IN ('RETURNED','DELIVERED','COLLECTED'));
+ALTER TABLE custody_event DROP CONSTRAINT custody_event_kind_check;
+ALTER TABLE custody_event ADD CONSTRAINT custody_event_kind_check CHECK (kind IN
+ ('DISPENSED','DRIVER_RECEIVED','DISPATCHED','DELIVERED','COLLECTED','INCIDENT','RETURN_REQUIRED','RETURNED','REASSIGNED','TASK_REJECTED'));
+ALTER TABLE custody_event ALTER COLUMN actor_user_id DROP NOT NULL;
+ALTER TABLE custody_event ADD CONSTRAINT custody_event_system_actor_check CHECK (actor_user_id IS NOT NULL OR coalesce(snapshot->>'system'='true',false));
+ALTER TABLE refund ADD COLUMN line_ids uuid[] NOT NULL DEFAULT '{}';
+ALTER TABLE refund ADD COLUMN branch_id uuid REFERENCES branch(id);
+UPDATE refund r SET branch_id=p.branch_id FROM payment p WHERE p.id=r.payment_id;
+CREATE UNIQUE INDEX uq_refund_external_reference ON refund(branch_id,external_reference) WHERE external_reference IS NOT NULL AND status='VERIFIED';
+CREATE TABLE financial_control (
+ id uuid PRIMARY KEY, order_id uuid NOT NULL REFERENCES child_order(id),
+ operation text NOT NULL CHECK (operation IN ('CANCEL','REFUND','DISPATCH')),
+ fingerprint text NOT NULL, amount numeric(16,2) NOT NULL CHECK (amount>=0), currency char(3) NOT NULL,
+ requested_by uuid NOT NULL REFERENCES app_user(id), approved_by uuid REFERENCES app_user(id),
+ reason text NOT NULL, evidence_document_id uuid NOT NULL REFERENCES document(id),
+ created_at timestamptz NOT NULL DEFAULT now(), approved_at timestamptz,
+ UNIQUE(order_id,operation), CHECK (approved_by IS NULL OR approved_by<>requested_by),
+ CHECK ((approved_by IS NULL)=(approved_at IS NULL))
+);
+CREATE TABLE fiscal_adjustment (
+ id uuid PRIMARY KEY, order_id uuid NOT NULL REFERENCES child_order(id),
+ invoice_document_id uuid NOT NULL REFERENCES document(id),
+ kind text NOT NULL CHECK (kind IN ('CREDIT','DEBIT')), reference text NOT NULL,
+ amount numeric(16,2) NOT NULL CHECK (amount>0), currency char(3) NOT NULL,
+ evidence_document_id uuid NOT NULL REFERENCES document(id), reason text NOT NULL,
+ created_by uuid NOT NULL REFERENCES app_user(id), created_at timestamptz NOT NULL DEFAULT now(),
+ UNIQUE(order_id,kind,reference)
+);
+
+-- Fuente: V9__qa_purchase_controls.sql
+-- Additive changes preserve existing purchases, documents and financial history.
+ALTER TABLE operational_setting ADD COLUMN task_acceptance_minutes integer NOT NULL DEFAULT 15 CHECK(task_acceptance_minutes BETWEEN 1 AND 240);
+ALTER TABLE operational_setting ADD COLUMN pickup_deadline_hours integer NOT NULL DEFAULT 48 CHECK(pickup_deadline_hours BETWEEN 1 AND 168);
+ALTER TABLE operational_setting ADD COLUMN receipt_code_minutes integer NOT NULL DEFAULT 10 CHECK(receipt_code_minutes BETWEEN 1 AND 60);
+
+ALTER TABLE purchase DROP CONSTRAINT purchase_status_check;
+ALTER TABLE purchase ADD CONSTRAINT purchase_status_check CHECK(status IN ('DRAFT','ROUTING','UNAVAILABLE','QUOTED','ACCEPTED','PARTIALLY_PAID','PAID','FULFILLING','COMPENSATING','COMPLETED','CANCELLED','RESOLVED','REJECTED'));
+
+ALTER TABLE order_item ADD COLUMN active boolean NOT NULL DEFAULT true;
+CREATE UNIQUE INDEX uq_order_active_product ON order_item(order_id,product_id) WHERE active;
+ALTER TABLE app_user ADD COLUMN access_version bigint NOT NULL DEFAULT 1 CHECK(access_version>0);
+
+ALTER TABLE user_role DROP CONSTRAINT user_role_role_check;
+ALTER TABLE user_role ADD CONSTRAINT user_role_role_check CHECK(role IN ('ADMIN','BUYER','PHARMACY_ADMIN','PHARMACY','PHARMACIST','DRIVER'));
+ALTER TABLE membership DROP CONSTRAINT membership_role_check;
+ALTER TABLE membership ADD CONSTRAINT membership_role_check CHECK(role IN ('PHARMACY_ADMIN','PHARMACY','PHARMACIST','DRIVER'));
+
+CREATE INDEX ix_quote_pending_expiry ON quote(expires_at,purchase_id) WHERE status='ISSUED';
+
+-- Fuente: V10__documented_replacements.sql
+CREATE TABLE replacement_request (
+ id uuid PRIMARY KEY, original_order_id uuid NOT NULL REFERENCES child_order(id),
+ original_fulfillment_id uuid NOT NULL REFERENCES fulfillment(id),
+ buyer_user_id uuid NOT NULL REFERENCES app_user(id), branch_id uuid NOT NULL REFERENCES branch(id),
+ replacement_purchase_id uuid UNIQUE REFERENCES purchase(id), replacement_order_id uuid UNIQUE REFERENCES child_order(id),
+ status text NOT NULL CHECK(status IN ('PROPOSED','ACCEPTED','READY','REJECTED','EXPIRED','FULFILLED','CANCELLED')),
+ original_disposition text NOT NULL CHECK(original_disposition IN ('RETURNED','NO_RETURN_DOCUMENTED')),
+ reason text NOT NULL, disposition_note text NOT NULL, evidence_document_id uuid NOT NULL REFERENCES document(id),
+ proposed_by uuid NOT NULL REFERENCES app_user(id), accepted_at timestamptz,
+ expires_at timestamptz NOT NULL, version bigint NOT NULL DEFAULT 1 CHECK(version>0),
+ snapshot jsonb NOT NULL, created_at timestamptz NOT NULL DEFAULT now(), updated_at timestamptz NOT NULL DEFAULT now()
+);
+CREATE UNIQUE INDEX uq_active_replacement ON replacement_request(original_order_id) WHERE status IN ('PROPOSED','ACCEPTED','READY');
+CREATE TABLE replacement_line (
+ id uuid PRIMARY KEY, replacement_id uuid NOT NULL REFERENCES replacement_request(id),
+ original_order_item_id uuid NOT NULL REFERENCES order_item(id), product_id uuid NOT NULL REFERENCES product(id),
+ quantity integer NOT NULL CHECK(quantity>0), commercial_unit_price numeric(16,2) NOT NULL CHECK(commercial_unit_price>=0),
+ snapshot jsonb NOT NULL, UNIQUE(replacement_id,original_order_item_id)
+);
+
+-- Fuente: V11__substitution_proposals.sql
+ALTER TABLE purchase_item ADD COLUMN active boolean NOT NULL DEFAULT true;
+ALTER TABLE purchase_item ADD COLUMN supersedes_id uuid REFERENCES purchase_item(id);
+ALTER TABLE purchase_item DROP CONSTRAINT purchase_item_purchase_id_product_id_key;
+CREATE UNIQUE INDEX uq_purchase_item_active ON purchase_item(purchase_id,product_id) WHERE active;
+CREATE TABLE substitution_proposal (
+ id uuid PRIMARY KEY, purchase_id uuid NOT NULL REFERENCES purchase(id), order_id uuid NOT NULL REFERENCES child_order(id),
+ branch_id uuid NOT NULL REFERENCES branch(id), original_item_id uuid NOT NULL REFERENCES purchase_item(id),
+ product_id uuid NOT NULL REFERENCES product(id), quantity integer NOT NULL CHECK(quantity BETWEEN 1 AND 100),
+ reason text NOT NULL CHECK(length(reason) BETWEEN 3 AND 2000), evidence_document_id uuid REFERENCES document(id),
+ prescription_compatible boolean NOT NULL DEFAULT false, proposed_by uuid NOT NULL REFERENCES app_user(id),
+ status text NOT NULL DEFAULT 'PENDING' CHECK(status IN ('PENDING','ACCEPTED','REJECTED','EXPIRED')),
+ expires_at timestamptz NOT NULL, responded_by uuid REFERENCES app_user(id), responded_at timestamptz,
+ snapshot jsonb NOT NULL DEFAULT '{}'::jsonb, created_at timestamptz NOT NULL DEFAULT now(),
+ FOREIGN KEY(order_id,branch_id) REFERENCES child_order(id,branch_id)
+);
+CREATE UNIQUE INDEX uq_substitution_pending ON substitution_proposal(purchase_id) WHERE status='PENDING';
+CREATE INDEX ix_substitution_expiry ON substitution_proposal(expires_at) WHERE status='PENDING';
+
+-- Fuente: V12__authorization_history.sql
+-- A corrected note never erases the evidence that a previous file was used.
+CREATE TABLE family_authorization_usage (
+ sha256 text PRIMARY KEY CHECK(sha256 ~ '^[0-9a-f]{64}$'),
+ document_id uuid NOT NULL REFERENCES document(id),
+ authorization_id uuid NOT NULL REFERENCES family_authorization(id),
+ created_at timestamptz NOT NULL DEFAULT now()
+);
+INSERT INTO family_authorization_usage(sha256,document_id,authorization_id,created_at)
+SELECT DISTINCT ON(d.sha256) d.sha256,d.id,used.authorization_id,used.used_at
+FROM (
+ SELECT a.id authorization_id,a.document_id,a.created_at used_at FROM family_authorization a
+ UNION ALL
+ SELECT p.family_authorization_id,r.evidence_document_id,r.created_at
+ FROM review r JOIN child_order o ON o.id=r.order_id JOIN purchase p ON p.id=o.purchase_id
+ WHERE r.kind='FAMILY_AUTHORIZATION' AND p.family_authorization_id IS NOT NULL
+ UNION ALL
+ SELECT p.family_authorization_id,d.id,a.created_at
+ FROM audit_event a JOIN purchase p ON p.id=a.entity_id
+ JOIN document d ON d.id::text=a.after_data->>'previousDocumentId'
+ WHERE a.action='AUTHORIZATION_REPLACED' AND p.family_authorization_id IS NOT NULL
+) used JOIN document d ON d.id=used.document_id
+ORDER BY d.sha256,used.used_at,used.authorization_id;
+
+-- Fuente: V13__payment_method.sql
+-- Preserve the absence of a declared method in historical payments.
+ALTER TABLE payment ADD COLUMN method text;
+ALTER TABLE payment ADD CONSTRAINT payment_method_check
+ CHECK(method IS NULL OR method IN ('TRANSFER','CASH','CARD','OTHER','EXTERNAL_MANUAL'));
+
+-- Fuente: V14__chain_logo.sql
+-- Chain identity images are separate from private purchase and capability documents.
+-- Only normalized PNGs, at most 512 pixels per side, are stored by the catalog service.
+ALTER TABLE chain ADD COLUMN logo_png bytea;
+ALTER TABLE chain ADD CONSTRAINT chain_logo_size_check
+ CHECK (logo_png IS NULL OR octet_length(logo_png) BETWEEN 1 AND 2097152);

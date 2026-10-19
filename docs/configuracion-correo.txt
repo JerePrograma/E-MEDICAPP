@@ -1,0 +1,61 @@
+E-MEDICAPP · CONFIGURACIÓN DEL ENVÍO DE CORREO
+Preparado el 09/10/2026. La configuración real y la entrega están pendientes.
+
+Cuando se disponga de un proveedor de correo, ejecutar ConfigurarCorreo.cmd.
+Solicita servidor SMTP, seguridad, puerto, remitente autorizado y dirección de
+E-MEDICAPP. Si el proveedor requiere autenticación, usuario y contraseña se
+ingresan de forma oculta. Puede utilizarse una contraseña de aplicación, según
+el proveedor. En esta entrega no se ingresaron credenciales ni se enviaron
+mensajes. El configurador no hace un envío de prueba automático.
+
+STARTTLS utiliza habitualmente puerto 587. SSL utiliza habitualmente 465.
+LOCAL permite SMTP sin cifrar sólo en localhost, 127.0.0.1 o ::1; sirve para un
+buzón de prueba aislado. La configuración no inicia ese buzón. El servidor y su
+puerto deben corresponder a los datos reales del proveedor.
+
+La dirección de los enlaces debe ser el origen HTTPS estable de E-MEDICAPP,
+sin rutas, consultas, fragmentos ni usuario. HTTP sólo se admite en loopback
+para pruebas locales. Una dirección local no sirve para confirmar el correo
+desde el teléfono o la PC de otra persona. Al cambiar la dirección pública,
+volver a configurar este dato antes de enviar nuevos enlaces.
+
+El archivo .runtime/mail-settings.json conserva la parametrización. Usuario y
+contraseña están cifrados con DPAPI para la cuenta de Windows que los guardó.
+Otro usuario o equipo debe volver a configurarlos; copiar el archivo no habilita
+su descifrado allí. .runtime está excluido de Git. No compartir este archivo.
+La escritura reemplaza el archivo anterior sólo después de validar y preparar
+la nueva configuración; no modifica compras, usuarios ni documentos.
+
+scripts/Start.ps1 la carga únicamente al iniciar MANUAL, incluido el inicio de
+publicación desde esta PC. DEMO conserva su parametrización externa de pruebas.
+Si la aplicación ya está ejecutándose, configurar no la reinicia: detenerla
+con su acceso habitual y volver a iniciarla cuando corresponda. El proceso Java
+recibe los parámetros en su entorno, sin contraseña en argumentos ni registros;
+el script restaura los valores originales del entorno después de iniciarlo.
+
+Un EMEDICAPP_SMTP_HOST explícito tiene prioridad sobre el archivo protegido;
+en ese caso deben proveerse todos los parámetros externos requeridos:
+  EMEDICAPP_SMTP_HOST
+  EMEDICAPP_SMTP_PORT              Predeterminado: 587
+  EMEDICAPP_SMTP_USERNAME          Opcional, junto con PASSWORD
+  EMEDICAPP_SMTP_PASSWORD          Opcional, junto con USERNAME
+  EMEDICAPP_MAIL_FROM
+  EMEDICAPP_EMAIL_BASE_URL         Alternativa: EMEDICAPP_PUBLIC_URL
+  EMEDICAPP_SMTP_STARTTLS          Predeterminado: true
+  EMEDICAPP_SMTP_SSL               Predeterminado: false
+Para SSL: SSL=true y STARTTLS=false. Sin autenticación, dejar ambos campos
+de credenciales vacíos. Los tiempos máximos SMTP son de cinco segundos.
+Los enlaces vencen a los 30 minutos para confirmar correo y a los 15 minutos
+para recuperar acceso. Se pueden ajustar con EMEDICAPP_EMAIL_VERIFY_TTL_MINUTES
+y EMEDICAPP_PASSWORD_RESET_TTL_MINUTES, entre 1 y 1440 minutos.
+
+El registro no confirma automáticamente ninguna cuenta. Sin configuración
+completa devuelve EMAIL_CONFIGURATION_PENDING; si SMTP configurado falla,
+devuelve EMAIL_DELIVERY_UNAVAILABLE. El enlace sólo viaja en el correo; no
+aparece en una respuesta de API. Un reenvío invalida el enlace anterior.
+
+Pendiente para activar el correo real: elegir proveedor, disponer de remitente
+autorizado y credenciales propias, ejecutar el configurador, comprobar la
+dirección pública y después verificar recepción y apertura de los enlaces.
+También comprobar correo no deseado y, si el proveedor lo requiere, configurar
+SPF/DKIM/DMARC en el dominio remitente. Estos pasos no se ejecutaron aquí.

@@ -1,7 +1,10 @@
 ﻿param(
   [string]$JavaHome=$env:EMEDICAPP_JAVA_HOME,
   [string]$PostgresBin=$env:EMEDICAPP_PG_BIN,
-  [string]$NodeHome=$env:EMEDICAPP_NODE_HOME
+  [string]$NodeHome=$env:EMEDICAPP_NODE_HOME,
+  [string]$JarPath,
+  [ValidatePattern('^[\p{L}\p{N} _.-]{1,100}$')]
+  [string]$TestName
 )
 $ErrorActionPreference='Stop'
 $projectRoot=[IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
@@ -15,7 +18,8 @@ $javaPath=Join-Path $JavaHome 'bin\java.exe'
 $psqlPath=Join-Path $PostgresBin 'psql.exe'
 $pgctlPath=Join-Path $PostgresBin 'pg_ctl.exe'
 $npmPath=Join-Path $NodeHome 'npm.cmd'
-$jarPath=Join-Path $projectRoot 'backend\target\emedicapp-0.1.0-SNAPSHOT.jar'
+if (-not $JarPath) { $JarPath=Join-Path $projectRoot 'backend\target\emedicapp-0.1.0-SNAPSHOT.jar' }
+$jarPath=[IO.Path]::GetFullPath($JarPath)
 foreach ($required in @($javaPath,$psqlPath,$pgctlPath,$npmPath,$jarPath,$credentialsPath)) {
   if (-not (Test-Path -LiteralPath $required)) { throw "Falta un componente local: $required. Compilá el proyecto e iniciá su base antes de verificar el flujo." }
 }
@@ -50,11 +54,13 @@ $statePath=Join-Path $runtimePath ('workflow-'+$token+'.json')
 $stdoutPath=Join-Path $runtimePath ('workflow-'+$token+'.stdout.log')
 $stderrPath=Join-Path $runtimePath ('workflow-'+$token+'.stderr.log')
 $browserLog=Join-Path $runtimePath 'verification-browser.log'
-$keys=@('PGPASSWORD','PATH','EMEDICAPP_DB_PASSWORD','EMEDICAPP_DB_URL','EMEDICAPP_DB_USER','EMEDICAPP_MODE','EMEDICAPP_DOCUMENTS_DIR','EMEDICAPP_PORT','EMEDICAPP_ADDRESS','EMEDICAPP_SECURE_COOKIES','EMEDICAPP_E2E_URL','EMEDICAPP_WORKFLOW_DB','NO_COLOR')
+$keys=@('PGPASSWORD','PATH','EMEDICAPP_DB_PASSWORD','EMEDICAPP_DB_URL','EMEDICAPP_DB_USER','EMEDICAPP_MODE','EMEDICAPP_DOCUMENTS_DIR','EMEDICAPP_PORT','EMEDICAPP_ADDRESS','EMEDICAPP_SECURE_COOKIES','EMEDICAPP_E2E_URL','EMEDICAPP_WORKFLOW_DB','EMEDICAPP_SMTP_HOST','NO_COLOR')
 $saved=@{}; foreach ($key in $keys) { $saved[$key]=[Environment]::GetEnvironmentVariable($key,'Process') }
 $startedProcess=$null
 $startedTicks=$null
 $state=@{database=$databaseName;documents=$documentsPath;port=8083;jar=$jarPath;createdAt=(Get-Date).ToUniversalTime().ToString('o');stopped=$false}
+$state.testSelection=if ($TestName) { $TestName } else { 'ALL' }
+$state.jarSha256=(Get-FileHash -LiteralPath $jarPath -Algorithm SHA256).Hash
 try {
   $password=[Net.NetworkCredential]::new('',(ConvertTo-SecureString $credentials.protectedPassword)).Password
   $env:PGPASSWORD=$password
@@ -76,6 +82,8 @@ try {
   $env:EMEDICAPP_SECURE_COOKIES='false'
   $env:EMEDICAPP_E2E_URL='http://127.0.0.1:8083'
   $env:EMEDICAPP_WORKFLOW_DB=$databaseName
+  # Browser QA uses synthetic accounts; it must never inherit a real mail provider.
+  $env:EMEDICAPP_SMTP_HOST=$null
   $env:PATH=$NodeHome+';'+$env:PATH
   $env:NO_COLOR=$null
   $startedProcess=Start-Process -FilePath $javaPath -ArgumentList @('-jar',('"'+$jarPath+'"')) -WorkingDirectory $projectRoot -WindowStyle Hidden -PassThru -RedirectStandardOutput $stdoutPath -RedirectStandardError $stderrPath
@@ -104,7 +112,9 @@ try {
     $savedErrorAction=$ErrorActionPreference
     try {
       $ErrorActionPreference='Continue'
-      & $npmPath run test:e2e *>&1 | Tee-Object -FilePath $browserLog
+      $playwrightArguments=@('run','test:e2e')
+      if ($TestName) { $playwrightArguments+=@('--','--grep',[regex]::Escape($TestName)) }
+      & $npmPath @playwrightArguments *>&1 | Tee-Object -FilePath $browserLog
       $testExitCode=$LASTEXITCODE
     } finally { $ErrorActionPreference=$savedErrorAction }
     $state.testExitCode=$testExitCode

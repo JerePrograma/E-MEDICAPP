@@ -6,6 +6,7 @@ export type CoverageRequest = {
 };
 export type Line = {
   productId: string;
+  lineId?: string;
   name: string;
   presentation: string;
   quantity: number;
@@ -33,7 +34,49 @@ export type Order = {
   currency: string;
   deliveryFee: string;
   lines: Line[];
+  paidAmount?: string;
+  refundedAmount?: string;
+  netPaidAmount?: string;
+  outstandingAmount?: string;
+  deliveryMinutes?: number;
+  receiverName?: string;
+  receiverIdentity?: string;
+  authorization?: {
+    status: string;
+    scope?: string;
+    reason?: string;
+    expires_at?: string;
+    receiver_name?: string;
+    receiver_identity?: string;
+  };
+  financialControls?: {
+    id: string;
+    operation: string;
+    valid?: boolean;
+    requested_by?: string;
+    approved_by?: string;
+    amount: string;
+    currency: string;
+    approved_at?: string;
+    reason?: string;
+  }[];
+  fiscalAdjustments?: {
+    id: string;
+    kind: string;
+    reference: string;
+    amount: string;
+    currency: string;
+    evidence_document_id?: string;
+  }[];
   invoiceDocumentId?: string;
+  invoiceIssue?: {
+    active: boolean;
+    priority: string;
+    reason: string;
+    reportedAt: string;
+    manualRetryRequired: boolean;
+    attemptCount: number;
+  };
   prescriptionDocumentId?: string;
   authorizationDocumentId?: string;
   prescriptionReview?: { reference: string; issuer: string; expiresAt: string };
@@ -47,6 +90,13 @@ export type Order = {
   };
   beneficiary?: { name: string; birthDate: string };
   coverageRequest?: CoverageRequest;
+  replacementReviewPending?: boolean;
+  replacementRequestId?: string;
+  originalPurchaseId?: string;
+  cancellationPending?: boolean;
+  cancellationReason?: string;
+  cancellationRequestedAt?: string;
+  cancellationRequestedBy?: string;
   reviewApproved: boolean;
   reviewCount: number;
   highValueRequired: boolean;
@@ -56,6 +106,7 @@ export type Order = {
     amount: string;
     currency: string;
     external_reference?: string;
+    method?: string;
   }[];
   refunds: { id: string; status: string; amount: string; currency: string }[];
   fulfillment?: {
@@ -63,8 +114,33 @@ export type Order = {
     version: number;
     status: string;
     driverId?: string;
+    taskExpiresAt?: string;
+    pickupExpiresAt?: string;
+    retryCount?: number;
+    retryScheduledAt?: string;
+    custodyHolder?: string;
+    returnReceivedAt?: string;
+    incidentKind?: string;
+    coordinationNote?: string;
+    assignmentMessage?: string;
     location?: { lat: number; lon: number; accuracy: number; observedAt: string };
   };
+};
+export type Substitution = {
+  id: string;
+  status: string;
+  originalProductId: string;
+  originalName: string;
+  originalPresentation: string;
+  originalQuantity: number;
+  productId: string;
+  name: string;
+  presentation: string;
+  quantity: number;
+  reason: string;
+  expiresAt: string;
+  branchId: string;
+  branchName: string;
 };
 export type Purchase = {
   id: string;
@@ -76,6 +152,8 @@ export type Purchase = {
   coverageRequest?: CoverageRequest;
   thirdParty?: boolean;
   allOrdersPaid?: boolean;
+  replacementReviewPending?: boolean;
+  originalPurchaseId?: string;
   total: string;
   currency: string;
   createdAt?: string;
@@ -86,5 +164,6 @@ export type Purchase = {
   message?: string;
   messages?: Record<string, string>;
   orders: Order[];
+  substitutions?: Substitution[];
   destinationAddress?: string;
 };

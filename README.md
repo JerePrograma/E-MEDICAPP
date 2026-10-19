@@ -1,21 +1,30 @@
 # E-MEDICAPP — MVP de operación manual
 
-Aplicación Java + React con PostgreSQL, construida a partir del concepto V3 y las decisiones del dueño de la idea. La carpeta `relevamiento_v3` del directorio superior contiene el relevamiento completo; este repositorio implementa el núcleo operativo de la primera versión. No modifica los archivos fuente del relevamiento.
+Aplicación Java + React con PostgreSQL. La autoridad funcional actual es `CASOS DE USO - E-MEDICAPP.pdf` de QA, con las respuestas posteriores del dueño: confirmación de correo sin aprobación de identidad, nota nueva por compra para comprar y recibir, un solo reintento coordinado y resolución farmacéutica de compras divididas. El concepto V3 y las decisiones anteriores completan los puntos compatibles que QA no especifica. La trazabilidad actual se documenta en [flujo del producto según QA](docs/flujo-producto-QA.txt); el relevamiento V3 del directorio superior se conserva como antecedente.
+
+[Manuales breves por rol, cuentas temporales públicas y guía de alta real](docs/manuales/README.md). Cada perfil tiene su propio archivo para compartirlo por separado.
 
 ## Qué se puede demostrar
 
 - Un comprador adulto crea una solicitud para sí mismo o para un familiar adulto con autorización firmada. Elige entrega o retiro y confirma el punto geográfico correspondiente.
+- El alta solicita DNI y confirmación del correo, sin aprobación manual de la cuenta. La nota de representación se verifica manualmente por compra; se puede pedir más información, rechazarla, reemplazarla o revocarla.
 - El comprador elige compra particular o solicita cobertura con obra social/prepaga, plan opcional y número de afiliado o credencial privada. Esos datos corresponden al beneficiario; la farmacia comprueba la cobertura externamente antes de cotizar.
 - Se prioriza la red con suscripción pagada. Se intenta una sucursal con toda la cesta, se mantiene la preferencia por la cadena y, si hace falta, se divide en pedidos por farmacia. Las alternativas sin suscripción requieren acuerdo y habilitación, y quedan después de la red suscrita.
 - La farmacia comprueba stock físico, identidad, receta externa, cobertura y capacidades. El farmacéutico deja una revisión con responsable y evidencia. Los pedidos de alto valor exigen dos profesionales distintos.
 - El comprador acepta expresamente la propuesta completa. Los importes, productos, farmacias, cobertura y condiciones aceptadas se conservan. Un precio cambiado o una propuesta vencida requiere nueva revisión y aceptación.
+- El presupuesto emitido reserva stock, lote y saldo de receta antes de la aceptación. Su vencimiento libera las reservas. La farmacia puede proponer una presentación alternativa, con comprobación profesional cuando requiere receta; el comprador acepta o rechaza el cambio y después revisa el presupuesto nuevo.
 - El stock, lote y saldo de receta se reservan transaccionalmente. La farmacia recibe el dinero directamente y registra un cobro comprobado con referencia y evidencia; E-MEDICAPP no ejecuta la transferencia.
 - El comprador puede informar el pago y adjuntar su comprobante. La farmacia consulta ese documento y confirma los fondos en su medio de pago. En una compra dividida, ninguna sucursal comienza a preparar hasta que todos los pagos estén comprobados.
 - La farmacia emite y adjunta su factura, prepara y registra la dispensación. El pedido se retira presencialmente o se asigna a un cadete propio.
 - Se registra la custodia y la recepción mediante un código temporal. En categorías especiales se exigen capacidades y evidencia; para frío se verifica el rango del producto en los hitos del cumplimiento.
+- La asignación automática respeta sucursal, disponibilidad y capacidad del cadete. Los rechazos y tareas vencidas buscan otro cadete elegible. La recepción verifica identidad observada, nota vigente cuando corresponde y coincidencia del paquete; un código incorrecto conserva la tarea pendiente.
+- Una ausencia requiere documentar el regreso físico a la farmacia y coordinar un único reintento. La farmacia decide la resolución posterior, sin borrar partes de una compra dividida que ya se entregaron.
+- La farmacia puede proponer una reposición sin cargo después de evaluar una incidencia. El cliente acepta sus condiciones y aporta documentos nuevos cuando corresponden; se reservan y dispensan unidades nuevas, con un pedido vinculado que conserva la historia original.
 - Una cancelación anterior a la dispensación libera las reservas y solicita el reintegro completo de lo registrado, sin tope arbitrario. La farmacia confirma el reintegro externo. Los problemas posteriores se resuelven como incidencias farmacéuticas; no reingresan medicamentos automáticamente al stock.
 - Si se cancela un pedido después de informar un comprobante y antes de verificar el cobro, la farmacia debe conciliarlo. Si comprueba fondos recibidos, registra el cobro y solicita el reintegro completo; si no recibió el pago, documenta el resultado. Esa conciliación no reactiva reservas ni preparación.
 - El panel administra productos, cadenas, sucursales, stock, lotes, planes, suscripciones, miembros, capacidades y parámetros operativos. Cada corrección conserva su responsable y versión.
+- Los pagos registran importe y moneda realmente comprobados. Un pago parcial no habilita preparación. Factura, notas de crédito/débito y reintegros parciales conservan evidencia y referencia; cancelación, despacho y reintegro de alto valor requieren dos profesionales distintos. Una cancelación solicitada detiene el pedido mientras se completa ese control.
+- El administrador de farmacia gestiona sus sucursales y personal dentro de su alcance. La plataforma conserva la acreditación de capacidades y la gestión de accesos globales. No se puede retirar al último administrador activo de plataforma o sucursal.
 
 El cliente no paga comisión de plataforma ni envío. La farmacia absorbe el envío. La suscripción es una cuota mensual fija; las U.M. de los planes son referencias simbólicas, no una moneda de cobro.
 
@@ -26,13 +35,13 @@ Un período mensual se calcula por mes calendario en el horario de Mendoza, cons
 | Parte | Elección |
 |---|---|
 | Backend | Java 25 LTS, Spring Boot 4.1.1, Spring MVC, Spring Security, JdbcClient |
-| Datos | PostgreSQL 18.6, Flyway, SQL explícito, 35 tablas del núcleo MVP |
+| Datos | PostgreSQL 18.6, Flyway, SQL explícito, migraciones aditivas |
 | Frontend | React 19.3.0, TypeScript 6.0.3, Vite 8.3.4, MUI 9.4.0 |
 | Formularios y consultas | React Hook Form, Zod, TanStack Query |
 | Ubicación | Leaflet 1.9.4 y mapa OpenStreetMap con atribución |
 | Verificación | JUnit, pruebas HTTP con PostgreSQL, Vitest y Playwright |
 
-Un único backend organizado por función: `auth`, `documents`, `catalog`, `purchase`, `payments`, `fulfillment`, `config`. Las transacciones quedan en los servicios; el servidor decide precios, reservas, estados y permisos. La SPA se incluye dentro del JAR para el uso diario. Vite se utiliza durante desarrollo.
+Un único backend organizado por función: `auth`, `documents`, `catalog`, `purchase`, `payments`, `fulfillment`, `replacements`, `config`. Las transacciones quedan en los servicios; el servidor decide precios, reservas, estados y permisos. La SPA se incluye dentro del JAR para el uso diario. Vite se utiliza durante desarrollo.
 
 Se aplican transacciones, estados explícitos, control de versión, idempotencia y separación por rol y sucursal donde resuelven problemas reales. No se introduce un motor editable de flujos. Los parámetros cambian desde el panel; una etapa nueva se implementa en código y se verifica.
 
@@ -65,11 +74,12 @@ Contraseña pública sólo DEMO: `DemoMedicapp2026!`.
 | Farmacéutica | Valentina Ríos | farmaceutico@demo.invalid |
 | Segundo farmacéutico | Gabriel Ponce | farmaceutico2@demo.invalid |
 | Cadete | Santiago Molina | cadete@demo.invalid |
+| Administrador de farmacia | Sofía Méndez | adminfarmacia@demo.invalid |
 | Administración | Marina Suárez | admin@demo.invalid |
 
 El selector de ingreso muestra el perfil y la persona. El segundo farmacéutico permite completar la revisión de alto valor con dos cuentas distintas. Lucía tiene fecha de nacimiento `1990-01-01`; para comprar para sí misma, su identidad se toma de la cuenta.
 
-El escenario actualizado contiene 6 personas, 18 presentaciones, 4 sucursales, 72 registros de stock y 72 lotes. Las cantidades varían por sucursal e incluyen faltantes para demostrar alternativas y división. Los precios incluyen centavos, diferencias entre sucursales y un medicamento de alto valor. Los 4 documentos iniciales respaldan capacidades simuladas; la base de presentación se inicia sin compras ni pagos de pruebas.
+El escenario actualizado contiene 7 personas, 18 presentaciones, 4 sucursales, 72 registros de stock y 72 lotes. Las cantidades varían por sucursal e incluyen faltantes para demostrar alternativas y división. Los precios incluyen centavos, diferencias entre sucursales y un medicamento de alto valor. Los 4 documentos iniciales respaldan capacidades simuladas; la base de presentación se inicia sin compras ni pagos de pruebas.
 
 Las sucursales del escenario son **Nivalis · Ciudad**, **Nivalis · Dorrego**, **Valnera · Godoy Cruz** y **Luma Cuyo · Las Heras**, con direcciones de Mendoza y condiciones operativas diferenciadas. Los medicamentos tienen nombre, concentración y presentación completos; las marcas comerciales, comercios y personas son ficticios. Los importes y requisitos del escenario no son una lista de precios ni una guía de dispensación real.
 
@@ -104,18 +114,25 @@ El primer inicio solicita correo y contraseña propios del administrador. Tambi�
 Configuración inicial:
 
 1. Ingresar como administrador y cargar cadenas y sucursales reales, responsables, horarios, modalidades, zonas operativas y medios de pago de cada farmacia.
-2. Las personas se registran como compradores adultos; el administrador les asigna los permisos de sucursal que corresponden. No se concede acceso clínico al administrador por su rol administrativo.
+2. Configurar el envío de correo con `ConfigurarCorreo.cmd` cuando se disponga del proveedor. Las personas se registran como compradores adultos y confirman su correo; el administrador les asigna los permisos de sucursal que corresponden. Mientras SMTP siga pendiente, la cuenta nueva queda sin habilitar. Ver [configuración de correo](docs/configuracion-correo.txt).
 3. Registrar las capacidades verificadas de farmacia y cadete cuando la categoría lo requiera, con documentación que las respalde.
 4. Cargar presentaciones comerciales y sus condiciones documentadas; cargar precios y existencias por sucursal, y lotes para categorías que requieren trazabilidad.
 5. Configurar los planes y contratos con importes reales positivos y moneda. Registrar períodos mensuales efectivamente cobrados con referencia y evidencia. Las U.M. no activan cobros reales.
 6. Revisar los parámetros operativos y hacer una primera compra controlada entre usuarios habilitados.
 
+En **Administración → Cadenas → Agregar cadena / Modificar**, el administrador puede cargar,
+reemplazar o quitar el logo de una cadena y guardar los cambios. Se aceptan imágenes PNG o JPG
+de hasta 2 MB y 4096 × 4096 píxeles. Cada sucursal de esa cadena muestra el logo en su ubicación
+en el mapa de la compra; al tocar el marcador se consulta su nombre y dirección. Sin logo se
+muestra un marcador común. El punto de entrega o ubicación del comprador se confirma por separado.
+
 Este MVP coordina operaciones y conserva comprobaciones manuales. No confirma por sí mismo la autenticidad de una receta, autorización de obra social, habilitación sanitaria, factura fiscal o transferencia bancaria. Esas verificaciones las realiza el responsable en su fuente externa y registra la evidencia.
 
 ## Pruebas
 
-Los resultados de la revisión actual, el escenario y los recorridos están en
-[la revisión de DEMO y flujos](docs/revision-demo-flujos.txt).
+Los resultados de esta fase de QA y sus recorridos están en
+[la verificación del producto según QA](docs/verificacion-producto-QA.txt).
+La [revisión de DEMO y flujos](docs/revision-demo-flujos.txt) conserva la evidencia del 8/10.
 El [reporte de verificación inicial](docs/verificacion-mvp.txt) se conserva como
 evidencia histórica de la primera fase; sus cantidades y capturas pertenecen al
 escenario anterior.
@@ -123,13 +140,17 @@ escenario anterior.
 ```powershell
 .\scripts\Test.ps1
 npm.cmd --prefix frontend test
+# Compilar también la aplicación completa y verificar contra una base QA nueva:
+.\scripts\Test-QA.ps1 -Package
 # Con la base local propia iniciada y el proyecto compilado:
 .\scripts\Test-Workflow.ps1
 ```
 
-`Test.ps1` prepara `emedicapp_test_demo`, independiente de las bases de operación. Las pruebas de integración requieren PostgreSQL real; una ejecución de Maven sin las variables de prueba informa esos casos como omitidos. La compilación sola no prueba la operación de la base.
+`Test.ps1` delega en `Test-QA.ps1`, que crea una base `emedicapp_qa_*_demo` nueva y documentos propios en cada ejecución. No borra ni reutiliza datos de operación o de QA anterior. `-Package` también compila e incluye el frontend en el JAR. Las pruebas de integración requieren PostgreSQL real; una ejecución de Maven sin las variables de prueba informa esos casos como omitidos. La compilación sola no prueba la operación de la base.
 
 `Test-Workflow.ps1` crea una base QA nueva y un directorio de documentos propios en cada invocación. Inicia la aplicación en `http://127.0.0.1:8083`, espera disponibilidad, ejecuta los recorridos Playwright y detiene sólo el proceso que inició. La base y las evidencias QA se conservan para revisión; el estado queda en `.runtime/workflow-*.json` y la salida del navegador en `.runtime/verification-browser.log`.
+
+Sin parámetros ejecuta los ocho recorridos. Para verificar un cambio puntual se puede pasar `-TestName 'registro sin correo'`: selecciona nombres que contienen ese texto literal y conserva la misma protección de base, documentos y puerto. El estado registra la selección y el hash del JAR; una ejecución parcial no se considera aprobación del conjunto completo.
 
 El puerto 8083 debe estar libre. El script no adopta ni detiene otra aplicación. La ejecución directa de `npm.cmd --prefix frontend run test:e2e` se niega a operar contra la base de presentación de 8082: el recorrido exige el entorno aislado preparado por el script.
 
@@ -182,7 +203,7 @@ El acceso público desde esta PC utiliza el túnel HTTPS descrito arriba, la bas
 - Las distancias se calculan geográficamente para búsqueda; no son rutas de tránsito ni tiempos garantizados de entrega.
 - La disponibilidad combina un radio por sucursal y una franja diaria configurada. Todavía no hay un calendario de feriados, turnos rotativos ni varias franjas por día.
 - La ubicación del cadete se actualiza cuando éste la informa durante una tarea activa; no se promete seguimiento continuo en segundo plano.
-- La notificación inmediata se muestra dentro de la aplicación y las pantallas actualizan su estado. No se envían WhatsApp, correo ni SMS.
+- La notificación operativa se muestra dentro de la aplicación y las pantallas actualizan su estado. Los correos de confirmación y recuperación se envían cuando se configura SMTP; avisos operativos por WhatsApp, correo o SMS requieren una integración posterior.
 - El esquema MVP implementa el circuito operativo. Los módulos más amplios del relevamiento permanecen como evolución y no se presentan como implementados.
 - La preparación de un piloto real incluye cargar y verificar la operación de cada farmacia y acordar sus procedimientos. Los datos DEMO no acreditan convenios ni condiciones de una farmacia real.
 

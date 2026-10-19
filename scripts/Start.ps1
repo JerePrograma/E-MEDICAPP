@@ -2,6 +2,7 @@
 $ErrorActionPreference='Stop'
 if ($RestrictedDatabase -and $Environment -ne 'Manual') { throw 'La base limitada corresponde solamente a operación MANUAL.' }
 $projectRoot=[IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
+. (Join-Path $PSScriptRoot 'Mail.Common.ps1')
 if (-not $JavaHome) { $JavaHome='C:\Program Files\Java\jdk-25.0.4.1+1' }
 $javaPath=Join-Path $JavaHome 'bin\java.exe'
 if (-not (Test-Path -LiteralPath $javaPath)) { throw 'No se encontró Java 25. Indicá EMEDICAPP_JAVA_HOME.' }
@@ -23,6 +24,11 @@ if ($listening) {
   }
   throw 'El puerto está ocupado. Se preserva el proceso existente.'
 }
+$mailParameters=$null
+$mailSettingsPath=Join-Path $projectRoot '.runtime\mail-settings.json'
+if ($Environment -eq 'Manual' -and [string]::IsNullOrWhiteSpace($env:EMEDICAPP_SMTP_HOST) -and (Test-Path -LiteralPath $mailSettingsPath)) {
+  $mailParameters=Read-MailParameters -Path $mailSettingsPath
+}
 & (Join-Path $PSScriptRoot 'Database.ps1') -Environment $Environment
 $credentials=Get-Content -LiteralPath (Join-Path $projectRoot '.runtime\local-db.json') -Raw -Encoding UTF8 | ConvertFrom-Json
 if ($RestrictedDatabase) {
@@ -32,9 +38,12 @@ if ($RestrictedDatabase) {
   if ($limited.user -ne 'emedicapp_manual_app' -or $limited.database -ne 'emedicapp_manual' -or $limited.port -ne $credentials.port -or -not $limited.protectedPassword) { throw 'La configuración limitada no corresponde a la operación MANUAL.' }
   $credentials=$limited
 }
-$keys=@('EMEDICAPP_DB_PASSWORD','EMEDICAPP_DB_URL','EMEDICAPP_DB_USER','EMEDICAPP_MODE','EMEDICAPP_DOCUMENTS_DIR','EMEDICAPP_PORT','EMEDICAPP_ADMIN_EMAIL','EMEDICAPP_ADMIN_PASSWORD')
+$keys=@('EMEDICAPP_DB_PASSWORD','EMEDICAPP_DB_URL','EMEDICAPP_DB_USER','EMEDICAPP_MODE','EMEDICAPP_DOCUMENTS_DIR','EMEDICAPP_PORT','EMEDICAPP_ADMIN_EMAIL','EMEDICAPP_ADMIN_PASSWORD') + $mailEnvironmentKeys
 $saved=@{}; foreach ($key in $keys) { $saved[$key]=[Environment]::GetEnvironmentVariable($key,'Process') }
 try {
+  if ($mailParameters) {
+    foreach ($mailKey in $mailParameters.Keys) { [Environment]::SetEnvironmentVariable($mailKey,$mailParameters[$mailKey],'Process') }
+  }
   $env:EMEDICAPP_DB_PASSWORD=[Net.NetworkCredential]::new('',(ConvertTo-SecureString $credentials.protectedPassword)).Password
   $databaseName=if ($Environment -eq 'Demo') {'emedicapp_demo'}else{'emedicapp_manual'}
   $env:EMEDICAPP_DB_URL="jdbc:postgresql://127.0.0.1:$($credentials.port)/$databaseName"
@@ -49,7 +58,7 @@ try {
   $process=Start-Process -FilePath $javaPath -ArgumentList @('-jar',('"'+$jarPath+'"')) -WorkingDirectory $projectRoot -WindowStyle Hidden -PassThru -RedirectStandardOutput (Join-Path $projectRoot ".runtime\app-$Environment.stdout.log") -RedirectStandardError (Join-Path $projectRoot ".runtime\app-$Environment.stderr.log")
   @{processId=$process.Id;port=$Port;environment=$Environment;startedAt=(Get-Date).ToUniversalTime().ToString('o');jar=$jarPath;restrictedDatabase=[bool]$RestrictedDatabase;databaseUser=$credentials.user} | ConvertTo-Json | Set-Content -LiteralPath $statePath -Encoding UTF8
 }
-finally { foreach ($key in $saved.Keys) { [Environment]::SetEnvironmentVariable($key,$saved[$key],'Process') } }
+finally { foreach ($key in $saved.Keys) { [Environment]::SetEnvironmentVariable($key,$saved[$key],'Process') }; $mailParameters=$null }
 $ready=$false
 for ($attempt=0; $attempt -lt 45; $attempt++) {
   if (-not (Get-Process -Id $process.Id -ErrorAction SilentlyContinue)) { throw "La aplicación finalizó al iniciar. Revisá .runtime\app-$Environment.stderr.log y .stdout.log." }

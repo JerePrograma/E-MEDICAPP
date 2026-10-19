@@ -1,0 +1,251 @@
+E-MEDICAPP | IMPLEMENTACIÓN Y VERIFICACIÓN DEL PRODUCTO SEGÚN QA
+Fecha: 9 de octubre de 2026. Horario de referencia: Mendoza, UTC-03.
+
+ESTADO DE ESTA ENTREGA
+Servidor y aplicación compilados. Pruebas de servidor, interfaz y compatibilidad
+de datos aprobadas. Los ocho recorridos completos de navegador pasaron en una
+misma corrida. La comprobación puntual del último ajuste de textos de registro
+y recuperación también aprobó sobre la compilación final.
+No se publicó esta versión durante la revisión. No se modificaron compras,
+cuentas ni documentos de MANUAL, ni se configuró un proveedor de correo real.
+
+FUENTE FUNCIONAL Y DECISIONES
+Fuente principal: CASOS DE USO - E-MEDICAPP.pdf, entregado por QA para definir el
+producto completo. Copia exacta conservada en docs/fuentes/.
+SHA-256 del PDF:
+D9E52132E86220492E1314730C5EE898DEEF18066B8EC017B2EF9125511DF594
+
+Respuestas posteriores que concretan las reglas:
+1. Registro adulto habilitado mediante confirmación de correo, sin aprobación
+   manual de identidad de la cuenta.
+2. Una nota firmada nueva por cada compra permite comprar y recibir por otro
+   adulto. La farmacia verifica su correspondencia con esa operación.
+3. Ante receptor ausente, regreso físico documentado y un solo reintento
+   coordinado. El fracaso siguiente requiere resolución de la farmacia.
+4. La farmacia resuelve el cumplimiento parcial de la compra dividida,
+   conservando las partes entregadas y sus registros.
+5. Envío de correo preparado para configurar después. No se usa una verificación
+   ficticia para permitir el ingreso de cuentas reales.
+
+El informe V3 y decisiones previas completan los puntos compatibles: Mendoza,
+adultos, cuota mensual fija a farmacias/cadenas, cobro y factura a cargo de cada
+farmacia, envío gratuito al cliente absorbido por ella, prioridad comercial de
+la red suscrita y preferencia de cadena, división cuando ninguna sucursal reúne
+la cesta, retiro desde la primera etapa y consentimiento ante cambios materiales.
+
+TRAZABILIDAD DE LOS QUINCE CASOS DEL PDF
+RF01/CU0: registro, duplicados, edad, confirmación de correo y recuperación.
+RF03/CU0: nota por compra, revisión, pedido de información, rechazo, revocación
+           y reemplazo; archivo utilizado conservado e impedimento de reutilizarlo.
+RF11/CU0: receta, origen y vigencia, stock, cobertura, rechazo sanitario que no
+           se elude cambiando de farmacia y sustitución con decisión del comprador.
+RF06/CU03: cesta, entrega/retiro, ubicación, farmacia elegible, disponibilidad,
+            búsqueda, división y respeto de receta declarada indivisible.
+RF16/CU05: presupuesto versionado, reservas previas, aceptación explícita,
+            rechazo, vencimiento y nueva aceptación de cambios materiales.
+RF19/CU06: comprobante informado separado de fondos comprobados; importe, moneda,
+            método, referencia, pagos parciales y conciliación de resultado incierto.
+RF23/CU07: factura externa documentada, notas fiscales vinculadas e incidencia
+            de emisión con alerta prioritaria e historial de intentos.
+RF26/CU08: preparación y dispensación con revisión vigente, fondos, stock, lote,
+            receta, capacidades y evidencia de condiciones especiales.
+RF28/CU09: cadete propio, disponibilidad/capacidad, asignación con vencimiento,
+            aceptación y retiro físico separados, recepción y custodia del retorno.
+RF30/CU10: retiro con identidad observada, nota vigente, código y coincidencia
+            del paquete; incidencia ante discrepancia o vencimiento.
+RF34/CU11: cancelación anterior a dispensar, detención inmediata y liberación
+            de reservas; control independiente de dos profesionales en alto valor.
+RF36/CU12: reintegro total/parcial, saldo realmente cobrado, límite de devolución,
+            nota de crédito y confirmación externa documentada sin duplicaciones.
+RF35/CU13: incidencia profesional, retorno, resolución y reposición consentida
+            con unidades nuevas, sin cambiar la factura ni la dispensación original.
+RF43/CU14: panel configurable, versiones y efectos prospectivos; condiciones ya
+            aceptadas conservadas y flujo definido en código.
+RF40/CU15: administración de plataforma y farmacia, alcance por sucursal,
+            revocación de permisos y protección del último administrador activo.
+
+DISEÑO DE LA INTERFAZ
+Navegación según el perfil y texto en español. El comprador recorre solicitud,
+presupuesto, pago, preparación y recepción con estado y siguiente acción visibles.
+La farmacia utiliza una bandeja de solicitudes y pedidos, resumen operativo,
+controles habilitados por etapa y diálogos para las comprobaciones concretas.
+El cadete ve su tarea, destino, receptor autorizado y acciones de custodia, sin
+recetas ni documentación clínica. Administración separa catálogos, sucursales,
+planes, parámetros y permisos; la alerta fiscal conserva alcance comercial.
+Las pantallas se adaptan a escritorio y teléfono. Los datos de presentación son
+sintéticos y plausibles, identificados como DEMO; no representan comercios,
+pacientes, precios ni validaciones externas reales.
+
+PRUEBAS DE SERVIDOR Y COMPILACIÓN COMPLETA
+Resultado: 166 pruebas; 0 fallos, 0 errores, 0 omitidas.
+Se utilizó PostgreSQL real y una base nueva exclusiva de esta ejecución:
+emedicapp_qa_20261009182032354_04a11378_demo
+Inicio: 09/10/2026 15:20:32. Fin: 15:23:13. Compilación Maven: 2 min 36 s.
+Estado: .runtime/qa-20261009182032354_04a11378.json
+Registro: .runtime/qa-20261009182032354_04a11378.log
+
+Incluyen autenticación, privacidad por recurso y sucursal, alta/edad/duplicados,
+confirmación y recuperación, tokens, reservas/concurrencia y presupuesto,
+autorizaciones históricas, revisión vigente de alto valor, cobros y reintegros,
+cancelación, factura e incidencia fiscal, custodia, sustitución y reposición.
+Las reposiciones también verifican un pedido creado por la API de compra real,
+sin sustituir todas las condiciones iniciales por registros insertados a mano.
+
+La compilación para los ocho recorridos incluye dos ajustes visuales posteriores: espacio superior
+de la bandeja de farmacia y mensaje de reposición acorde a su revisión actual.
+Se volvió a compilar la interfaz y el JAR sin repetir las pruebas del servidor,
+cuyas fuentes no cambiaron. Finalizó el 09/10/2026 a las 15:34:09, BUILD SUCCESS.
+Registro: .runtime/qa-ui-package.log
+El binario de los ocho recorridos quedó preservado en:
+.runtime/emedicapp-qa-full-20261009.jar
+SHA-256 de esa compilación:
+3AF384EE0F77FB005735B33C144F0A4425A4DEB727F35F0F3124BFA948DAB9AC
+
+PRUEBAS DE INTERFAZ
+Vitest: 2 archivos y 9 pruebas aprobadas. Inicio 15:21:22, duración 411 ms.
+Registro: .runtime/verification-unit-ui-qa.log
+TypeScript y construcción del frontend: aprobados. También se verificaron los
+tipos del archivo de recorridos de navegador. La construcción informa un aviso
+de tamaño del paquete principal; la aplicación compiló correctamente.
+
+RECORRIDOS DE NAVEGADOR
+Resultado completo: 8 aprobados, 0 fallos, sin reintentos automáticos, en una
+misma corrida sobre http://127.0.0.1:8083 con datos y archivos exclusivos.
+Duración Playwright: 3,2 minutos. Inicio del entorno: 15:49:12; fin: 15:52:39.
+1. Compra persistida, revisión, presupuesto, pago directo documentado, incidencia
+   fiscal/alerta, factura, preparación, dispensación y retiro: PASS (33,2 s).
+2. Entrega con cadete propio, aceptación, custodia, código erróneo que conserva
+   tarea pendiente y cierre correcto: PASS (6,1 s).
+3. Administración editable, cambio entre perfiles, falta de stock informada y
+   comprador móvil sin errores ni desbordamiento: PASS (7,8 s).
+4. Familiar adulto, nota por compra, receta, cobertura, alto valor, dos revisores,
+   cancelación, nota fiscal y reintegro completo: PASS (47,4 s).
+5. Receptor ausente, retorno físico, único reintento coordinado y recepción
+   verificada: PASS (1,0 min; duración redondeada por Playwright).
+6. Registro sin proveedor de correo, mensaje pendiente, sin sesión automática
+   y acceso bloqueado hasta confirmar: PASS (2,1 s).
+7. Sustitución documentada, original conservado, revisión pausada, decisión del
+   comprador y presupuesto nuevo expresamente aceptado: PASS (11,4 s).
+8. Reposición por discrepancia, retorno documentado, aceptación, revisión nueva,
+   unidades nuevas y retiro sin cobro, factura original intacta: PASS (20,9 s).
+
+Base: emedicapp_workflow_20261009184912553_3d2ceb77_demo
+Estado: .runtime/workflow-20261009184912553_3d2ceb77.json
+testExitCode=0; stopped=true. PID 30296 detenido y puerto 8083 libre al finalizar.
+Archivo completo de log, capturas, reporte HTML y estado:
+.runtime/final-browser-qa-20261009/
+Las 24 capturas propias de esta corrida se conservaron en
+su archivo completo. La carpeta docs/capturas/qa-20261009/ conserva 22 de ellas
+y las cuatro capturas de confirmación/recuperación del texto final, 26 en total.
+Son escenas DEMO; no contienen pacientes reales.
+
+Después de esa corrida se reemplazó únicamente el texto de proveedor pendiente
+en la interfaz de registro/recuperación por una explicación para el cliente,
+sin términos de configuración. No cambió API, estado ni permiso de ingreso.
+La confirmación explica que la cuenta queda pendiente; la recuperación no afirma
+que se bloqueó una cuenta ya habilitada. Se volvió a compilar la interfaz y se
+verificó ese único recorrido en otra base aislada. Una comprobación puntual no
+sustituye la corrida completa anterior; se registra como validación adicional.
+
+Compilación final: BUILD SUCCESS, 09/10/2026 15:54:52, duración 34,873 s.
+Registro: .runtime/qa-ui-final-copy-package.log
+JAR final: backend/target/emedicapp-0.1.0-SNAPSHOT.jar
+SHA-256:
+14D7DAE45F69A16FBB909F4877897CBC786AB59D90564BD1D918ED4FFE6D88C4
+No se cambiaron fuentes del servidor después de sus 166 pruebas aprobadas.
+
+Comprobación adicional de registro y recuperación: PASS; 1 caso seleccionado,
+0 fallos. Caso 3,6 s, total Playwright 4,8 s.
+Inicio del entorno: 15:55:34. Fin: 15:55:51.
+Base: emedicapp_workflow_20261009185534305_aba52d29_demo
+Estado: .runtime/workflow-20261009185534305_aba52d29.json
+testSelection="registro sin correo"; jarSha256 corresponde al JAR final anterior;
+testExitCode=0; stopped=true. PID 23124 detenido y puerto 8083 libre al finalizar.
+Archivo de registro, estado, reporte HTML y cuatro capturas:
+.runtime/final-auth-copy-qa-20261009/
+Se verificaron los textos sin SMTP, respuesta 202 EMAIL_CONFIGURATION_PENDING,
+ausencia de id/token/sesión y bloqueo de ingreso de la cuenta sin confirmar.
+La recuperación de acceso conserva su mensaje específico de envío pendiente.
+
+La primera corrida completa aprobó seis recorridos y tuvo dos esperas agotadas
+en selectores de campos obligatorios de registro/familiar. La etiqueta visible
+incluía la marca de obligatorio y la prueba exigía un nombre exacto anterior.
+Se corrigió la selección sin eliminar el campo ni relajar la obligación de DNI.
+Ese resultado inicial no se presenta como aprobación de los ocho casos.
+Estado inicial: .runtime/workflow-20261009182347356_9c5280ba.json
+Base inicial: emedicapp_workflow_20261009182347356_9c5280ba_demo
+Archivo de evidencias iniciales: .runtime/initial-browser-qa-20261009/
+La aplicación aislada inicial se detuvo al terminar, incluso con esos fallos.
+
+La segunda corrida completó registro y familiar, además de los otros cuatro
+recorridos iniciales. Los dos últimos se detuvieron al ingresar, antes de crear
+sus solicitudes: las sesiones repetidas de la automatización agotaron el límite
+de 20 ingresos desde la misma IP en cinco minutos. Se conservó ese control de la
+aplicación y se ajustó sólo la prueba para reutilizar sesiones válidas por perfil,
+comprobar identidad/permisos y renovar las sesiones cerradas cuando corresponda.
+Estado de esa corrida: .runtime/workflow-20261009183647460_000391a8.json
+Base: emedicapp_workflow_20261009183647460_000391a8_demo
+Inicio: 15:36:47. Fin: 15:40:24. Resultado: 6 aprobadas, 2 bloqueadas al ingresar.
+Su aplicación aislada se detuvo al terminar. Tampoco se considera aprobación
+de los ocho recorridos ni se modificó la seguridad para obtener ese resultado.
+Archivo de sus evidencias: .runtime/initial-browser-qa-20261009b/
+
+La tercera corrida aprobó siete recorridos, incluidos sustitución y reposición.
+El caso administrativo encontró una carrera de la prueba al cambiar perfiles:
+reutilizaba cookies y navegaba antes de terminar la navegación real de Salir.
+Se sincronizó respuesta de cierre, navegación del marco principal y pantalla
+de ingreso, sin cambiar la aplicación. La cuarta corrida es la 8/8 descrita arriba.
+Estado tercero: .runtime/workflow-20261009184338879_79ae5412.json
+Archivo de sus evidencias: .runtime/initial-browser-qa-20261009c/
+Resultado tercero: 7 aprobadas, 1 espera de navegación; aplicación detenida.
+
+BASE Y COMPATIBILIDAD DEL HISTORIAL
+Modelo actual: 42 tablas de negocio, migraciones V1 a V13. La instalación limpia
+con Flyway se validó durante las pruebas de servidor. docs/modelo-mvp.sql conserva
+las fuentes en orden numérico; no reemplaza el historial de Flyway instalado.
+
+Se verificó además la compatibilidad del SQL V7-V13 con registros sintéticos
+insertados después de aplicar V1-V6. Resultado: PASS.
+Base: emedicapp_migration_20261009181836429_5890261a2df4_demo
+Inicio: 09/10/2026 15:18:36. Fin: 15:18:41.
+Estado: .runtime/migration-check-20261009181836429_5890261a2df4.json
+Registro: .runtime/migration-check-20261009181836429_5890261a2df4.log
+Se conservaron nota anterior y actual, documento vigente y auditoría; custodia
+del cadete sin presumir devolución física; importes/estados de pago y reintegro;
+acceso del administrador previo y requisito de correo del comprador no DEMO.
+El método ausente en el pago histórico permaneció sin inventar un valor.
+Esta segunda comprobación aplicó DDL fuente con historial sintético: no ejecutó
+una actualización real de MANUAL ni prueba por sí sola su actualización Flyway.
+Las bases QA se conservan, sin DROP ni reutilización automática.
+
+REVISIÓN ESTÁTICA
+Contratos api-auth.json, api-compras.json y api-catalogo.json: JSON válido.
+Scripts de correo, inicio y verificación: sintaxis PowerShell válida.
+git diff --check: aprobado. No se prepararon archivos para un nuevo commit.
+Credenciales de correo no ingresadas; .runtime/mail-settings.json no existe.
+
+LÍMITES CONCRETOS Y ACTIVACIÓN POSTERIOR
+Los recorridos prueban el circuito local con personas, documentos y fondos
+sintéticos. No prueban autenticidad de receta, autorización de obra social,
+habilitación sanitaria, cobro bancario, factura fiscal o reintegro reales. Esas
+comprobaciones permanecen a cargo de responsables que registran su evidencia.
+Frío registra hitos manuales; no existe telemetría continua del transporte.
+
+El envío de confirmación/recuperación está preparado mediante ConfigurarCorreo.cmd
+y configuración cifrada local. Queda pendiente elegir/configurar proveedor y
+comprobar entrega real de mensajes y enlaces. Las cuentas nuevas no pueden
+operar mientras la confirmación siga pendiente. El configurador no envía correos
+automáticamente y no reinicia una aplicación en uso.
+
+Esta entrega no ejecutó una aprobación humana de QA, operaciones con pacientes
+reales, actualización de MANUAL o nueva publicación. Para activar esta versión
+corresponde conservar un respaldo y utilizar el procedimiento de inicio habitual;
+la puesta en funcionamiento y los convenios externos requieren comprobación
+propia. La publicación del 8/10 conserva su reporte como evidencia histórica.
+
+DOCUMENTACIÓN RELACIONADA
+docs/flujo-producto-QA.txt: reglas, recorrido y garantías actuales.
+docs/api-auth.json, docs/api-compras.json y docs/api-catalogo.json: contratos.
+docs/modelo-mvp.sql: estructura consolidada V1-V13 para referencia.
+docs/configuracion-correo.txt: configuración diferida del proveedor de correo.
+docs/capturas/qa-20261009/: 26 capturas finales de esta fase y su índice.

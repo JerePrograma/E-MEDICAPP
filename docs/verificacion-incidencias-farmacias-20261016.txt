@@ -1,0 +1,158 @@
+E-MEDICAPP - Correcciones de farmacias y compra
+Verificación final: 16/10/2026, 16:06, Argentina.
+Estado: CORREGIDO, PUBLICADO Y VERIFICADO.
+Acceso: https://tamper-raving-aversion.ngrok-free.dev/
+
+ALCANCE Y RESULTADO
+
+Se corrigieron el acceso a la administración, la selección de medicamentos y
+el alta de sucursales con cadena de frío. A pedido del titular se completó la
+demo pública con datos de prueba verosímiles y se recorrieron dos compras hasta
+su finalización. Se conservaron las cuentas, sus roles, la cadena y su logo.
+
+1. ACCESO A ADMINISTRACIÓN
+
+La aplicación y el túnel estaban iniciados, pero PostgreSQL estaba detenido.
+Se recuperó el mismo clúster existente. No se recrearon cuentas ni contraseñas.
+La administración de plataforma y la administración de sucursal accedieron
+por HTTPS real después de la recuperación y después de publicar la corrección.
+
+El inicio de PostgreSQL ahora usa una consola propia oculta. La interrupción
+del iniciador deja de compartir directamente la consola con la base. Se
+comprobó el inicio mediante ese mecanismo durante la actualización final.
+
+En el escenario DEMO local faltaba el perfil de administrador de farmacia.
+Se agregó el perfil de Sofía Méndez y su cuenta DEMO, con alcance en Ciudad y
+Dorrego. En la publicación se mantuvieron las siete cuentas sintéticas ya
+existentes y sus credenciales.
+
+La administración de farmacia conserva sus sucursales y miembros asignados.
+El alta de la red y la acreditación de capacidades corresponden a plataforma.
+Los controles de sucursales ajenas y permisos globales siguen activos.
+
+2. MEDICAMENTOS Y SOLICITUD
+
+La base pública tenía cero productos y cero existencias. Por lo tanto la
+búsqueda de la captura no podía devolver medicamentos. El selector tampoco
+ofrecía un botón explícito para agregarlos y ocultaba las selecciones al filtrar.
+
+Ahora permite:
+- Buscar por nombre, presentación o código, con tildes y palabras en distinto orden.
+- Agregar una presentación con un botón visible y elegir la cantidad de envases.
+- Mantener visible la solicitud al cambiar la búsqueda, quitar y volver a agregar.
+- Diferenciar catálogo vacío, búsqueda sin coincidencias y error de carga con reintento.
+- Continuar a cobertura, revisar y enviar la solicitud conservando las cantidades.
+
+Se mantienen los límites de treinta presentaciones y cien envases por presentación,
+así como los controles de receta y autorización cuando corresponden.
+
+3. SUCURSAL Y TRANSPORTE CON FRÍO
+
+El formulario deshabilitaba las capacidades de todas las sucursales nuevas.
+La evidencia requería una sucursal existente, por lo que el alta no ofrecía
+un recorrido continuo para terminar la acreditación.
+
+Recorrido corregido para administración de plataforma:
+1) Administración > Sucursales > Agregar sucursal.
+2) Completar datos, modalidades, radio y disponibilidad; seleccionar cadena de frío.
+3) Continuar con acreditación. Se crea la sucursal sin acreditar todavía la capacidad.
+4) En el mismo formulario, adjuntar la evidencia de habilitación y capacidad.
+5) Guardar cambios. La capacidad queda persistida con evidencia y responsable.
+6) En Miembros, acreditar también la capacidad de transporte del cadete propio.
+
+Durante la carga o reemplazo de evidencia se bloquean guardar y cerrar, incluido
+el envío con Enter. Una carga fallida conserva el estado anterior y permite
+reintentar. El servidor continúa rechazando una acreditación sin evidencia.
+
+Se verificaron guardado, recarga, reapertura, sustitución de evidencia con demora,
+error y reintento, acreditación de cadete y enrutamiento de una compra con frío.
+
+DATOS DE LA DEMO PÚBLICA
+
+19 presentaciones activas, 19 ofertas por sucursal y 19 lotes de prueba.
+La carga inicial dejó 313 envases simulados, con cantidades variadas y vencimientos
+futuros. Después de los dos recorridos quedan 310 envases y cero reservas.
+
+Las primeras 18 presentaciones proceden del escenario documentado del proyecto.
+Se agregó Buscapina 10 mg · DEMO, Caja de 20 grageas, para reproducir la búsqueda
+original. La referencia de nombre y presentación se verificó en fuentes primarias:
+https://www.buscapina.com/es-ar/productos/buscapina-grageas
+https://www.buscapina.com/dam/jcr%3Ab6aa23a8-e8bf-4817-a496-9c9383a03dfc/Buscapina%20grageas_PIP_CCDS%20v1%20%2826Ago2022%29%20%281%29.pdf
+https://boletin.anmat.gob.ar/enero_2013/Dispo_0043-13.pdf
+
+Los precios, existencias, lotes, vencimientos, pagos, recetas y evidencias del
+escenario público son simulados y están identificados como DEMO. Los documentos
+de acreditación de QA no certifican condiciones sanitarias reales.
+
+VERIFICACIÓN
+
+- Frontend: 12 pruebas aprobadas.
+- Backend con PostgreSQL real y base nueva: 178 pruebas, cero fallas y cero omitidas.
+- Compilación completa de frontend y backend: aprobada.
+- Navegador en base aislada nueva: 13 de 13 recorridos aprobados en la ejecución final.
+- Formato, TypeScript y revisión de espacios: aprobados.
+- Publicación HTTPS: disponibilidad UP, modo MANUAL y paquete verificado coincidente.
+- Siete cuentas públicas: ingreso, sesión segura, función por rol y salida aprobados.
+
+La batería de navegador cubre compra hasta retiro, entrega, receta y cobertura,
+doble revisión y reintegro de alto valor, receptor ausente y reintento, sustitución,
+reposición, administración de farmacia, medicamentos, capacidades y logo de cadena.
+
+Se conservaron dos primeras ejecuciones con fallas de las propias pruebas:
+coincidencia exacta de una etiqueta obligatoria y superposición del marcador de
+una sucursal sintética con otra del escenario. Se ajustaron los selectores y la
+ubicación del dato de prueba, y se repitió la batería completa con resultado 13/13.
+
+RECORRIDOS COMPLETADOS EN LA DIRECCIÓN PÚBLICA
+
+A. Retiro, compra 94a30ffe-6b6b-48a1-b722-11c9dc832d3d.
+   Creada desde la interfaz pública buscando buscapina y luego paracetamol.
+   Se comprobó la selección persistente de un envase de cada presentación.
+   Continuación por API autenticada: revisión farmacéutica, aceptación, comprobante
+   del comprador, registro del pago manual de prueba, factura, preparación,
+   dispensación y retiro con código e identidad de la cuenta sintética.
+   Resultado persistido: compra y pedido COMPLETED, recepción COLLECTED.
+
+B. Entrega fría, compra 7b70e74a-1120-4b88-be50-47684bc1e0c4.
+   Un envase de insulina DEMO, receta y evidencias sintéticas, revisión, aceptación,
+   pago manual y factura de prueba, preparación, dispensación, asignación automática,
+   aceptación del cadete, recepción del paquete y entrega con código e identidad.
+   Conservación simulada de 5 grados en los controles del recorrido.
+   Resultado persistido: compra y pedido COMPLETED, entrega DELIVERED.
+
+En ambos casos se verificaron factura accesible al comprador con hash coincidente,
+consumo exacto de existencias y lote, reservas en cero y custodia en el receptor.
+No quedan tareas de entrega abiertas. La interfaz pública muestra dos compras
+completadas y ninguna en curso. Los registros se conservaron para recorrer la demo.
+
+Las simulaciones registran EXTERNAL_MANUAL; no hubo transferencia, cobro, factura
+fiscal, receta profesional, dispensación o traslado reales ni llamadas a bancos,
+proveedores de pago, obras sociales o servicios de correo.
+
+EVIDENCIAS Y RESPALDOS
+
+Directorio privado de la versión y sus verificaciones:
+C:\laburo\E-MEDICAPP\E-MEDICAPP\.runtime\releases\incidencias-20261016-154158-326
+
+Respaldo anterior a la carga del catálogo:
+catalog-backup\emedicapp-Manual-20261016-155342-647
+Respaldo anterior a aplicar la versión, con las 19 presentaciones:
+backup\emedicapp-Manual-20261016-160203-047
+
+Los dos respaldos contienen dump PostgreSQL, documentos y manifiesto de hashes.
+El JAR anterior está en previous.jar. Las 14 migraciones son idénticas entre
+ambas versiones; esta corrección no agregó ni modificó migraciones.
+
+JAR publicado SHA-256:
+F6A3447F20E0B7D2B70E607D8F6EFAC5EABB5716283D361AEEF8372CBFD1C0AB
+
+Estado final: .runtime\releases\incidencias-20261016-154158-326\release-state.json
+Prueba aislada final: .runtime\workflow-20261016185707580_b83bed39.json
+Compras públicas: .runtime\incidencias-public-purchase-flow.log y diarios privados
+public-purchase-qa-20261016-*.private.json.
+Capturas: docs\capturas\incidencias-20261016.
+
+Se preservó el trabajo local previo. No se creó un commit ni se publicó el repositorio.
+El servicio público sigue dependiendo de esta PC, su base, el túnel y la conexión.
+Después de una compra de prueba no se debe repetir la carga para reponer cantidades:
+los provisionadores rechazan compras o reservas existentes precisamente por ese motivo.

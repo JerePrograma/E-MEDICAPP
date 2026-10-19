@@ -1,7 +1,8 @@
 package ar.emedicapp.purchase;
 
-import java.util.*;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.*;
 
 @RestController
 @RequestMapping("/api")
@@ -40,6 +41,24 @@ public class PurchaseController {
             @RequestBody PurchaseDtos.Version r,
             @RequestHeader(value = "Idempotency-Key", required = false) String key) {
         return service.accept(id, r, key);
+    }
+
+    @PostMapping("/orders/{id}/authorization")
+    public Map<String, Object> authorization(
+            @PathVariable UUID id, @RequestBody PurchaseDtos.AuthorizationReview body) {
+        return service.reviewAuthorization(id, body);
+    }
+
+    @PostMapping("/purchases/{id}/authorization/revoke")
+    public Map<String, Object> revokeAuthorization(
+            @PathVariable UUID id, @RequestBody PurchaseDtos.Version body) {
+        return service.revokeAuthorization(id, body);
+    }
+
+    @PostMapping("/purchases/{id}/authorization")
+    public Map<String, Object> replaceAuthorization(
+            @PathVariable UUID id, @RequestBody PurchaseDtos.AuthorizationReplacement body) {
+        return service.replaceAuthorization(id, body);
     }
 
     @PostMapping("/purchases/{id}/reroute")

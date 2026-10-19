@@ -1,9 +1,11 @@
 package ar.emedicapp.fulfillment;
 
 import ar.emedicapp.purchase.PurchaseDtos;
-import java.util.*;
+
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.*;
 
 @RestController
 @RequestMapping("/api")
@@ -47,6 +49,20 @@ public class FulfillmentController {
         return service.acceptTask(id, r);
     }
 
+    @PostMapping("/deliveries/{id}/reject")
+    public Map<String, Object> reject(
+            @PathVariable UUID id, @RequestBody FulfillmentDtos.Rejection r) {
+        return service.rejectTask(id, r);
+    }
+
+    @PostMapping("/orders/{id}/return-received")
+    public Map<String, Object> returned(
+            @PathVariable UUID id,
+            @RequestBody FulfillmentDtos.ReturnReceived r,
+            @RequestHeader(value = "Idempotency-Key", required = false) String key) {
+        return service.returnReceived(id, r, key);
+    }
+
     @PostMapping("/deliveries/{id}/pickup")
     public Map<String, Object> pickup(@PathVariable UUID id, @RequestBody PurchaseDtos.Pickup r) {
         return service.pickup(id, r);
@@ -66,7 +82,7 @@ public class FulfillmentController {
     @PostMapping("/deliveries/{id}/complete")
     public ResponseEntity<Map<String, Object>> complete(
             @PathVariable UUID id,
-            @RequestBody PurchaseDtos.Complete r,
+            @RequestBody FulfillmentDtos.Receipt r,
             @RequestHeader(value = "Idempotency-Key", required = false) String key) {
         return receipt(service.complete(id, r, key));
     }
@@ -74,7 +90,7 @@ public class FulfillmentController {
     @PostMapping("/orders/{id}/pickup-complete")
     public ResponseEntity<Map<String, Object>> collect(
             @PathVariable UUID id,
-            @RequestBody PurchaseDtos.Complete r,
+            @RequestBody FulfillmentDtos.Receipt r,
             @RequestHeader(value = "Idempotency-Key", required = false) String key) {
         return receipt(service.collect(id, r, key));
     }

@@ -26,7 +26,10 @@ public final class PurchaseDtos {
             String coverageProvider,
             String coveragePlan,
             String coverageMemberNumber,
-            UUID coverageDocumentId) {
+            UUID coverageDocumentId,
+            String receiverName,
+            String receiverIdentity,
+            String beneficiaryIdentity) {
         public Create {
             thirdParty = Boolean.TRUE.equals(thirdParty);
         }
@@ -51,12 +54,19 @@ public final class PurchaseDtos {
             Boolean originVerified,
             Boolean authorizationChecked,
             UUID conditionEvidenceDocumentId,
-            List<ReviewLine> lines) {
+            List<ReviewLine> lines,
+            String rejectionKind,
+            Boolean prescriptionSplittable,
+            Integer deliveryMinutes) {
         public Review {
             originVerified = Boolean.TRUE.equals(originVerified);
             authorizationChecked = Boolean.TRUE.equals(authorizationChecked);
         }
     }
+
+    public record AuthorizationReview(long expectedVersion, String decision, String reason) {}
+
+    public record AuthorizationReplacement(long expectedVersion, UUID documentId) {}
 
     public record Payment(
             long expectedVersion,

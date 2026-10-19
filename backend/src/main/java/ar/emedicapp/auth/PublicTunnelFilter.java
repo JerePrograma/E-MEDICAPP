@@ -5,6 +5,13 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletRequestWrapper;
 import jakarta.servlet.http.HttpServletResponse;
+
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.Ordered;
+import org.springframework.core.annotation.Order;
+import org.springframework.stereotype.Component;
+import org.springframework.web.filter.OncePerRequestFilter;
+
 import java.io.IOException;
 import java.net.InetAddress;
 import java.net.URI;
@@ -13,11 +20,6 @@ import java.util.Enumeration;
 import java.util.LinkedHashSet;
 import java.util.Locale;
 import java.util.Map;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.core.Ordered;
-import org.springframework.core.annotation.Order;
-import org.springframework.stereotype.Component;
-import org.springframework.web.filter.OncePerRequestFilter;
 
 /** Only the explicitly configured, direct ngrok agent on loopback is trusted. */
 @Component
@@ -46,7 +48,8 @@ public final class PublicTunnelFilter extends OncePerRequestFilter {
                 || !secureCookies
                 || !"NONE".equalsIgnoreCase(forwardedStrategy.trim())) {
             throw new IllegalStateException(
-                    "El acceso público requiere MANUAL, dirección loopback, cookies seguras y forwarded headers NONE.");
+                    "El acceso público requiere MANUAL, dirección loopback, cookies seguras y"
+                            + " forwarded headers NONE.");
         }
         URI configured;
         try {
@@ -63,7 +66,8 @@ public final class PublicTunnelFilter extends OncePerRequestFilter {
                 || configured.getPort() == 0
                 || configured.getPort() > 65535) {
             throw new IllegalStateException(
-                    "EMEDICAPP_PUBLIC_URL debe ser una URL HTTPS de origen, sin credenciales, ruta, parámetros ni fragmento.");
+                    "EMEDICAPP_PUBLIC_URL debe ser una URL HTTPS de origen, sin credenciales, ruta,"
+                            + " parámetros ni fragmento.");
         }
         this.publicUrl = configured;
         String configuredHost = configured.getHost().toLowerCase(Locale.ROOT);
@@ -163,7 +167,8 @@ public final class PublicTunnelFilter extends OncePerRequestFilter {
         response.setCharacterEncoding("UTF-8");
         response.getWriter()
                 .write(
-                        "{\"code\":\"PUBLIC_ACCESS_REQUIRED\",\"message\":\"La solicitud no llegó por el acceso público configurado.\"}");
+                        "{\"code\":\"PUBLIC_ACCESS_REQUIRED\",\"message\":\"La solicitud no llegó"
+                                + " por el acceso público configurado.\"}");
     }
 
     private static final class PublicRequest extends HttpServletRequestWrapper {

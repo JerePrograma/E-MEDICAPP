@@ -1,7 +1,9 @@
 E-MEDICAPP — decisiones de implementación del MVP
-8 de octubre de 2026
+9 de octubre de 2026
 
-Autoridad: PDF V3 y respuestas posteriores del dueño. El relevamiento integral
+Autoridad actual: CASOS DE USO - E-MEDICAPP.pdf de QA y respuestas posteriores
+del dueño. El PDF V3 completa sólo los puntos compatibles no especificados.
+El relevamiento integral
 sirve como catálogo de requisitos; las 88 tablas no son una migración inicial.
 
 Decisiones del usuario: circuito completo con integración progresiva delegada;
@@ -30,6 +32,23 @@ Configuración: catálogos, precios, stock, farmacias/cadenas/sucursales, horari
 zonas, capacidades, miembros, planes, suscripciones y tiempos operativos.
 Cambios prospectivos y auditados; presupuesto aceptado e historial financiero
 se preservan. Las correcciones tienen versión o acción compensatoria.
+
+Extensión QA: confirmación de correo y recuperación mediante tokens de un solo
+uso; SMTP configurable después mediante DPAPI, sin autoaprobar un registro.
+Reservas al emitir presupuesto, nota por compra, sustitución consentida antes
+de presupuesto nuevo, cobros por importe/moneda real, notas fiscales, controles
+independientes para cancelación/despacho/reintegro de alto valor, custodia y un
+reintento coordinado. Reposiciones enlazadas conservan stock/Rx e historia
+originales y usan un nuevo circuito operativo sin cargo.
+Se agregan servicios y tablas específicos de estas obligaciones; no se crea
+una infraestructura genérica ni se reemplazan transacciones por eventos.
+
+Modelo implementado: 42 tablas de negocio y migraciones V1-V13. El SQL
+consolidado conserva las fuentes en orden; Flyway aplica las migraciones del
+backend. Los medios de pago declarados se conservan por cobro, sin completar
+datos ausentes de pagos históricos. Una falla de emisión fiscal se registra
+con evidencia operativa y genera una alerta comercial para administración;
+adjuntar la factura válida la resuelve conservando los intentos.
 
 DEMO usa datos sintéticos y marca el entorno. MANUAL requiere usuarios propios,
 otra base, condiciones verificadas y comprobaciones externas documentadas.

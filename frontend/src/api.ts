@@ -70,6 +70,10 @@ export type Actor = {
   email: string;
   name: string;
   birthDate?: string;
+  emailVerified?: boolean;
+  dni?: string;
+  phone?: string;
+  address?: string;
   roles: string[];
   branchIds: string[];
   branchRoles?: Record<string, string[]>;
@@ -123,6 +127,15 @@ export const labels: Record<string, string> = {
   RESOLVED: 'Cerrada con resolución',
   UNAVAILABLE: 'Sin disponibilidad',
   REJECTED: 'Rechazado',
+  RETURN_REQUIRED: 'Retorno a farmacia pendiente',
+  RETURNED: 'Retorno recibido',
+  PHARMACY_ADMIN: 'Administrador de sucursal',
+  DISPATCH: 'Salida física',
+  REFUND: 'Reintegro',
+  APPROVED: 'Aprobada',
+  REVOKED: 'Revocada',
+  EXPIRED: 'Vencida',
+  CANCEL: 'Cancelación',
   DELIVERY: 'Entrega a domicilio',
   PICKUP: 'Retiro en farmacia',
 };

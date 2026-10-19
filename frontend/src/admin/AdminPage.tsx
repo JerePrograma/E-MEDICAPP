@@ -20,11 +20,14 @@ import {
   Typography,
 } from '@mui/material';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { api, money } from '../api';
+import { api, dateTime, money } from '../api';
 import type { Actor } from '../api';
 import type { Branch, Product } from '../catalog/types';
 import { DocumentInput } from '../components/DocumentInput';
 import { LotsPanel } from './LotsPanel';
+import { MetricRow, PageHeader } from '../components/PageElements';
+import { UsersPanel } from './UsersPanel';
+import { ChainLogoInput } from './ChainLogoInput';
 import type {
   BranchInput,
   Chain,
@@ -38,12 +41,17 @@ import type {
   Subscription,
   SubscriptionInput,
   ProductInput,
+  UserOption,
 } from './types';
 
 type Editor =
   | { kind: 'products'; value?: Product }
   | { kind: 'chains'; value?: Chain }
-  | { kind: 'branches'; value?: Branch }
+  | {
+      kind: 'branches';
+      value?: Branch;
+      pendingCapabilities?: Pick<BranchInput, 'coldChainCapable' | 'restrictedCapable'>;
+    }
   | { kind: 'plans'; value?: Plan }
   | { kind: 'subscriptions'; value?: Subscription }
   | { kind: 'memberships'; value?: Member };
@@ -70,22 +78,41 @@ const priorityLabels: Record<string, string> = {
 };
 const roleLabels: Record<string, string> = {
   PHARMACY: 'Operador de farmacia',
+  PHARMACY_ADMIN: 'Administrador de sucursal',
   PHARMACIST: 'Farmacéutico',
   DRIVER: 'Cadete propio',
+};
+type InvoiceIssue = {
+  id: string;
+  branchId: string;
+  branchName: string;
+  orderVersion: number;
+  status: string;
+  reason: string;
+  reportedAt: string;
+  attemptCount: number | string;
 };
 
 export function AdminPage({ actor }: { actor: Actor }) {
   const cache = useQueryClient();
-  const [tab, setTab] = useState(0);
+  const globalAdmin = actor.roles.includes('ADMIN');
+  const [tab, setTab] = useState(globalAdmin ? 0 : 2);
   const [editor, setEditor] = useState<Editor | null>(null);
   const [busy, setBusy] = useState(false);
+  const [evidenceBusy, setEvidenceBusy] = useState(false);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
   const query = useQuery({
     queryKey: ['adminOverview'],
     queryFn: () => api<Overview>('/api/admin/overview'),
   });
-  if (!actor.roles.includes('ADMIN'))
+  const invoiceIssues = useQuery({
+    queryKey: ['invoice-issues'],
+    queryFn: () => api<InvoiceIssue[]>('/api/admin/invoice-issues'),
+    enabled: globalAdmin || actor.roles.includes('PHARMACY_ADMIN'),
+    refetchInterval: 10000,
+  });
+  if (!globalAdmin && !actor.roles.includes('PHARMACY_ADMIN'))
     return <Alert severity="error">Tu cuenta no tiene permiso de administración.</Alert>;
   if (query.isPending) return <Typography>Cargando administración…</Typography>;
   if (query.error || !query.data)
@@ -106,16 +133,38 @@ export function AdminPage({ actor }: { actor: Actor }) {
     setEditor(value);
   };
   async function save(body: unknown) {
-    if (!editor) return;
+    if (!editor || busy || evidenceBusy) return;
     setBusy(true);
     setError('');
     try {
-      await api(`/api/admin/${editor.kind}${editor.value ? `/${editor.value.id}` : ''}`, {
-        method: editor.value ? 'PUT' : 'POST',
-        body,
-      });
-      setNotice('Cambios guardados. Las operaciones ya aceptadas conservan sus condiciones.');
-      setEditor(null);
+      const branchInput = editor.kind === 'branches' ? (body as BranchInput) : null;
+      const needsCapabilityStep =
+        branchInput &&
+        !editor.value &&
+        (branchInput.coldChainCapable || branchInput.restrictedCapable);
+      const saved = await api<Branch>(
+        `/api/admin/${editor.kind}${editor.value ? `/${editor.value.id}` : ''}`,
+        {
+          method: editor.value ? 'PUT' : 'POST',
+          body: needsCapabilityStep
+            ? { ...branchInput, coldChainCapable: false, restrictedCapable: false }
+            : body,
+        },
+      );
+      if (needsCapabilityStep) {
+        setEditor({
+          kind: 'branches',
+          value: saved,
+          pendingCapabilities: {
+            coldChainCapable: branchInput.coldChainCapable,
+            restrictedCapable: branchInput.restrictedCapable,
+          },
+        });
+        setNotice('Sucursal creada. Adjuntá su evidencia y guardá para confirmar las capacidades.');
+      } else {
+        setNotice('Cambios guardados. Las operaciones ya aceptadas conservan sus condiciones.');
+        setEditor(null);
+      }
       await Promise.all([
         cache.invalidateQueries({ queryKey: ['adminOverview'] }),
         cache.invalidateQueries({ queryKey: ['products'] }),
@@ -157,11 +206,73 @@ export function AdminPage({ actor }: { actor: Actor }) {
   );
   return (
     <Stack spacing={3}>
-      <Typography variant="h4">Administración</Typography>
-      <Typography color="text.secondary">
-        Configurá la red y el negocio. Los cambios tienen responsable y versión; los pagos y
-        presupuestos anteriores se conservan.
-      </Typography>
+      <PageHeader
+        eyebrow={globalAdmin ? 'Gestión de la red' : 'Gestión de tu sucursal'}
+        title="Administración"
+        description="Configurá la red y el negocio. Cada cambio conserva su responsable y las condiciones de las compras ya aceptadas."
+      />
+      <MetricRow
+        metrics={
+          globalAdmin
+            ? [
+                {
+                  label: 'Sucursales',
+                  value: data.branches.length,
+                  hint: `${data.chains.length} cadenas registradas`,
+                },
+                {
+                  label: 'Presentaciones',
+                  value: data.products.filter((x) => x.active).length,
+                  hint: 'Disponibles en el catálogo',
+                },
+                {
+                  label: 'Suscripciones vigentes',
+                  value: data.subscriptions.filter((x) => x.status === 'ACTIVE').length,
+                },
+                {
+                  label: 'Permisos activos',
+                  value: data.memberships.filter((x) => x.active).length,
+                },
+              ]
+            : [
+                { label: 'Sucursales a tu cargo', value: data.branches.length },
+                {
+                  label: 'Permisos activos',
+                  value: data.memberships.filter((x) => x.active).length,
+                },
+              ]
+        }
+      />
+      {invoiceIssues.error && (
+        <Alert severity="warning">
+          No se pudieron consultar los avisos de facturación. {invoiceIssues.error.message}
+        </Alert>
+      )}
+      {!!invoiceIssues.data?.length && (
+        <Alert severity="warning">
+          <Typography sx={{ fontWeight: 650 }}>Facturación pendiente · prioridad alta</Typography>
+          <Typography variant="body2" sx={{ mt: 1 }}>
+            {invoiceIssues.data.length}{' '}
+            {invoiceIssues.data.length === 1 ? 'pedido necesita' : 'pedidos necesitan'} resolver la
+            emisión externa. La farmacia debe comprobar su sistema y adjuntar la factura válida para
+            cerrar cada aviso.
+          </Typography>
+          <Stack spacing={1.5} sx={{ mt: 2 }}>
+            {invoiceIssues.data.map((issue) => (
+              <Box key={issue.id} sx={{ borderTop: '1px solid', borderColor: 'divider', pt: 1.5 }}>
+                <Typography variant="body2" sx={{ fontWeight: 650 }}>
+                  {issue.branchName} · Pedido {issue.id.slice(0, 8).toUpperCase()}
+                </Typography>
+                <Typography variant="body2">{issue.reason}</Typography>
+                <Typography variant="caption">
+                  Reportado el {dateTime(issue.reportedAt)} · {issue.attemptCount}{' '}
+                  {Number(issue.attemptCount) === 1 ? 'intento informado' : 'intentos informados'}.
+                </Typography>
+              </Box>
+            ))}
+          </Stack>
+        </Alert>
+      )}
       {notice && (
         <Alert severity="success" onClose={() => setNotice('')}>
           {notice}
@@ -172,6 +283,13 @@ export function AdminPage({ actor }: { actor: Actor }) {
         onChange={(_, value: number) => setTab(value)}
         variant="scrollable"
         scrollButtons="auto"
+        aria-label="Secciones de administración"
+        sx={{
+          bgcolor: 'background.paper',
+          borderRadius: 2,
+          border: '1px solid',
+          borderColor: 'divider',
+        }}
       >
         {[
           'Productos',
@@ -182,9 +300,12 @@ export function AdminPage({ actor }: { actor: Actor }) {
           'Miembros',
           'Configuración',
           'Lotes',
-        ].map((title) => (
-          <Tab key={title} label={title} />
-        ))}
+          'Usuarios',
+        ].map((title, index) =>
+          globalAdmin || [2, 5].includes(index) ? (
+            <Tab key={title} value={index} label={title} />
+          ) : null,
+        )}
       </Tabs>
       {tab === 0 && (
         <>
@@ -230,10 +351,20 @@ export function AdminPage({ actor }: { actor: Actor }) {
               title: x.name,
               active: x.active,
               detail: (
-                <Typography variant="body2">
-                  {data.branches.filter((b) => b.chainId === x.id).length} establecimientos
-                  registrados
-                </Typography>
+                <Stack direction="row" spacing={2} sx={{ alignItems: 'center' }}>
+                  {x.logoUrl && (
+                    <Box
+                      component="img"
+                      src={x.logoUrl}
+                      alt={`Logo de ${x.name}`}
+                      sx={{ width: 56, height: 56, objectFit: 'contain', bgcolor: 'white' }}
+                    />
+                  )}
+                  <Typography variant="body2">
+                    {data.branches.filter((b) => b.chainId === x.id).length} establecimientos
+                    registrados
+                  </Typography>
+                </Stack>
               ),
               onEdit: () => start({ kind: 'chains', value: x }),
             })),
@@ -242,13 +373,15 @@ export function AdminPage({ actor }: { actor: Actor }) {
       )}
       {tab === 2 && (
         <>
-          <Button
-            variant="contained"
-            sx={{ alignSelf: 'flex-start' }}
-            onClick={() => start({ kind: 'branches' })}
-          >
-            Agregar sucursal
-          </Button>
+          {globalAdmin && (
+            <Button
+              variant="contained"
+              sx={{ alignSelf: 'flex-start' }}
+              onClick={() => start({ kind: 'branches' })}
+            >
+              Agregar sucursal
+            </Button>
+          )}
           {rows(
             data.branches.map((x) => ({
               id: x.id,
@@ -371,6 +504,8 @@ export function AdminPage({ actor }: { actor: Actor }) {
                   </Typography>
                   {x.role === 'DRIVER' && (
                     <Typography variant="caption">
+                      {x.available === false ? 'Fuera de turno. ' : 'Turno disponible. '}Cupo:{' '}
+                      {x.capacity ?? 1} tareas.{' '}
                       {x.coldChainCapable ? 'Cadena de frío acreditada. ' : ''}
                       {x.restrictedCapable ? 'Transporte de restringidos acreditado. ' : ''}
                       {x.capabilityVerifiedAt
@@ -397,10 +532,17 @@ export function AdminPage({ actor }: { actor: Actor }) {
         />
       )}
       {tab === 7 && <LotsPanel branches={data.branches} products={data.products} />}
+      {tab === 8 && globalAdmin && (
+        <UsersPanel
+          users={data.users}
+          actor={actor}
+          onSaved={() => cache.invalidateQueries({ queryKey: ['adminOverview'] })}
+        />
+      )}
       <Dialog
         open={!!editor}
         onClose={() => {
-          if (!busy) setEditor(null);
+          if (!busy && !evidenceBusy) setEditor(null);
         }}
         fullWidth
         maxWidth="sm"
@@ -420,7 +562,17 @@ export function AdminPage({ actor }: { actor: Actor }) {
           )}
           {editor?.kind === 'chains' && <ChainForm value={editor.value} busy={busy} save={save} />}
           {editor?.kind === 'branches' && (
-            <BranchForm value={editor.value} data={data} busy={busy} save={save} />
+            <BranchForm
+              key={editor.value?.id ?? 'new-branch'}
+              value={editor.value}
+              pendingCapabilities={editor.pendingCapabilities}
+              evidenceBusy={evidenceBusy}
+              onEvidenceBusyChange={setEvidenceBusy}
+              data={data}
+              busy={busy}
+              save={save}
+              globalAdmin={globalAdmin}
+            />
           )}
           {editor?.kind === 'plans' && (
             <PlanForm
@@ -434,9 +586,15 @@ export function AdminPage({ actor }: { actor: Actor }) {
             <SubscriptionForm value={editor.value} data={data} busy={busy} save={save} />
           )}
           {editor?.kind === 'memberships' && (
-            <MemberForm value={editor.value} data={data} busy={busy} save={save} />
+            <MemberForm
+              value={editor.value}
+              data={data}
+              busy={busy}
+              save={save}
+              globalAdmin={globalAdmin}
+            />
           )}
-          <Button sx={{ mt: 1 }} disabled={busy} onClick={() => setEditor(null)}>
+          <Button sx={{ mt: 1 }} disabled={busy || evidenceBusy} onClick={() => setEditor(null)}>
             Cerrar
           </Button>
         </DialogContent>
@@ -448,10 +606,12 @@ export function AdminPage({ actor }: { actor: Actor }) {
 function Form({
   busy,
   submit,
+  submitLabel = 'Guardar cambios',
   children,
 }: {
   busy: boolean;
   submit: () => void;
+  submitLabel?: string;
   children: ReactNode;
 }) {
   return (
@@ -461,12 +621,12 @@ function Form({
       sx={{ pt: 1 }}
       onSubmit={(e) => {
         e.preventDefault();
-        submit();
+        if (!busy) submit();
       }}
     >
       {children}
       <Button variant="contained" type="submit" disabled={busy}>
-        {busy ? 'Guardando…' : 'Guardar cambios'}
+        {busy ? 'Guardando…' : submitLabel}
       </Button>
     </Stack>
   );
@@ -527,17 +687,20 @@ function Choice({
   set,
   options,
   required = false,
+  disabled = false,
 }: {
   label: string;
   value: string;
   set: (value: string) => void;
   options: { id: string; name: string }[];
   required?: boolean;
+  disabled?: boolean;
 }) {
   return (
     <TextField
       fullWidth
       select
+      disabled={disabled}
       required={required}
       label={label}
       value={value}
@@ -655,47 +818,77 @@ function ChainForm({
 }) {
   const [name, setName] = useState(value?.name ?? '');
   const [active, setActive] = useState(value?.active ?? true);
+  const [logoDataUrl, setLogoDataUrl] = useState<string | null>(null);
+  const [removeLogo, setRemoveLogo] = useState(false);
+  const [readingLogo, setReadingLogo] = useState(false);
   return (
-    <Form busy={busy} submit={() => void save({ name, active, version: value?.version ?? 0 })}>
+    <Form
+      busy={busy || readingLogo}
+      submit={() => {
+        if (!busy && !readingLogo)
+          void save({ name, active, version: value?.version ?? 0, logoDataUrl, removeLogo });
+      }}
+    >
       <Field label="Nombre de la cadena" value={name} set={setName} required />
+      <ChainLogoInput
+        savedUrl={value?.logoUrl ?? null}
+        logoDataUrl={logoDataUrl}
+        removeLogo={removeLogo}
+        disabled={busy}
+        onReading={setReadingLogo}
+        onChange={(image, remove) => {
+          setLogoDataUrl(image);
+          setRemoveLogo(remove);
+        }}
+      />
       <Toggle label="Activa" value={active} set={setActive} />
     </Form>
   );
 }
 function BranchForm({
   value,
+  pendingCapabilities,
+  evidenceBusy,
+  onEvidenceBusyChange,
   data,
   busy,
   save,
+  globalAdmin,
 }: {
   value?: Branch;
+  pendingCapabilities?: Pick<BranchInput, 'coldChainCapable' | 'restrictedCapable'>;
+  evidenceBusy: boolean;
+  onEvidenceBusyChange: (busy: boolean) => void;
   data: Overview;
   busy: boolean;
+  globalAdmin: boolean;
   save: (body: BranchInput) => Promise<void>;
 }) {
   const [draft, set] = useState<BranchInput>(
-    value ?? {
-      chainId: null,
-      name: '',
-      address: '',
-      latitude: '',
-      longitude: '',
-      active: true,
-      verified: false,
-      agreementAccepted: false,
-      deliveryEnabled: true,
-      pickupEnabled: true,
-      coldChainCapable: false,
-      restrictedCapable: false,
-      driverAvailable: false,
-      merchantName: '',
-      paymentInstructions: '',
-      deliveryRadiusKm: '20.00',
-      opensAt: null,
-      closesAt: null,
-      capabilities: {},
-      version: 0,
-    },
+    value
+      ? { ...value, ...pendingCapabilities }
+      : {
+          chainId: null,
+          name: '',
+          address: '',
+          latitude: '',
+          longitude: '',
+          active: true,
+          verified: false,
+          agreementAccepted: false,
+          deliveryEnabled: true,
+          pickupEnabled: true,
+          coldChainCapable: false,
+          restrictedCapable: false,
+          driverAvailable: false,
+          merchantName: '',
+          paymentInstructions: '',
+          deliveryRadiusKm: '20.00',
+          opensAt: null,
+          closesAt: null,
+          capabilities: {},
+          version: 0,
+        },
   );
   const [evidence, setEvidence] = useState(
     typeof value?.capabilities.capabilityEvidenceDocumentId === 'string'
@@ -703,21 +896,35 @@ function BranchForm({
       : '',
   );
   const patch = (part: Partial<BranchInput>) => set((previous) => ({ ...previous, ...part }));
+  const specialCapabilities = draft.coldChainCapable || draft.restrictedCapable;
+  const [validation, setValidation] = useState('');
   return (
     <Form
-      busy={busy}
-      submit={() =>
+      busy={busy || evidenceBusy}
+      submitLabel={!value && specialCapabilities ? 'Continuar con acreditación' : 'Guardar cambios'}
+      submit={() => {
+        if (value && specialCapabilities && !evidence) {
+          setValidation(
+            'Adjuntá la evidencia de habilitación y capacidad para confirmar la selección.',
+          );
+          return;
+        }
+        setValidation('');
         void save({
           ...draft,
           capabilities: {
             ...draft.capabilities,
             ...(evidence ? { capabilityEvidenceDocumentId: evidence } : {}),
           },
-        })
-      }
+        });
+      }}
     >
+      <Typography variant="overline" color="primary">
+        Identificación y ubicación
+      </Typography>
       <Choice
         label="Cadena (opcional)"
+        disabled={!globalAdmin}
         value={draft.chainId ?? ''}
         set={(chainId) => patch({ chainId: chainId || null })}
         options={data.chains.map((x) => ({ id: x.id, name: x.name }))}
@@ -748,6 +955,9 @@ function BranchForm({
           required
         />
       </Stack>
+      <Typography variant="overline" color="primary">
+        Cobro y servicio al comprador
+      </Typography>
       <Field
         label="Farmacia que cobra y factura"
         value={draft.merchantName}
@@ -785,6 +995,9 @@ function BranchForm({
         El horario se repite diariamente y permite cruzar medianoche. Dejá ambos campos vacíos para
         controlar la disponibilidad manualmente. No incluye feriados ni polígonos de reparto.
       </Typography>
+      <Typography variant="overline" color="primary">
+        Disponibilidad y capacidades
+      </Typography>
       <Toggle
         label="Activa para nuevas solicitudes"
         value={draft.active}
@@ -792,11 +1005,13 @@ function BranchForm({
       />
       <Toggle
         label="Habilitación y datos verificados"
+        disabled={!globalAdmin}
         value={draft.verified}
         set={(verified) => patch({ verified })}
       />
       <Toggle
         label="Acuerdo de adhesión aceptado"
+        disabled={!globalAdmin}
         value={draft.agreementAccepted}
         set={(agreementAccepted) => patch({ agreementAccepted })}
       />
@@ -819,31 +1034,53 @@ function BranchForm({
         label="Capacidad comprobada para cadena de frío"
         value={draft.coldChainCapable}
         set={(coldChainCapable) => patch({ coldChainCapable })}
-        disabled={!value}
+        disabled={!globalAdmin}
       />
       <Toggle
         label="Capacidad comprobada para controles especiales"
         value={draft.restrictedCapable}
         set={(restrictedCapable) => patch({ restrictedCapable })}
-        disabled={!value}
+        disabled={!globalAdmin}
       />
-      {value ? (
-        <DocumentInput
-          label="Evidencia de habilitación y capacidad"
-          kind="CAPACIDAD"
-          branchId={value.id}
-          value={evidence}
-          onChange={setEvidence}
-        />
-      ) : (
+      {!globalAdmin && (
         <Alert severity="info">
-          Guardá la sucursal para adjuntar su evidencia y habilitar capacidades especiales.
+          La administración de plataforma acredita la cadena de frío y los controles especiales con
+          evidencia. Podés mantener el resto de los datos de tu sucursal desde este formulario.
         </Alert>
       )}
-      {(draft.coldChainCapable || draft.restrictedCapable) && (
+      {globalAdmin &&
+        (value ? (
+          <DocumentInput
+            label="Evidencia de habilitación y capacidad"
+            kind="CAPACIDAD"
+            branchId={value.id}
+            value={evidence}
+            disabled={busy}
+            onBusyChange={onEvidenceBusyChange}
+            onChange={(documentId) => {
+              setEvidence(documentId);
+              setValidation('');
+            }}
+          />
+        ) : (
+          <Alert severity="info">
+            Podés seleccionar las capacidades ahora. Al continuar se crea la sucursal; después
+            adjuntás su evidencia y confirmás la habilitación en este mismo formulario.
+          </Alert>
+        ))}
+      {pendingCapabilities && (
+        <Alert severity="info">
+          La sucursal ya está creada. Las capacidades seleccionadas se habilitan al adjuntar la
+          evidencia y guardar los cambios.
+        </Alert>
+      )}
+      {validation && <Alert severity="error">{validation}</Alert>}
+      {specialCapabilities && (
         <Alert severity="info">
           La evidencia se verifica al guardar y conserva quién confirmó la capacidad. La
-          habilitación requiere los controles aplicables a cada medicamento.
+          habilitación requiere los controles aplicables a cada medicamento. Para entregar con
+          cadena de frío también necesitás un cadete disponible con transporte acreditado en
+          Miembros.
         </Alert>
       )}
     </Form>
@@ -1116,10 +1353,12 @@ function MemberForm({
   data,
   busy,
   save,
+  globalAdmin,
 }: {
   value?: Member;
   data: Overview;
   busy: boolean;
+  globalAdmin: boolean;
   save: (body: MemberInput) => Promise<void>;
 }) {
   const [draft, set] = useState<MemberInput>(
@@ -1128,6 +1367,8 @@ function MemberForm({
       branchId: '',
       role: 'PHARMACY',
       active: true,
+      available: true,
+      capacity: 1,
       coldChainCapable: false,
       restrictedCapable: false,
       capabilityEvidenceDocumentId: null,
@@ -1135,6 +1376,31 @@ function MemberForm({
     },
   );
   const patch = (part: Partial<MemberInput>) => set((previous) => ({ ...previous, ...part }));
+  const [lookupEmail, setLookupEmail] = useState('');
+  const [lookupError, setLookupError] = useState('');
+  const [lookupBusy, setLookupBusy] = useState(false);
+  const [additionalUser, setAdditionalUser] = useState<UserOption | null>(null);
+  const people =
+    additionalUser && !data.users.some((x) => x.id === additionalUser.id)
+      ? [...data.users, additionalUser]
+      : data.users;
+  async function lookup() {
+    setLookupBusy(true);
+    setLookupError('');
+    try {
+      const user = await api<UserOption>(
+        `/api/admin/users/lookup?email=${encodeURIComponent(lookupEmail.trim())}`,
+      );
+      setAdditionalUser(user);
+      patch({ userId: user.id });
+    } catch (error) {
+      setLookupError(
+        error instanceof Error ? error.message : 'No se pudo encontrar una cuenta habilitada.',
+      );
+    } finally {
+      setLookupBusy(false);
+    }
+  }
   const resetScope = {
     coldChainCapable: false,
     restrictedCapable: false,
@@ -1142,29 +1408,80 @@ function MemberForm({
   };
   return (
     <Form busy={busy} submit={() => void save(draft)}>
+      {!globalAdmin && !value && (
+        <>
+          <Alert severity="info">
+            La persona debe tener una cuenta activa con correo confirmado. Buscala por su dirección
+            exacta para asignarle un permiso en tu sucursal.
+          </Alert>
+          <Field
+            label="Correo de la persona a incorporar"
+            value={lookupEmail}
+            set={setLookupEmail}
+            type="email"
+          />
+          <Button disabled={lookupBusy || !lookupEmail.trim()} onClick={() => void lookup()}>
+            {lookupBusy ? 'Buscando…' : 'Buscar cuenta confirmada'}
+          </Button>
+          {lookupError && <Alert severity="warning">{lookupError}</Alert>}
+        </>
+      )}
       <Choice
         label="Persona"
+        disabled={!globalAdmin && !!value}
         value={draft.userId}
-        set={(userId) => patch({ userId, ...resetScope })}
+        set={(userId) => patch({ userId, ...(globalAdmin || !value ? resetScope : {}) })}
         required
-        options={data.users.map((x) => ({ id: x.id, name: `${x.name} · ${x.email}` }))}
+        options={people.map((x) => ({ id: x.id, name: `${x.name} · ${x.email}` }))}
       />
       <Choice
         label="Sucursal autorizada"
+        disabled={!globalAdmin && !!value}
         value={draft.branchId}
-        set={(branchId) => patch({ branchId, ...resetScope })}
+        set={(branchId) => patch({ branchId, ...(globalAdmin || !value ? resetScope : {}) })}
         required
         options={data.branches.map((x) => ({ id: x.id, name: x.name }))}
       />
       <Choice
         label="Permiso"
         value={draft.role}
-        set={(role) => patch({ role, ...resetScope })}
+        set={(role) =>
+          patch({
+            role,
+            ...(role === value?.role
+              ? {
+                  coldChainCapable: value.coldChainCapable,
+                  restrictedCapable: value.restrictedCapable,
+                  capabilityEvidenceDocumentId: value.capabilityEvidenceDocumentId,
+                }
+              : resetScope),
+          })
+        }
         required
         options={Object.entries(roleLabels).map(([id, name]) => ({ id, name }))}
       />
       <Toggle label="Permiso activo" value={draft.active} set={(active) => patch({ active })} />
       {draft.role === 'DRIVER' && (
+        <>
+          <Typography variant="overline" color="primary">
+            Turno y tareas de entrega
+          </Typography>
+          <Toggle
+            label="Disponible durante este turno"
+            value={draft.available ?? true}
+            set={(available) => patch({ available })}
+          />
+          <Field
+            label="Máximo de tareas simultáneas"
+            type="number"
+            value={String(draft.capacity ?? 1)}
+            set={(v) => patch({ capacity: Number(v) })}
+            required
+            help="De 1 a 20. La asignación respeta las capacidades acreditadas y las tareas que siguen en curso."
+          />
+        </>
+      )}
+      {globalAdmin && draft.role === 'DRIVER' && (
         <>
           <Alert severity="info">
             Acreditá la formación, el equipamiento y las condiciones de transporte de esta persona
@@ -1269,6 +1586,33 @@ function ConfigForm({ value, onSaved }: { value: Settings; onSaved: () => Promis
             set={(v) => patch({ reservationMinutes: Number(v) })}
             required
           />
+          <Typography variant="subtitle1" sx={{ fontWeight: 700, pt: 1 }}>
+            Tareas y recepción
+          </Typography>
+          <Field
+            label="Plazo para aceptar una tarea de entrega (minutos)"
+            type="number"
+            value={String(draft.taskAcceptanceMinutes ?? 15)}
+            set={(v) => patch({ taskAcceptanceMinutes: Number(v) })}
+            required
+          />
+          <Field
+            label="Plazo para retirar en farmacia (horas)"
+            type="number"
+            value={String(draft.pickupDeadlineHours ?? 48)}
+            set={(v) => patch({ pickupDeadlineHours: Number(v) })}
+            required
+          />
+          <Field
+            label="Vigencia del código de recepción (minutos)"
+            type="number"
+            value={String(draft.receiptCodeMinutes ?? 10)}
+            set={(v) => patch({ receiptCodeMinutes: Number(v) })}
+            required
+          />
+          <Typography variant="subtitle1" sx={{ fontWeight: 700, pt: 1 }}>
+            Suscripciones y controles
+          </Typography>
           <Field
             label="Gracia de suscripción sin prioridad (días)"
             type="number"

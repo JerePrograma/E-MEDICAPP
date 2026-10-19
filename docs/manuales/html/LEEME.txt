@@ -1,0 +1,19 @@
+MANUALES HTML DE E-MEDICAPP
+
+1. Si recibiste el ZIP, descomprimilo completo en una carpeta.
+2. Abrí index.html para elegir el rol y navegar entre las guías.
+3. También podés abrir o compartir un HTML individual por rol.
+
+Cada HTML incluye sus estilos. La lectura no necesita Internet ni archivos de
+imágenes, fuentes, scripts o estilos adicionales. Para usar los enlaces entre
+manuales, conservá los archivos juntos en la misma carpeta.
+
+El botón Abrir E-MEDICAPP y los enlaces a la aplicación necesitan Internet y que
+la aplicación esté publicada. La conversión de estos manuales no los publica
+automáticamente en la dirección pública de E-MEDICAPP.
+
+En algunos celulares, un adjunto HTML se descarga o abre en una vista previa.
+Para distribuirlos como páginas web, se puede alojar esta misma carpeta y
+compartir el enlace a index.html o directamente al manual correspondiente.
+
+Los Markdown originales se conservan en la carpeta superior para su edición.

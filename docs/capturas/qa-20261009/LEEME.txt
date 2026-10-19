@@ -1,0 +1,31 @@
+E-MEDICAPP | CAPTURAS DE LA IMPLEMENTACIÓN QA
+9 de octubre de 2026. Todas muestran personas, comercios y operaciones DEMO.
+
+La corrida completa de ocho recorridos aprobó a las 15:52:39 Mendoza.
+Se conserva íntegra en .runtime/final-browser-qa-20261009/.
+La confirmación y recuperación de correo recibieron un último ajuste de lenguaje,
+verificado por separado a las 15:55:51 sobre el JAR final. Las cuatro capturas
+actualizadas provienen de .runtime/final-auth-copy-qa-20261009/.
+Esta carpeta combina 22 capturas de la corrida completa y esas cuatro nuevas.
+
+farmacia-preparacion: bandeja, progreso, próxima tarea, pago comprobado y factura.
+compra-completada: compra cerrada con detalle y comprobantes por farmacia.
+cadete-en-camino: destino, receptor autorizado y tareas del cadete propio.
+entrega-completada: recepción confirmada y custodia final.
+admin-facturacion-pendiente: alerta fiscal comercial y administración autorizada.
+panel-administracion: catálogo configurable, estructura y secciones del panel.
+comprador-movil: pantalla móvil y solicitud sin disponibilidad informada.
+familiar-alto-valor-reintegrado: nota aprobada, dos revisores, cancelación y
+  devolución íntegra de ARS 1.500.000 en el escenario sintético.
+cadete-retorno-pendiente: devolución física requerida antes de resolver incidencia.
+farmacia-reintento-coordinado: custodia recibida y único reintento con fecha.
+sustitucion-decision-comprador: presentación original y decisión explícita.
+farmacia-reposicion-revisada: unidades nuevas sin cargo, revisión y vínculo original.
+registro-correo-pendiente: cuenta pendiente y envío aún indisponible, sin sesión.
+recuperacion-correo-pendiente: solicitud de recuperación con envío pendiente.
+
+Los nombres con -movil corresponden a ancho de 390 píxeles. Los demás muestran
+escritorio a 1440 píxeles; comprador-movil y familiar-alto-valor-reintegrado tienen
+una sola variante en esta carpeta. Se comprobaron las vistas sin desbordamiento
+horizontal. La evidencia detallada y las corridas iniciales están identificadas
+en docs/verificacion-producto-QA.txt.

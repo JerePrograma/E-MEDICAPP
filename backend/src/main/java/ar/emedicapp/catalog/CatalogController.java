@@ -1,12 +1,20 @@
 package ar.emedicapp.catalog;
 
 import static ar.emedicapp.catalog.CatalogDtos.*;
+
 import ar.emedicapp.common.Access;
 import ar.emedicapp.config.OperationalConfigService;
+
 import jakarta.validation.Valid;
-import java.util.List;
-import java.util.UUID;
+
+import org.springframework.http.CacheControl;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
 
 @RestController
 @RequestMapping("/api")
@@ -32,9 +40,22 @@ public class CatalogController {
         return catalog.publicBranches();
     }
 
+    @GetMapping(value = "/catalog/chains/{id}/logo", produces = MediaType.IMAGE_PNG_VALUE)
+    public ResponseEntity<byte[]> chainLogo(@PathVariable UUID id) {
+        return ResponseEntity.ok()
+                .contentType(MediaType.IMAGE_PNG)
+                .cacheControl(CacheControl.noCache().cachePrivate())
+                .body(catalog.chainLogo(id));
+    }
+
     @GetMapping("/admin/overview")
     public CatalogService.Overview overview() {
         return catalog.overview();
+    }
+
+    @GetMapping("/admin/invoice-issues")
+    public List<Map<String, Object>> invoiceIssues() {
+        return catalog.invoiceIssues();
     }
 
     @PostMapping("/admin/products")
@@ -91,6 +112,16 @@ public class CatalogController {
     @PostMapping("/admin/memberships")
     public Member createMembership(@Valid @RequestBody MemberInput body) {
         return catalog.saveMember(null, body);
+    }
+
+    @PutMapping("/admin/users/{id}/access")
+    public UserOption userAccess(@PathVariable UUID id, @Valid @RequestBody UserAccessInput body) {
+        return catalog.updateUserAccess(id, body);
+    }
+
+    @GetMapping("/admin/users/lookup")
+    public UserOption lookupUser(@RequestParam String email) {
+        return catalog.lookupMember(email);
     }
 
     @PutMapping("/admin/memberships/{id}")

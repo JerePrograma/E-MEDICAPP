@@ -39,8 +39,12 @@ if (-not (Test-Path -LiteralPath (Join-Path $databasePath 'PG_VERSION'))) {
 & $pgctl status -D $databasePath *> $null
 if ($LASTEXITCODE -ne 0) {
   if (Get-NetTCPConnection -LocalPort $Port -State Listen -ErrorAction SilentlyContinue) { throw 'El puerto de base está ocupado por otro proceso. No se adopta ni detiene.' }
-  & $pgctl start -D $databasePath -l (Join-Path $runtimePath 'postgres.log') -o "-h 127.0.0.1 -p $Port" -w -t 30
-  if ($LASTEXITCODE) { throw 'No se pudo iniciar la base propia.' }
+  # Give PostgreSQL its own console: closing or interrupting the launcher must not
+  # send Ctrl+C to the database shared by the running application.
+  $startArguments=@('start','-D',('"'+$databasePath+'"'),'-l',('"'+(Join-Path $runtimePath 'postgres.log')+'"'),'-o',('"-h 127.0.0.1 -p '+$Port+'"'),'-w','-t','30')
+  $databaseStarter=Start-Process -FilePath $pgctl -ArgumentList $startArguments -WindowStyle Hidden -PassThru
+  if (-not $databaseStarter.WaitForExit(35000)) { throw 'El inicio de la base no terminó a tiempo. Revisá .runtime\postgres.log antes de volver a intentar.' }
+  if ($databaseStarter.ExitCode) { throw 'No se pudo iniciar la base propia. Revisá .runtime\postgres.log.' }
 }
 $databaseName=@{Demo='emedicapp_demo';Manual='emedicapp_manual';Test='emedicapp_test_demo'}[$Environment]
 $previousPgPassword=$env:PGPASSWORD

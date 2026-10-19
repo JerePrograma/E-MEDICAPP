@@ -4,14 +4,17 @@ import ar.emedicapp.common.Access;
 import ar.emedicapp.common.AppException;
 import ar.emedicapp.common.AuditLog;
 import ar.emedicapp.common.Json;
+
 import jakarta.validation.constraints.*;
+
+import org.springframework.jdbc.core.simple.JdbcClient;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
 import java.math.BigDecimal;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.UUID;
-import org.springframework.jdbc.core.simple.JdbcClient;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class OperationalConfigService {
@@ -38,7 +41,39 @@ public class OperationalConfigService {
             boolean deliveryEnabled,
             boolean pickupEnabled,
             boolean fallbackEnabled,
-            Map<String, Object> messages) {
+            Map<String, Object> messages,
+            int taskAcceptanceMinutes,
+            int pickupDeadlineHours,
+            int receiptCodeMinutes) {
+        public Settings(
+                long version,
+                String currency,
+                int quoteMinutes,
+                int reservationMinutes,
+                int graceDays,
+                String highValueThreshold,
+                int maxUploadMb,
+                boolean deliveryEnabled,
+                boolean pickupEnabled,
+                boolean fallbackEnabled,
+                Map<String, Object> messages) {
+            this(
+                    version,
+                    currency,
+                    quoteMinutes,
+                    reservationMinutes,
+                    graceDays,
+                    highValueThreshold,
+                    maxUploadMb,
+                    deliveryEnabled,
+                    pickupEnabled,
+                    fallbackEnabled,
+                    messages,
+                    15,
+                    48,
+                    10);
+        }
+
         public BigDecimal highValueAmount() {
             return new BigDecimal(highValueThreshold);
         }
@@ -56,6 +91,9 @@ public class OperationalConfigService {
             value.put("pickupEnabled", pickupEnabled);
             value.put("fallbackEnabled", fallbackEnabled);
             value.put("messages", messages);
+            value.put("taskAcceptanceMinutes", taskAcceptanceMinutes);
+            value.put("pickupDeadlineHours", pickupDeadlineHours);
+            value.put("receiptCodeMinutes", receiptCodeMinutes);
             return Map.copyOf(value);
         }
     }
@@ -71,7 +109,10 @@ public class OperationalConfigService {
             boolean deliveryEnabled,
             boolean pickupEnabled,
             boolean fallbackEnabled,
-            Map<String, Object> messages) {}
+            Map<String, Object> messages,
+            @Min(1) @Max(240) Integer taskAcceptanceMinutes,
+            @Min(1) @Max(168) Integer pickupDeadlineHours,
+            @Min(1) @Max(60) Integer receiptCodeMinutes) {}
 
     public Settings current() {
         return jdbc.sql("SELECT * FROM operational_setting ORDER BY version DESC LIMIT 1")
@@ -88,7 +129,10 @@ public class OperationalConfigService {
                                         rs.getBoolean("delivery_enabled"),
                                         rs.getBoolean("pickup_enabled"),
                                         rs.getBoolean("fallback_enabled"),
-                                        json.decodeMap(rs.getString("messages"))))
+                                        json.decodeMap(rs.getString("messages")),
+                                        rs.getInt("task_acceptance_minutes"),
+                                        rs.getInt("pickup_deadline_hours"),
+                                        rs.getInt("receipt_code_minutes")))
                 .optional()
                 .orElseGet(
                         () ->
@@ -141,10 +185,11 @@ public class OperationalConfigService {
         var id = UUID.randomUUID();
         jdbc.sql(
                         """
-            INSERT INTO operational_setting(id,version,currency,quote_minutes,reservation_minutes,grace_days,
-              high_value_threshold,max_upload_mb,delivery_enabled,pickup_enabled,fallback_enabled,messages,updated_by)
-            VALUES(:id,:version,:currency,:quote,:reservation,:grace,:threshold,:upload,:delivery,:pickup,:fallback,CAST(:messages AS jsonb),:actor)
-            """)
+                        INSERT INTO operational_setting(id,version,currency,quote_minutes,reservation_minutes,grace_days,
+                          high_value_threshold,max_upload_mb,delivery_enabled,pickup_enabled,fallback_enabled,messages,updated_by,
+                          task_acceptance_minutes,pickup_deadline_hours,receipt_code_minutes)
+                        VALUES(:id,:version,:currency,:quote,:reservation,:grace,:threshold,:upload,:delivery,:pickup,:fallback,CAST(:messages AS jsonb),:actor,:task,:deadline,:receipt)
+                        """)
                 .param("id", id)
                 .param("version", before.version() + 1)
                 .param("currency", input.currency())
@@ -158,6 +203,21 @@ public class OperationalConfigService {
                 .param("fallback", input.fallbackEnabled())
                 .param("messages", json.encode(messages))
                 .param("actor", actor.id())
+                .param(
+                        "task",
+                        input.taskAcceptanceMinutes() == null
+                                ? before.taskAcceptanceMinutes()
+                                : input.taskAcceptanceMinutes())
+                .param(
+                        "deadline",
+                        input.pickupDeadlineHours() == null
+                                ? before.pickupDeadlineHours()
+                                : input.pickupDeadlineHours())
+                .param(
+                        "receipt",
+                        input.receiptCodeMinutes() == null
+                                ? before.receiptCodeMinutes()
+                                : input.receiptCodeMinutes())
                 .update();
         var after = current();
         audit.record(

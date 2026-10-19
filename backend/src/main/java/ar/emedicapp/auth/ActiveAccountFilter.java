@@ -2,13 +2,16 @@ package ar.emedicapp.auth;
 
 import ar.emedicapp.common.ApiError;
 import ar.emedicapp.common.Json;
+
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import java.io.IOException;
+
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.filter.OncePerRequestFilter;
+
+import java.io.IOException;
 
 final class ActiveAccountFilter extends OncePerRequestFilter {
     private final UserRepository users;
@@ -28,7 +31,7 @@ final class ActiveAccountFilter extends OncePerRequestFilter {
         if (path.startsWith("/api/")
                 && authentication != null
                 && authentication.getPrincipal() instanceof UserPrincipal principal
-                && users.findActiveActor(principal.id()).isEmpty()) {
+                && !users.sessionValid(principal.id(), principal.credentialsVersion())) {
             SecurityContextHolder.clearContext();
             var session = request.getSession(false);
             if (session != null) session.invalidate();
@@ -40,7 +43,8 @@ final class ActiveAccountFilter extends OncePerRequestFilter {
                             json.encode(
                                     new ApiError(
                                             "ACCOUNT_DISABLED",
-                                            "Esta cuenta no está habilitada.")));
+                                            "La sesión ya no está habilitada. Ingresá nuevamente si"
+                                                    + " recuperaste tu contraseña.")));
             return;
         }
         chain.doFilter(request, response);

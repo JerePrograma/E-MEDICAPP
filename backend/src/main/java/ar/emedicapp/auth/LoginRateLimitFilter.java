@@ -2,12 +2,15 @@ package ar.emedicapp.auth;
 
 import ar.emedicapp.common.ApiError;
 import ar.emedicapp.common.Json;
+
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import java.io.IOException;
+
 import org.springframework.web.filter.OncePerRequestFilter;
+
+import java.io.IOException;
 
 final class LoginRateLimitFilter extends OncePerRequestFilter {
     private final LoginRateLimiter limiter;
@@ -25,7 +28,12 @@ final class LoginRateLimitFilter extends OncePerRequestFilter {
         String path = request.getRequestURI().substring(request.getContextPath().length());
         boolean guarded =
                 "POST".equals(request.getMethod())
-                        && (path.equals("/api/auth/login") || path.equals("/api/auth/register"));
+                        && (path.equals("/api/auth/login")
+                                || path.equals("/api/auth/register")
+                                || path.equals("/api/auth/verification/resend")
+                                || path.equals("/api/auth/verification/confirm")
+                                || path.equals("/api/auth/password/request-reset")
+                                || path.equals("/api/auth/password/reset"));
         if (guarded && !limiter.allow(request.getRemoteAddr() + ":" + path)) {
             response.setStatus(429);
             response.setContentType("application/json");
@@ -36,7 +44,8 @@ final class LoginRateLimitFilter extends OncePerRequestFilter {
                             json.encode(
                                     new ApiError(
                                             "TOO_MANY_ATTEMPTS",
-                                            "Se hicieron demasiados intentos. Esperá unos minutos antes de continuar.")));
+                                            "Se hicieron demasiados intentos. Esperá unos minutos"
+                                                    + " antes de continuar.")));
             return;
         }
         chain.doFilter(request, response);

@@ -1,0 +1,88 @@
+.emedicapp-branch-marker {
+  background: transparent;
+  border: 0;
+}
+
+.emedicapp-branch-marker::after {
+  position: absolute;
+  z-index: 0;
+  bottom: 2px;
+  left: 17px;
+  width: 14px;
+  height: 14px;
+  content: '';
+  background: white;
+  border-right: 2px solid #14766f;
+  border-bottom: 2px solid #14766f;
+  transform: rotate(45deg);
+}
+
+.emedicapp-branch-marker__face {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr);
+  place-items: center;
+  box-sizing: border-box;
+  width: 48px;
+  height: 48px;
+  padding: 5px;
+  overflow: hidden;
+  background: white;
+  border: 2px solid #14766f;
+  border-radius: 12px;
+  box-shadow: 0 2px 6px #0003;
+}
+
+.emedicapp-branch-marker__face img {
+  display: block;
+  min-width: 0;
+  min-height: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.emedicapp-branch-marker__fallback {
+  color: #14766f;
+  font:
+    700 36px/1 Arial,
+    sans-serif;
+}
+
+.emedicapp-branch-marker [hidden] {
+  display: none;
+}
+
+.emedicapp-branch-marker:focus-visible {
+  outline: 3px solid #1b4e85;
+  outline-offset: 3px;
+  border-radius: 12px;
+}
+
+.emedicapp-map-legend__branch {
+  display: inline-grid;
+  width: 18px;
+  height: 18px;
+  place-items: center;
+  color: #14766f;
+  background: white;
+  border: 1px solid #14766f;
+  border-radius: 4px;
+  font:
+    700 18px/1 Arial,
+    sans-serif;
+  vertical-align: middle;
+}
+
+.emedicapp-map-legend__point {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  margin-right: 4px;
+  background: #14766fcc;
+  border: 2px solid #14766f;
+  border-radius: 50%;
+  vertical-align: middle;
+}

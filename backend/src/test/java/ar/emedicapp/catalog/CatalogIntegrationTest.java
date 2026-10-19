@@ -4,12 +4,7 @@ import static org.assertj.core.api.Assertions.*;
 import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
-import java.util.List;
-import java.util.Map;
-import java.util.UUID;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.TimeUnit;
+
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable;
@@ -23,7 +18,15 @@ import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.context.WebApplicationContext;
+
 import tools.jackson.databind.json.JsonMapper;
+
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 
 @SpringBootTest(properties = "emedicapp.mode=DEMO")
 @EnabledIfEnvironmentVariable(named = "EMEDICAPP_TEST_DB_URL", matches = ".+")
@@ -67,7 +70,8 @@ class CatalogIntegrationTest {
                 .containsExactlyInAnyOrder(200, 409);
         var state =
                 jdbc.sql(
-                                "SELECT quantity,version FROM branch_stock WHERE branch_id=:b AND product_id=:p")
+                                "SELECT quantity,version FROM branch_stock WHERE branch_id=:b AND"
+                                        + " product_id=:p")
                         .param("b", branch)
                         .param("p", product)
                         .query()
@@ -76,12 +80,111 @@ class CatalogIntegrationTest {
         assertThat(((Number) state.get("version")).longValue()).isEqualTo(2);
         assertThat(
                         jdbc.sql(
-                                        "SELECT count(*) FROM stock_movement WHERE branch_id=:b AND product_id=:p")
+                                        "SELECT count(*) FROM stock_movement WHERE branch_id=:b AND"
+                                                + " product_id=:p")
                                 .param("b", branch)
                                 .param("p", product)
                                 .query(Long.class)
                                 .single())
                 .isEqualTo(1);
+    }
+
+    @Test
+    void invoiceAlertsAreCommercialAndScopedToCurrentAdministrativeMembership() throws Exception {
+        UUID ownBranch = branch(), otherBranch = branch(), manager = UUID.randomUUID();
+        String email = "invoice-manager-" + manager + "@example.test";
+        jdbc.sql(
+                        "INSERT INTO"
+                            + " app_user(id,email,name,password_hash,birth_date,email_verified)"
+                            + " VALUES(:id,:email,'Administración de sucursal QA',:password,DATE"
+                            + " '1990-01-01',true)")
+                .param("id", manager)
+                .param("email", email)
+                .param(
+                        "password",
+                        context.getBean(PasswordEncoder.class).encode("DemoMedicapp2026!"))
+                .update();
+        jdbc.sql("INSERT INTO user_role(user_id,role) VALUES(:id,'PHARMACY_ADMIN')")
+                .param("id", manager)
+                .update();
+        member(manager, ownBranch, "PHARMACY_ADMIN");
+        UUID ownOrder = invoiceIssueOrder(ownBranch), otherOrder = invoiceIssueOrder(otherBranch);
+        var session = login(email);
+        var scoped =
+                json.readTree(
+                        mvc.perform(get("/api/admin/invoice-issues").session(session.session()))
+                                .andExpect(status().isOk())
+                                .andReturn()
+                                .getResponse()
+                                .getContentAsString());
+        assertThat(scoped.size()).isEqualTo(1);
+        assertThat(scoped.get(0).get("id").asText()).isEqualTo(ownOrder.toString());
+        assertThat(scoped.get(0).get("branchId").asText()).isEqualTo(ownBranch.toString());
+        assertThat(scoped.get(0).has("prescriptionDocumentId")).isFalse();
+        assertThat(scoped.get(0).has("beneficiary")).isFalse();
+        assertThat(scoped.get(0).has("evidenceDocumentId")).isFalse();
+        var platform = login("admin@demo.invalid");
+        var all =
+                mvc.perform(get("/api/admin/invoice-issues").session(platform.session()))
+                        .andExpect(status().isOk())
+                        .andReturn()
+                        .getResponse()
+                        .getContentAsString();
+        assertThat(all).contains(ownOrder.toString(), otherOrder.toString());
+        mvc.perform(
+                        get("/api/admin/invoice-issues")
+                                .session(login("farmacia@demo.invalid").session()))
+                .andExpect(status().isForbidden());
+        jdbc.sql("UPDATE membership SET active=false WHERE user_id=:id")
+                .param("id", manager)
+                .update();
+        mvc.perform(get("/api/admin/invoice-issues").session(session.session()))
+                .andExpect(status().isOk())
+                .andExpect(content().json("[]"));
+    }
+
+    private UUID invoiceIssueOrder(UUID branch) {
+        UUID buyer = ar.emedicapp.appbootstrap.DemoIds.id("user:comprador@demo.invalid");
+        UUID beneficiary = UUID.randomUUID(),
+                purchase = UUID.randomUUID(),
+                order = UUID.randomUUID();
+        jdbc.sql(
+                        "INSERT INTO beneficiary(id,owner_user_id,name,birth_date)"
+                                + " VALUES(:id,:buyer,'Beneficiario privado QA',DATE '1990-01-01')")
+                .param("id", beneficiary)
+                .param("buyer", buyer)
+                .update();
+        jdbc.sql(
+                        "INSERT INTO"
+                            + " purchase(id,buyer_user_id,beneficiary_id,mode,latitude,longitude,status)"
+                            + " VALUES(:id,:buyer,:beneficiary,'PICKUP',-32.89,-68.85,'PAID')")
+                .param("id", purchase)
+                .param("buyer", buyer)
+                .param("beneficiary", beneficiary)
+                .update();
+        jdbc.sql(
+                        "INSERT INTO child_order(id,purchase_id,branch_id,status,snapshot)"
+                                + " VALUES(:id,:purchase,:branch,'PAID',cast(:snapshot as jsonb))")
+                .param("id", order)
+                .param("purchase", purchase)
+                .param("branch", branch)
+                .param(
+                        "snapshot",
+                        json.writeValueAsString(
+                                Map.of(
+                                        "prescriptionDocumentId", UUID.randomUUID(),
+                                        "invoiceIssue",
+                                                Map.of(
+                                                        "active",
+                                                        true,
+                                                        "reason",
+                                                        "Rechazo fiscal sintético",
+                                                        "reportedAt",
+                                                        "2026-10-09T18:00:00Z",
+                                                        "attemptCount",
+                                                        1))))
+                .update();
+        return order;
     }
 
     @Test
@@ -109,7 +212,8 @@ class CatalogIntegrationTest {
                 .andExpect(jsonPath("$.code").value("STOCK_RESERVED"));
         assertThat(
                         jdbc.sql(
-                                        "SELECT quantity FROM branch_stock WHERE branch_id=:b AND product_id=:p")
+                                        "SELECT quantity FROM branch_stock WHERE branch_id=:b AND"
+                                                + " product_id=:p")
                                 .param("b", branch)
                                 .param("p", product)
                                 .query(Integer.class)
@@ -122,7 +226,10 @@ class CatalogIntegrationTest {
         UUID a = branch(), b = branch(), user = UUID.randomUUID();
         String email = "catalog-" + user + "@example.test";
         jdbc.sql(
-                        "INSERT INTO app_user(id,email,name,password_hash,birth_date) VALUES(:id,:email,'Personal Test',:password,DATE '1990-01-01')")
+                        "INSERT INTO"
+                            + " app_user(id,email,name,password_hash,birth_date,email_verified,dni)"
+                            + " VALUES(:id,:email,'Personal Test',:password,DATE"
+                            + " '1990-01-01',true,lpad(floor(random()*1000000000000)::bigint::text,12,'0'))")
                 .param("id", user)
                 .param("email", email)
                 .param(
@@ -147,6 +254,285 @@ class CatalogIntegrationTest {
                 .update();
         mvc.perform(get("/api/branches/" + a + "/stock").session(session.session()))
                 .andExpect(status().isForbidden());
+    }
+
+    @Test
+    @org.springframework.transaction.annotation.Transactional
+    void lastVerifiedPlatformAdministratorCannotBeDisabledOrLoseAdminRole() throws Exception {
+        UUID adminId = ar.emedicapp.appbootstrap.DemoIds.id("user:admin@demo.invalid");
+        jdbc.sql(
+                        "UPDATE app_user SET active=false WHERE id<>:id AND id IN(SELECT user_id"
+                                + " FROM user_role WHERE role='ADMIN')")
+                .param("id", adminId)
+                .update();
+        long version =
+                jdbc.sql("SELECT access_version FROM app_user WHERE id=:id")
+                        .param("id", adminId)
+                        .query(Long.class)
+                        .single();
+        var admin = login("admin@demo.invalid");
+        for (var input :
+                List.of(
+                        Map.of(
+                                "active",
+                                false,
+                                "roles",
+                                List.of("ADMIN"),
+                                "expectedVersion",
+                                version),
+                        Map.of(
+                                "active",
+                                true,
+                                "roles",
+                                List.of("BUYER"),
+                                "expectedVersion",
+                                version))) {
+            mvc.perform(
+                            put("/api/admin/users/" + adminId + "/access")
+                                    .session(admin.session())
+                                    .header(admin.header(), admin.token())
+                                    .contentType("application/json")
+                                    .content(json.writeValueAsString(input)))
+                    .andExpect(status().isConflict())
+                    .andExpect(jsonPath("$.code").value("LAST_ADMIN_REQUIRED"));
+        }
+        assertThat(
+                        jdbc.sql("SELECT active FROM app_user WHERE id=:id")
+                                .param("id", adminId)
+                                .query(Boolean.class)
+                                .single())
+                .isTrue();
+        assertThat(
+                        jdbc.sql("SELECT access_version FROM app_user WHERE id=:id")
+                                .param("id", adminId)
+                                .query(Long.class)
+                                .single())
+                .isEqualTo(version);
+    }
+
+    @Test
+    void branchAdministratorIsScopedAndCannotRemoveLastBranchAdministrator() throws Exception {
+        UUID a = branch(), b = branch(), manager = UUID.randomUUID(), target = UUID.randomUUID();
+        String email = "branch-manager-" + manager + "@example.test";
+        for (UUID user : List.of(manager, target)) {
+            jdbc.sql(
+                            "INSERT INTO"
+                                + " app_user(id,email,name,password_hash,birth_date,email_verified,dni)"
+                                + " VALUES(:id,:email,'Personal Administración Test',:hash,DATE"
+                                + " '1990-01-01',true,lpad(floor(random()*1000000000000)::bigint::text,12,'0'))")
+                    .param("id", user)
+                    .param(
+                            "email",
+                            user.equals(manager) ? email : "member-" + target + "@example.test")
+                    .param(
+                            "hash",
+                            context.getBean(PasswordEncoder.class).encode("DemoMedicapp2026!"))
+                    .update();
+            jdbc.sql("INSERT INTO user_role(user_id,role) VALUES(:id,:role)")
+                    .param("id", user)
+                    .param("role", user.equals(manager) ? "PHARMACY_ADMIN" : "PHARMACY")
+                    .update();
+        }
+        member(manager, a, "PHARMACY_ADMIN");
+        var session = login(email);
+        var input =
+                new java.util.HashMap<String, Object>(
+                        Map.of(
+                                "userId",
+                                target,
+                                "branchId",
+                                b,
+                                "role",
+                                "PHARMACY",
+                                "active",
+                                true,
+                                "coldChainCapable",
+                                false,
+                                "restrictedCapable",
+                                false,
+                                "version",
+                                0));
+        mvc.perform(
+                        post("/api/admin/memberships")
+                                .session(session.session())
+                                .header(session.header(), session.token())
+                                .contentType("application/json")
+                                .content(json.writeValueAsString(input)))
+                .andExpect(status().isForbidden());
+        mvc.perform(
+                        put("/api/admin/users/" + target + "/access")
+                                .session(session.session())
+                                .header(session.header(), session.token())
+                                .contentType("application/json")
+                                .content(
+                                        json.writeValueAsString(
+                                                Map.of(
+                                                        "active",
+                                                        true,
+                                                        "roles",
+                                                        List.of("ADMIN"),
+                                                        "expectedVersion",
+                                                        1))))
+                .andExpect(status().isForbidden());
+        var own =
+                jdbc.sql(
+                                "SELECT id,version FROM membership WHERE user_id=:id AND"
+                                        + " branch_id=:branch AND role='PHARMACY_ADMIN'")
+                        .param("id", manager)
+                        .param("branch", a)
+                        .query()
+                        .singleRow();
+        input.put("userId", manager);
+        input.put("branchId", a);
+        input.put("role", "PHARMACY_ADMIN");
+        input.put("active", false);
+        input.put("version", own.get("version"));
+        mvc.perform(
+                        put("/api/admin/memberships/" + own.get("id"))
+                                .session(session.session())
+                                .header(session.header(), session.token())
+                                .contentType("application/json")
+                                .content(json.writeValueAsString(input)))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value("LAST_BRANCH_ADMIN_REQUIRED"));
+        assertThat(
+                        jdbc.sql("SELECT active FROM membership WHERE id=:id")
+                                .param("id", own.get("id"))
+                                .query(Boolean.class)
+                                .single())
+                .isTrue();
+    }
+
+    @Test
+    void lastBranchAdministratorCannotBeDisabledOrLoseGlobalBranchAdminRole() throws Exception {
+        UUID branch = branch(), manager = UUID.randomUUID(), inactivePeer = UUID.randomUUID();
+        jdbc.sql(
+                        "INSERT INTO"
+                            + " app_user(id,email,name,password_hash,birth_date,email_verified,dni)"
+                            + " VALUES(:id,:email,'Administración única test','unused',DATE"
+                            + " '1990-01-01',true,lpad(floor(random()*1000000000000)::bigint::text,12,'0'))")
+                .param("id", manager)
+                .param("email", "last-manager-" + manager + "@example.test")
+                .update();
+        jdbc.sql("INSERT INTO user_role(user_id,role) VALUES(:id,'PHARMACY_ADMIN')")
+                .param("id", manager)
+                .update();
+        member(manager, branch, "PHARMACY_ADMIN");
+        jdbc.sql(
+                        "INSERT INTO"
+                            + " app_user(id,email,name,password_hash,birth_date,email_verified,dni,active)"
+                            + " VALUES(:id,:email,'Administración inactiva test','unused',DATE"
+                            + " '1990-01-01',true,lpad(floor(random()*1000000000000)::bigint::text,12,'0'),false)")
+                .param("id", inactivePeer)
+                .param("email", "inactive-manager-" + inactivePeer + "@example.test")
+                .update();
+        jdbc.sql("INSERT INTO user_role(user_id,role) VALUES(:id,'PHARMACY_ADMIN')")
+                .param("id", inactivePeer)
+                .update();
+        member(inactivePeer, branch, "PHARMACY_ADMIN");
+        long version =
+                jdbc.sql("SELECT access_version FROM app_user WHERE id=:id")
+                        .param("id", manager)
+                        .query(Long.class)
+                        .single();
+        var admin = login("admin@demo.invalid");
+        for (var input :
+                List.of(
+                        Map.of(
+                                "active",
+                                false,
+                                "roles",
+                                List.of("PHARMACY_ADMIN"),
+                                "expectedVersion",
+                                version),
+                        Map.of(
+                                "active",
+                                true,
+                                "roles",
+                                List.of("BUYER"),
+                                "expectedVersion",
+                                version))) {
+            mvc.perform(
+                            put("/api/admin/users/" + manager + "/access")
+                                    .session(admin.session())
+                                    .header(admin.header(), admin.token())
+                                    .contentType("application/json")
+                                    .content(json.writeValueAsString(input)))
+                    .andExpect(status().isConflict())
+                    .andExpect(jsonPath("$.code").value("LAST_BRANCH_ADMIN_REQUIRED"));
+        }
+        var membership =
+                jdbc.sql(
+                                "SELECT id,version FROM membership WHERE user_id=:id AND"
+                                        + " branch_id=:branch AND role='PHARMACY_ADMIN'")
+                        .param("id", manager)
+                        .param("branch", branch)
+                        .query()
+                        .singleRow();
+        UUID otherBranch = branch();
+        mvc.perform(
+                        put("/api/admin/memberships/" + membership.get("id"))
+                                .session(admin.session())
+                                .header(admin.header(), admin.token())
+                                .contentType("application/json")
+                                .content(
+                                        json.writeValueAsString(
+                                                Map.of(
+                                                        "userId",
+                                                        manager,
+                                                        "branchId",
+                                                        otherBranch,
+                                                        "role",
+                                                        "PHARMACY_ADMIN",
+                                                        "active",
+                                                        true,
+                                                        "coldChainCapable",
+                                                        false,
+                                                        "restrictedCapable",
+                                                        false,
+                                                        "version",
+                                                        membership.get("version")))))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value("LAST_BRANCH_ADMIN_REQUIRED"));
+        assertThat(
+                        jdbc.sql("SELECT branch_id FROM membership WHERE id=:id")
+                                .param("id", membership.get("id"))
+                                .query(UUID.class)
+                                .single())
+                .isEqualTo(branch);
+        assertThat(
+                        jdbc.sql("SELECT version FROM membership WHERE id=:id")
+                                .param("id", membership.get("id"))
+                                .query(Long.class)
+                                .single())
+                .isEqualTo(((Number) membership.get("version")).longValue());
+        assertThat(
+                        jdbc.sql("SELECT active FROM app_user WHERE id=:id")
+                                .param("id", manager)
+                                .query(Boolean.class)
+                                .single())
+                .isTrue();
+        assertThat(
+                        jdbc.sql("SELECT access_version FROM app_user WHERE id=:id")
+                                .param("id", manager)
+                                .query(Long.class)
+                                .single())
+                .isEqualTo(version);
+        assertThat(
+                        jdbc.sql("SELECT role FROM user_role WHERE user_id=:id")
+                                .param("id", manager)
+                                .query(String.class)
+                                .list())
+                .containsExactly("PHARMACY_ADMIN");
+        assertThat(
+                        jdbc.sql(
+                                        "SELECT active FROM membership WHERE user_id=:id AND"
+                                                + " branch_id=:branch AND role='PHARMACY_ADMIN'")
+                                .param("id", manager)
+                                .param("branch", branch)
+                                .query(Boolean.class)
+                                .single())
+                .isTrue();
     }
 
     @Test
@@ -216,7 +602,8 @@ class CatalogIntegrationTest {
                 .isEqualTo("AVAILABLE");
         assertThat(
                         jdbc.sql(
-                                        "SELECT quantity FROM branch_stock WHERE branch_id=:b AND product_id=:p")
+                                        "SELECT quantity FROM branch_stock WHERE branch_id=:b AND"
+                                                + " product_id=:p")
                                 .param("b", branch)
                                 .param("p", product)
                                 .query(Integer.class)
@@ -229,7 +616,10 @@ class CatalogIntegrationTest {
             throws Exception {
         UUID branch = branch(), otherBranch = branch(), user = UUID.randomUUID();
         jdbc.sql(
-                        "INSERT INTO app_user(id,email,name,password_hash,birth_date) VALUES(:id,:email,'Cadete Test','unused',DATE '1990-01-01')")
+                        "INSERT INTO"
+                            + " app_user(id,email,name,password_hash,birth_date,email_verified,dni)"
+                            + " VALUES(:id,:email,'Cadete Test','unused',DATE"
+                            + " '1990-01-01',true,lpad(floor(random()*1000000000000)::bigint::text,12,'0'))")
                 .param("id", user)
                 .param("email", "capability-" + user + "@example.test")
                 .update();
@@ -287,7 +677,8 @@ class CatalogIntegrationTest {
         UUID membership = UUID.fromString(json.readTree(saved).get("id").asText());
         assertThat(
                         jdbc.sql(
-                                        "SELECT count(*) FROM audit_event WHERE entity_id=:id AND action='MEMBERSHIP_CREATED'")
+                                        "SELECT count(*) FROM audit_event WHERE entity_id=:id AND"
+                                                + " action='MEMBERSHIP_CREATED'")
                                 .param("id", membership)
                                 .query(Long.class)
                                 .single())
@@ -309,7 +700,9 @@ class CatalogIntegrationTest {
     private UUID capabilityDocument(UUID owner, UUID branch) {
         UUID id = UUID.randomUUID();
         jdbc.sql(
-                        "INSERT INTO document(id,owner_user_id,kind,branch_id,original_name,content_type,size_bytes,storage_key) VALUES(:id,:owner,'CAPABILITY',:branch,'synthetic.pdf','application/pdf',10,:key)")
+                        "INSERT INTO"
+                            + " document(id,owner_user_id,kind,branch_id,original_name,content_type,size_bytes,storage_key)"
+                            + " VALUES(:id,:owner,'CAPABILITY',:branch,'synthetic.pdf','application/pdf',10,:key)")
                 .param("id", id)
                 .param("owner", owner)
                 .param("branch", branch)
@@ -356,7 +749,10 @@ class CatalogIntegrationTest {
     private UUID branch() {
         UUID id = UUID.randomUUID();
         jdbc.sql(
-                        "INSERT INTO branch(id,name,address,latitude,longitude,verified,agreement_accepted) VALUES(:id,'Sucursal Test','Domicilio sintético',-32.89,-68.85,true,true)")
+                        "INSERT INTO"
+                            + " branch(id,name,address,latitude,longitude,verified,agreement_accepted)"
+                            + " VALUES(:id,'Sucursal Test','Domicilio"
+                            + " sintético',-32.89,-68.85,true,true)")
                 .param("id", id)
                 .update();
         return id;
@@ -365,7 +761,8 @@ class CatalogIntegrationTest {
     private UUID product() {
         UUID id = UUID.randomUUID();
         jdbc.sql(
-                        "INSERT INTO product(id,code,name,presentation) VALUES(:id,:code,'Producto Test','Caja test')")
+                        "INSERT INTO product(id,code,name,presentation) VALUES(:id,:code,'Producto"
+                                + " Test','Caja test')")
                 .param("id", id)
                 .param("code", "TEST-" + id)
                 .update();
@@ -374,7 +771,9 @@ class CatalogIntegrationTest {
 
     private void stock(UUID branch, UUID product, int quantity, int reserved) {
         jdbc.sql(
-                        "INSERT INTO branch_stock(branch_id,product_id,quantity,reserved_quantity,price) VALUES(:b,:p,:q,:r,100.00)")
+                        "INSERT INTO"
+                            + " branch_stock(branch_id,product_id,quantity,reserved_quantity,price)"
+                            + " VALUES(:b,:p,:q,:r,100.00)")
                 .param("b", branch)
                 .param("p", product)
                 .param("q", quantity)
