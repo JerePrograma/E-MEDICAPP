@@ -1,0 +1,95 @@
+E-MEDICAPP — GitHub Pages, backend local y verificación de demo
+19 de octubre de 2026. Horario de Argentina.
+
+CAMBIOS
+La web se publica mediante GitHub Actions en:
+https://jereprograma.github.io/E-MEDICAPP/
+El backend Java y PostgreSQL permanecen en esta PC. Cloudflare proporciona un
+túnel HTTPS saliente para que el cliente pueda acceder desde otro equipo.
+
+Las rutas usan fragmentos (#/app/stock, por ejemplo), compatibles con actualización
+directa en GitHub Pages. La conexión se puede establecer mediante el enlace
+?api=... que genera AbrirDemoPages.cmd. El workflow también acepta la variable
+pública VITE_API_BASE_URL, configurada para el túnel de esta presentación.
+
+Se corrigió la pérdida de datos al regresar a la ventana: una sesión anónima se
+conserva como resultado válido de consulta y una actualización en segundo plano
+no desmonta el formulario de ingreso. El correo se conserva en la pestaña; la
+contraseña escrita no se guarda en el almacenamiento del navegador.
+Administración conserva también el formulario abierto ante un corte de conexión.
+
+La sesión entre orígenes utiliza X-Auth-Session en sessionStorage, con CSRF,
+rotación al ingresar, cierre e inactividad máxima de 30 minutos. Sólo se admite
+el origen configurado de Pages. Documentos y logos privados se consultan con la
+sesión autorizada. El acceso local incluido en el JAR conserva sus cookies.
+
+ARRANQUE VALIDADO EN ESTA PC
+JDK Temurin 25.0.4.1+1 portable en .tools/java/ (descarga verificada con SHA-256).
+Node.js 24.18.0. PostgreSQL 17.5, clúster propio en .runtime/postgres.
+PostgreSQL: 127.0.0.1:5544. Backend: 127.0.0.1:8082.
+Windows reserva el rango que contiene 55432; el puerto propio se cambió a 5544.
+Los scripts leen el puerto persistido y detectan las herramientas instaladas.
+
+El inicio aísla y luego restaura las variables genéricas Spring/JVM heredadas de
+otros proyectos. En esta PC SERVER_PORT=8080 interfería con el puerto solicitado.
+No se modificaron las variables persistentes de Windows ni otros servicios.
+Los scripts comprueban identidad de procesos y disponibilidad antes de informar
+que la demo está lista. Esperan la propagación DNS del túnel antes de compartirlo.
+
+DATOS DE PRESENTACIÓN COMPROBADOS
+Base emedicapp_demo: 7 cuentas, 18 presentaciones, 4 sucursales, 72 registros de
+stock, 72 lotes y 4 documentos iniciales. Cero compras y cero pagos de prueba.
+Las cuentas y la clave pública DemoMedicapp2026! están en README.md y en el
+selector de ingreso. Las pruebas no usan esta base de presentación.
+
+PRUEBAS APROBADAS
+Servidor: 184 pruebas, cero fallos, cero errores, cero omitidas.
+Interfaz: 18 pruebas unitarias aprobadas. TypeScript y compilación aprobados.
+Navegador: 17 recorridos aprobados en una corrida completa, sin reintentos.
+Incluyen foco y formularios, navegación y actualización, frontend estático en
+otro origen sin cookies, logos, administración y alcance, búsqueda y cesta,
+compra con pago/factura/retiro, cadete, móvil, familiar y cobertura/alto valor,
+cancelación y reintegro, ausencia/retorno/reintento, registro sin SMTP,
+sustitución y reposición.
+
+Evidencia de servidor:
+.runtime/qa-20261019174251455_1e424de7.json y .log
+Base emedicapp_qa_20261019174251455_1e424de7_demo.
+Compilación final: 19/10/2026 14:44:53, BUILD SUCCESS.
+
+Evidencia de navegador:
+.runtime/workflow-20261019175140710_24cdcf18.json
+.runtime/verification-current-browser.log
+Base emedicapp_workflow_20261019175140710_24cdcf18_demo.
+testSelection=ALL; testExitCode=0; proceso QA detenido al finalizar.
+Capturas y reporte: frontend/test-results y frontend/playwright-report.
+La prueba de otro origen concede acceso a loopback sólo al navegador QA;
+el despliegue real usa una dirección pública HTTPS.
+
+JAR utilizado por la demo y los 17 recorridos:
+backend/target/emedicapp-0.1.0-SNAPSHOT.jar
+SHA-256: F959690B53422485622DDF0083EFD2356870BBE8CFC5B4F571B9D8F72B60C165
+Código de publicación: e5e4c1b.
+
+PUBLICACIÓN
+GitHub Pages habilitado con Actions y HTTPS obligatorio.
+Backend público comprobado: bootstrap, CORS, CSRF, ingreso, sesión y salida.
+GitHub Actions finalizó correctamente el 19/10/2026 a las 14:55:25:
+https://github.com/JerePrograma/E-MEDICAPP/actions/runs/39298133740
+Se comprobó visualmente el ingreso del comprador desde la dirección pública de
+Pages, consumiendo el backend HTTPS de esta PC. Mostró Mis compras, los contadores
+en cero y Nueva compra. Captura: docs/capturas/pages-demo-20261019.png.
+El navegador quedó abierto en esa demo. Backend y túnel permanecen iniciados.
+
+USO POSTERIOR Y LÍMITES
+AbrirDemoPages.cmd inicia el backend y el túnel, o reutiliza los procesos propios
+ya iniciados, y abre el enlace completo para compartir.
+DetenerDemoPages.cmd detiene esos procesos; conserva PostgreSQL y los datos.
+La PC debe permanecer encendida y conectada. La URL temporal del túnel cambia al
+reiniciarlo: compartir siempre el enlace nuevo que genera el acceso.
+
+SMTP no está configurado. La demo funciona con sus cuentas precargadas; el alta
+de cuentas nuevas queda pendiente de confirmación y la recuperación requiere
+configurar correo para entregar enlaces reales. No se enviaron correos reales.
+Pagos, facturas, recetas y cobertura se demuestran con comprobaciones y archivos
+sintéticos. La guía de presentación está en docs/guion-demostracion.txt.

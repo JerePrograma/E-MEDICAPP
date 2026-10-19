@@ -2,6 +2,8 @@
 
 El despliegue actual separa la web en **[GitHub Pages](https://jereprograma.github.io/E-MEDICAPP/)** y el backend en esta PC. Para presentar desde otras computadoras, abrir **`AbrirDemoPages.cmd`** y compartir el enlace completo que genera. **`DetenerDemoPages.cmd`** cierra el backend y su túnel; conserva los datos. Ver [guía de GitHub Pages y demo](docs/github-pages-demo.txt).
 
+La [verificación del 19 de octubre](docs/verificacion-pages-demo-20261019.txt) registra las correcciones, los datos cargados y las pruebas de esta entrega.
+
 Aplicación Java + React con PostgreSQL. La autoridad funcional actual es `CASOS DE USO - E-MEDICAPP.pdf` de QA, con las respuestas posteriores del dueño: confirmación de correo sin aprobación de identidad, nota nueva por compra para comprar y recibir, un solo reintento coordinado y resolución farmacéutica de compras divididas. El concepto V3 y las decisiones anteriores completan los puntos compatibles que QA no especifica. La trazabilidad actual se documenta en [flujo del producto según QA](docs/flujo-producto-QA.txt); el relevamiento V3 del directorio superior se conserva como antecedente.
 
 [Manuales breves por rol, cuentas temporales públicas y guía de alta real](docs/manuales/README.md). Cada perfil tiene su propio archivo para compartirlo por separado.
