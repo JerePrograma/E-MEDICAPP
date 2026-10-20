@@ -35,6 +35,14 @@ public class CatalogController {
         return catalog.publicProducts();
     }
 
+    @GetMapping(value = "/catalog/products/{id}/image", produces = MediaType.IMAGE_PNG_VALUE)
+    public ResponseEntity<byte[]> productImage(@PathVariable UUID id) {
+        return ResponseEntity.ok()
+                .contentType(MediaType.IMAGE_PNG)
+                .cacheControl(CacheControl.noCache().cachePrivate())
+                .body(catalog.productImage(id));
+    }
+
     @GetMapping("/catalog/products/{id}/availability")
     public ProductAvailability productAvailability(@PathVariable UUID id) {
         return catalog.productAvailability(id);

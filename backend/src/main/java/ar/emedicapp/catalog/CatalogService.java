@@ -64,9 +64,13 @@ public class CatalogService {
         return products(true);
     }
 
+    private static final String PRODUCT_SELECT =
+            "SELECT id,code,name,presentation,requires_prescription,cold_chain,restricted,active,"
+                    + "version,metadata,image_png IS NOT NULL AS has_image FROM product ";
+
     private List<Product> products(boolean activeOnly) {
         return jdbc.sql(
-                        "SELECT * FROM product "
+                        PRODUCT_SELECT
                                 + (activeOnly ? "WHERE active " : "")
                                 + "ORDER BY name,presentation")
                 .query(this::product)
@@ -86,14 +90,36 @@ public class CatalogService {
                 rs.getLong("version"),
                 CatalogCategory.normalize(
                         json.decodeMap(rs.getString("metadata")),
-                        rs.getBoolean("requires_prescription")));
+                        rs.getBoolean("requires_prescription")),
+                rs.getBoolean("has_image")
+                        ? "/api/catalog/products/"
+                                + uuid(rs, "id")
+                                + "/image?v="
+                                + rs.getLong("version")
+                        : null);
+    }
+
+    public byte[] productImage(UUID id) {
+        var actor = access.actor();
+        return jdbc.sql(
+                        "SELECT image_png FROM product WHERE id=:id AND image_png IS NOT NULL AND"
+                                + " (active OR :admin)")
+                .param("id", id)
+                .param("admin", actor.hasRole("ADMIN"))
+                .query((rs, row) -> rs.getBytes("image_png"))
+                .optional()
+                .orElseThrow(
+                        () ->
+                                AppException.notFound(
+                                        "PRODUCT_IMAGE_NOT_FOUND",
+                                        "El producto no tiene una foto disponible."));
     }
 
     @Transactional(readOnly = true, isolation = Isolation.REPEATABLE_READ)
     public ProductAvailability productAvailability(UUID productId) {
         access.actor();
         var product =
-                jdbc.sql("SELECT * FROM product WHERE id=:id AND active")
+                jdbc.sql(PRODUCT_SELECT + "WHERE id=:id AND active")
                         .param("id", productId)
                         .query(this::product)
                         .optional()
@@ -476,6 +502,12 @@ public class CatalogService {
     public Product saveProduct(UUID id, ProductInput input) {
         var actor = admin();
         CatalogCategory.validate(input.metadata(), input.requiresPrescription());
+        if (input.removeImage() && input.imageDataUrl() != null)
+            throw AppException.badRequest(
+                    "PRODUCT_IMAGE_CONFLICT",
+                    "Elegí reemplazar o quitar la foto en una sola operación.");
+        byte[] image = ProductImage.normalize(input.imageDataUrl());
+        boolean changeImage = input.removeImage() || input.imageDataUrl() != null;
         var actualId = id == null ? UUID.randomUUID() : id;
         var values = new HashMap<String, Object>();
         values.put("id", actualId);
@@ -495,30 +527,38 @@ public class CatalogService {
         if (id == null)
             jdbc.sql(
                             """
-                            INSERT INTO product(id,code,name,presentation,requires_prescription,cold_chain,restricted,active,metadata)
-                            VALUES(:id,:code,:name,:presentation,:rx,:cold,:restricted,:active,CAST(:metadata AS jsonb))
+                            INSERT INTO product(id,code,name,presentation,requires_prescription,cold_chain,restricted,active,metadata,image_png)
+                            VALUES(:id,:code,:name,:presentation,:rx,:cold,:restricted,:active,CAST(:metadata AS jsonb),:image)
                             """)
                     .params(values)
+                    .param("image", image, java.sql.Types.BINARY)
                     .update();
         else
             changed(
                     jdbc.sql(
                                     """
                                     UPDATE product SET code=:code,name=:name,presentation=:presentation,requires_prescription=:rx,
-                                      cold_chain=:cold,restricted=:restricted,active=:active,metadata=CAST(:metadata AS jsonb),version=version+1,updated_at=now()
+                                      cold_chain=:cold,restricted=:restricted,active=:active,metadata=CAST(:metadata AS jsonb),
+                                      image_png=CASE WHEN :changeImage THEN :image ELSE image_png END,
+                                      version=version+1,updated_at=now()
                                     WHERE id=:id AND version=:version
                                     """)
                             .params(values)
+                            .param("changeImage", changeImage)
+                            .param("image", image, java.sql.Types.BINARY)
                             .update(),
                     "product",
                     id);
+        values.put(
+                "imageAction",
+                input.removeImage() ? "REMOVED" : image != null ? "REPLACED" : "UNCHANGED");
         audit.record(
                 actor,
                 id == null ? "PRODUCT_CREATED" : "PRODUCT_UPDATED",
                 "product",
                 actualId,
                 values);
-        return jdbc.sql("SELECT * FROM product WHERE id=:id")
+        return jdbc.sql(PRODUCT_SELECT + "WHERE id=:id")
                 .param("id", actualId)
                 .query(this::product)
                 .single();

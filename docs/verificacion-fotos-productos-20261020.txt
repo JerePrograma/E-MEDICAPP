@@ -1,0 +1,78 @@
+FOTOS DE PRODUCTOS Y ALCANCE DE FARMACÉUTICOS
+Verificado el 20 de octubre de 2026.
+
+RESULTADO
+
+Administración → Productos → Agregar producto / Modificar permite adjuntar una
+foto opcional de la presentación, ver su vista previa, reemplazarla o quitarla.
+Los cambios se aplican al guardar. Se aceptan PNG y JPG de hasta 2 MB y 4096 ×
+4096 píxeles; el servidor valida el contenido y conserva un PNG normalizado de
+hasta 512 píxeles por lado, sin metadatos originales.
+
+La imagen se muestra completa en la tarjeta y el detalle del catálogo, con
+texto alternativo. Sin foto o ante una imagen inaccesible, la tarjeta muestra
+la ilustración de su categoría. Se puede quitar una foto guardada aunque su
+vista previa no se pueda descargar. La foto se conserva al editar otros datos.
+Pertenece a la presentación compartida; los precios y existencias son por
+sucursal. Los logos de cadenas mantienen su carga existente.
+
+La administración de plataforma gestiona las fotos. Un usuario autenticado
+puede consultar la imagen de un producto activo; las de productos inactivos
+solo se muestran a administración. Las actualizaciones respetan la versión y
+registran la acción sin incluir la imagen en la auditoría o en los listados.
+La migración V18 agrega una columna opcional sin modificar datos anteriores.
+
+FARMACÉUTICOS
+
+La demo activa fue consultada en modo de solo lectura. Contiene siete cuentas
+@demo.invalid. Los dos farmacéuticos están asignados a Nivalis Ciudad, Nivalis
+Dorrego, Valnera Godoy Cruz y Luma Cuyo Las Heras para demostrar el circuito.
+No contiene cuentas @demo-publica.invalid; los manuales de esas credenciales
+describen un escenario anterior.
+
+La aplicación admite sucursales de una cadena y farmacias sin cadena. Las
+cuentas nuevas se registran como compradores; tras confirmar el correo, un
+administrador asigna la función profesional en cada sucursal que corresponda.
+No se asignan sucursales adicionales automáticamente por pertenecer a una cadena.
+
+VALIDACIÓN
+
+- Frontend: 41 pruebas aprobadas y compilación TypeScript/Vite correcta.
+- Backend: 205 pruebas aprobadas, sin fallos ni casos omitidos, con PostgreSQL
+  en una base QA nueva; incluyen validación de imágenes, ciclo de vida,
+  conservación, versiones, permisos, auditoría y regresión de logos.
+- Navegador: dos recorridos aprobados. Carga y validaciones, persistencia tras
+  recarga, edición sin perder foto, catálogo/detalle en escritorio y celular,
+  reemplazo JPG y eliminación. Acceso desde otro origen mediante la sesión,
+  imágenes convertidas a blob e ilustración ante 404 o contenido inválido.
+- Revisión visual de las capturas y comprobación de formato y diff correctas.
+
+EVIDENCIA LOCAL
+
+.runtime/qa-20261020164437514_7f86487e.json
+.runtime/product-image-qa-package.log
+.runtime/product-image-final-package.json
+.runtime/product-image-ui-package.log
+.runtime/product-image-browser.log
+.runtime/product-image-qa/*.png
+
+El paquete QA se encuentra en:
+backend/target/emedicapp-product-image-qa-20261020165038.jar
+
+El ajuste visual final del espacio entre la categoría y la foto se compiló
+separadamente y se volvió a verificar en navegador. El backend conserva los
+mismos fuentes aprobados por las 205 pruebas; no se repitió esa suite por el
+ajuste de presentación. El registro de navegador identifica su base aislada y
+el archivo workflow correspondiente.
+
+Las pruebas usaron bases y documentos separados de la presentación. El proceso
+QA fue detenido por el verificador al finalizar.
+
+ENTREGA PÚBLICA
+
+La entrega incluye actualizar el repositorio remoto, instalar el paquete probado
+en el backend de la demo conservando datos y documentos, y publicar el frontend
+en GitHub Pages. Antes de reemplazar el backend se respalda la base y el paquete
+anterior. La comprobación pública debe confirmar el commit en deployment.json,
+el servidor activo y la opción Foto del producto desde el enlace de Pages.
+La evidencia de esa publicación se conserva en .runtime/product-image-release/.

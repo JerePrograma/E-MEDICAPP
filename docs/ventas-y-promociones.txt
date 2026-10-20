@@ -29,6 +29,15 @@ la utilidad de la farmacia ni sustituye su sistema contable o fiscal.
 
 CATÁLOGO PARA EL CLIENTE
 
+Cada presentación puede tener una foto opcional. La administración de plataforma
+la carga desde Administración → Productos → Agregar producto / Modificar → Foto
+del producto. Se aceptan PNG o JPG de hasta 2 MB y 4096 × 4096 píxeles; se muestra
+una vista previa antes de guardar. Reemplazar imagen o Quitar foto también
+requiere guardar. La foto se conserva al editar otros datos del producto y se
+comparte entre sus sucursales; los precios y existencias son por sucursal.
+El catálogo y el detalle muestran la imagen completa sin recortarla. Cuando no
+hay foto, la tarjeta mantiene la ilustración de su categoría.
+
 Las cuentas de comprador abren Catálogo desde el menú. La búsqueda considera
 nombre, presentación y código. El inicio muestra seis accesos: Promociones,
 Medicamentos, Salud Sexual, Cuidado de Piel, Belleza y Estética, y Vitaminas y

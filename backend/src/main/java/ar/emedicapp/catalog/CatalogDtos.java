@@ -21,7 +21,8 @@ public final class CatalogDtos {
             boolean restricted,
             boolean active,
             long version,
-            Map<String, Object> metadata) {}
+            Map<String, Object> metadata,
+            String imageUrl) {}
 
     public record ProductInput(
             @NotBlank @Size(max = 80) String code,
@@ -32,7 +33,37 @@ public final class CatalogDtos {
             boolean restricted,
             boolean active,
             @Min(0) long version,
-            Map<String, Object> metadata) {}
+            Map<String, Object> metadata,
+            @Size(max = ProductImage.MAX_DATA_URL_LENGTH) String imageDataUrl,
+            Boolean removeImage) {
+        public ProductInput {
+            removeImage = Boolean.TRUE.equals(removeImage);
+        }
+
+        public ProductInput(
+                String code,
+                String name,
+                String presentation,
+                boolean requiresPrescription,
+                boolean coldChain,
+                boolean restricted,
+                boolean active,
+                long version,
+                Map<String, Object> metadata) {
+            this(
+                    code,
+                    name,
+                    presentation,
+                    requiresPrescription,
+                    coldChain,
+                    restricted,
+                    active,
+                    version,
+                    metadata,
+                    null,
+                    false);
+        }
+    }
 
     public record ProductAvailability(UUID productId, List<ProductOffer> offers) {}
 

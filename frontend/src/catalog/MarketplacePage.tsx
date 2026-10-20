@@ -27,6 +27,7 @@ import { EmptyState } from '../components/PageElements';
 import { LocationPicker } from '../components/LocationPicker';
 import { PromotionsPage } from '../promotions/PromotionsPage';
 import type { Product } from './types';
+import { ProductImage } from './ProductImage';
 import type { ProductAvailability } from './availability';
 import {
   catalogCategories,
@@ -569,8 +570,9 @@ export function MarketplacePage({ actor }: { actor: Actor }) {
                 >
                   <Box
                     sx={{
-                      bgcolor: details.tint,
+                      bgcolor: product.imageUrl ? 'background.paper' : details.tint,
                       color: details.color,
+                      pt: product.imageUrl ? 3 : 0,
                       minHeight: 155,
                       position: 'relative',
                       display: 'grid',
@@ -590,7 +592,18 @@ export function MarketplacePage({ actor }: { actor: Actor }) {
                       {details.label}
                     </Typography>
                     <Box sx={{ mt: 2 }}>
-                      <CategoryIllustration category={details.value} />
+                      <ProductImage
+                        product={product}
+                        fallback={<CategoryIllustration category={details.value} />}
+                        sx={{
+                          width: '100%',
+                          maxWidth: 240,
+                          height: 125,
+                          objectFit: 'contain',
+                          display: 'block',
+                          p: 1,
+                        }}
+                      />
                     </Box>
                     {cart.items[product.id] && (
                       <Chip
@@ -664,6 +677,16 @@ export function MarketplacePage({ actor }: { actor: Actor }) {
             <DialogTitle>{selected.name}</DialogTitle>
             <DialogContent>
               <Stack spacing={2.5} sx={{ pt: 1 }}>
+                <ProductImage
+                  product={selected}
+                  sx={{
+                    width: '100%',
+                    height: { xs: 180, sm: 240 },
+                    objectFit: 'contain',
+                    bgcolor: 'white',
+                    borderRadius: 2,
+                  }}
+                />
                 <Typography color="text.secondary">{selected.presentation}</Typography>
                 <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: 'wrap' }}>
                   <PrescriptionBadge product={selected} />

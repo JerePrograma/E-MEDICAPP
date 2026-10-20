@@ -18,6 +18,7 @@ function product(
     restricted: false,
     version: 0,
     metadata,
+    imageUrl: null,
   };
 }
 

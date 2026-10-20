@@ -141,6 +141,13 @@ de hasta 2 MB y 4096 × 4096 píxeles. Cada sucursal de esa cadena muestra el lo
 en el mapa de la compra; al tocar el marcador se consulta su nombre y dirección. Sin logo se
 muestra un marcador común. El punto de entrega o ubicación del comprador se confirma por separado.
 
+En **Administración → Productos → Agregar producto / Modificar**, puede cargar una foto
+opcional de cada presentación, previsualizarla, reemplazarla o quitarla y guardar los cambios.
+Acepta PNG o JPG de hasta 2 MB y 4096 × 4096 píxeles. La foto aparece en el catálogo y
+en el detalle del producto; sin foto se conserva la ilustración de la categoría.
+La imagen pertenece al producto compartido; precios y existencias siguen siendo por sucursal.
+Ver [verificación de fotos de productos](docs/verificacion-fotos-productos-20261020.txt).
+
 Este MVP coordina operaciones y conserva comprobaciones manuales. No confirma por sí mismo la autenticidad de una receta, autorización de obra social, habilitación sanitaria, factura fiscal o transferencia bancaria. Esas verificaciones las realiza el responsable en su fuente externa y registra la evidencia.
 
 ## Pruebas

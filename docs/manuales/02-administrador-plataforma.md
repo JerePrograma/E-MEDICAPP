@@ -43,7 +43,7 @@ El primer administrador se configura en el primer inicio del entorno de operaci�
 
 ## Preparar catálogo, stock y suscripción
 
-1. En **Productos → Agregar producto**, registrá la presentación, receta y condiciones de conservación o control.
+1. En **Productos → Agregar producto**, registrá la presentación, receta y condiciones de conservación o control. En **Foto del producto → Seleccionar imagen**, podés adjuntar una foto opcional PNG o JPG de hasta 2 MB y 4096 × 4096 píxeles. Revisá la vista previa y guardá. Desde **Modificar**, podés reemplazarla o usar **Quitar foto** y guardar; la imagen se muestra en el catálogo y en el detalle de esa presentación.
 2. Asigná un operador o farmacéutico para que cargue las existencias y los precios de cada sucursal desde **Stock y precios**.
 3. Desde **Lotes**, registrá o corregí los lotes y su conservación cuando corresponda.
 4. En **Planes → Agregar plan mensual**, definí el nivel por cantidad de establecimientos. Las U.M. son simbólicas; una cuota real requiere importe y moneda.

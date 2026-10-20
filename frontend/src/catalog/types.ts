@@ -9,6 +9,7 @@ export type Product = {
   active: boolean;
   version: number;
   metadata: Record<string, unknown>;
+  imageUrl: string | null;
 };
 export type Branch = {
   id: string;

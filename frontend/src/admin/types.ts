@@ -83,7 +83,10 @@ export type Overview = {
   users: UserOption[];
   config: Settings;
 };
-export type ProductInput = Omit<Product, 'id'>;
+export type ProductInput = Omit<Product, 'id' | 'imageUrl'> & {
+  imageDataUrl: string | null;
+  removeImage: boolean;
+};
 export type ChainInput = Omit<Chain, 'id' | 'logoUrl'> & {
   logoDataUrl: string | null;
   removeLogo: boolean;

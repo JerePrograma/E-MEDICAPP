@@ -29,6 +29,7 @@ import { LotsPanel } from './LotsPanel';
 import { MetricRow, PageHeader } from '../components/PageElements';
 import { UsersPanel } from './UsersPanel';
 import { ChainLogoInput } from './ChainLogoInput';
+import { ProductImageInput } from './ProductImageInput';
 import type {
   BranchInput,
   Chain,
@@ -330,6 +331,13 @@ export function AdminPage({ actor }: { actor: Actor }) {
               active: x.active,
               detail: (
                 <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: 'wrap' }}>
+                  {x.imageUrl && (
+                    <ApiImage
+                      src={x.imageUrl}
+                      alt={`Foto de ${x.name}`}
+                      sx={{ width: 56, height: 56, objectFit: 'contain', bgcolor: 'white' }}
+                    />
+                  )}
                   <Chip
                     size="small"
                     label={x.requiresPrescription ? 'Con receta' : 'Venta sin receta'}
@@ -731,19 +739,21 @@ function ProductForm({
   busy: boolean;
   save: (body: ProductInput) => Promise<void>;
 }) {
-  const [draft, set] = useState<ProductInput>(
-    value ?? {
-      code: '',
-      name: '',
-      presentation: '',
-      requiresPrescription: false,
-      coldChain: false,
-      restricted: false,
-      active: true,
-      version: 0,
-      metadata: {},
-    },
-  );
+  const [draft, set] = useState<ProductInput>({
+    code: '',
+    name: '',
+    presentation: '',
+    requiresPrescription: false,
+    coldChain: false,
+    restricted: false,
+    active: true,
+    version: 0,
+    metadata: {},
+    ...value,
+    imageDataUrl: null,
+    removeImage: false,
+  });
+  const [readingImage, setReadingImage] = useState(false);
   const [minimum, setMinimum] = useState(String(value?.metadata.minTemperatureC ?? ''));
   const [maximum, setMaximum] = useState(String(value?.metadata.maxTemperatureC ?? ''));
   const patch = (part: Partial<ProductInput>) => set((previous) => ({ ...previous, ...part }));
@@ -770,8 +780,9 @@ function ProductForm({
       : 'NON_PRESCRIPTION';
   return (
     <Form
-      busy={busy}
+      busy={busy || readingImage}
       submit={() => {
+        if (busy || readingImage) return;
         const metadata = { ...draft.metadata };
         metadata.catalogCategory = category;
         if (minimum !== '') metadata.minTemperatureC = Number(minimum);
@@ -789,6 +800,14 @@ function ProductForm({
         set={(presentation) => patch({ presentation })}
         required
         help="Ejemplo: caja de 30 comprimidos. El precio y stock se cargan por sucursal."
+      />
+      <ProductImageInput
+        savedUrl={value?.imageUrl ?? null}
+        imageDataUrl={draft.imageDataUrl}
+        removeImage={draft.removeImage}
+        disabled={busy}
+        onReading={setReadingImage}
+        onChange={(imageDataUrl, removeImage) => patch({ imageDataUrl, removeImage })}
       />
       <Toggle
         label="Requiere receta"
