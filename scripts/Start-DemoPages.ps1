@@ -64,7 +64,7 @@ $saved=@{}; foreach ($key in $keys) { $saved[$key]=[Environment]::GetEnvironment
 $backendStartRequested=$false
 try {
   $env:EMEDICAPP_ADDRESS='127.0.0.1'
-  $env:EMEDICAPP_ALLOWED_ORIGINS=$allowedOrigin
+  $env:EMEDICAPP_ALLOWED_ORIGINS=$allowedOrigin+',https://localhost'
   $env:EMEDICAPP_EMAIL_BASE_URL=$PagesUrl
   $env:EMEDICAPP_PUBLIC_URL=$null
   $env:EMEDICAPP_SECURE_COOKIES='true'

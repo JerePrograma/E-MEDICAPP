@@ -1,0 +1,11 @@
+{
+  "appId": "ar.emedicapp.app",
+  "appName": "E-MEDICAPP",
+  "webDir": "dist-android",
+  "loggingBehavior": "debug",
+  "server": {
+    "hostname": "localhost",
+    "androidScheme": "https",
+    "cleartext": false
+  }
+}

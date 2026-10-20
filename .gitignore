@@ -6,6 +6,15 @@
 backend/target/
 frontend/node_modules/
 frontend/dist/
+frontend/dist-android/
+frontend/android/.gradle/
+frontend/android/**/build/
+frontend/android/local.properties
+frontend/android/app/src/main/assets/public/
+frontend/android/app/src/main/assets/capacitor.config.json
+frontend/android/app/src/main/assets/capacitor.plugins.json
+*.jks
+*.keystore
 frontend/test-results/
 frontend/playwright-report/
 .idea/

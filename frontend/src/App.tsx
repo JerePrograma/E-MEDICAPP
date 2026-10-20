@@ -1,7 +1,7 @@
 import { lazy, Suspense, useEffect, useState } from 'react';
+import { IonContent, IonHeader, IonToolbar } from '@ionic/react';
 import {
   Alert,
-  AppBar,
   Box,
   Button,
   Chip,
@@ -23,6 +23,7 @@ import {
 } from './connection';
 import { ConnectionPage, ServiceUnavailable } from './components/ConnectionPage';
 import { CartProvider } from './cart/CartContext';
+import { clearNativeDocuments } from './native/documents';
 const MarketplacePage = lazy(() =>
   import('./catalog/MarketplacePage').then((m) => ({ default: m.MarketplacePage })),
 );
@@ -57,18 +58,24 @@ export function App() {
     () => canConfigureBackend() && (needsBackendConnection() || !!connectionError),
   );
   if (!configurableConnection && (connectionError || needsBackendConnection()))
-    return <ServiceUnavailable />;
+    return (
+      <IonContent>
+        <ServiceUnavailable />
+      </IonContent>
+    );
   if (configurableConnection && connectionRequested)
     return (
-      <ConnectionPage
-        error={connectionError}
-        onConnected={() => window.location.reload()}
-        onCancel={
-          needsBackendConnection() || !!connectionError
-            ? undefined
-            : () => setConnectionRequested(false)
-        }
-      />
+      <IonContent>
+        <ConnectionPage
+          error={connectionError}
+          onConnected={() => window.location.reload()}
+          onCancel={
+            needsBackendConnection() || !!connectionError
+              ? undefined
+              : () => setConnectionRequested(false)
+          }
+        />
+      </IonContent>
     );
   return (
     <ConnectedApp
@@ -111,30 +118,34 @@ function ConnectedApp({ onConnectionRequested }: { onConnectionRequested?: () =>
   const actor = session.data;
   if (bootstrap.isPending || session.isPending)
     return (
-      <Box sx={{ p: 8, textAlign: 'center' }}>
-        <CircularProgress />
-        <Typography sx={{ mt: 2 }}>Abriendo E-MEDICAPP…</Typography>
-      </Box>
+      <IonContent>
+        <Box sx={{ p: 8, textAlign: 'center' }}>
+          <CircularProgress />
+          <Typography sx={{ mt: 2 }}>Abriendo E-MEDICAPP…</Typography>
+        </Box>
+      </IonContent>
     );
   if ((bootstrap.error && !bootstrap.data) || (session.error && session.data === undefined))
     return (
-      <Container maxWidth="sm" sx={{ py: 8 }}>
-        <Alert severity="error">No se pudo conectar con E-MEDICAPP.</Alert>
-        <Button
-          sx={{ mt: 2 }}
-          onClick={() => {
-            void bootstrap.refetch();
-            void session.refetch();
-          }}
-        >
-          Volver a intentar
-        </Button>
-        {onConnectionRequested && (
-          <Button sx={{ mt: 2 }} onClick={onConnectionRequested}>
-            Cambiar servidor
+      <IonContent>
+        <Container maxWidth="sm" sx={{ py: 8 }}>
+          <Alert severity="error">No se pudo conectar con E-MEDICAPP.</Alert>
+          <Button
+            sx={{ mt: 2 }}
+            onClick={() => {
+              void bootstrap.refetch();
+              void session.refetch();
+            }}
+          >
+            Volver a intentar
           </Button>
-        )}
-      </Container>
+          {onConnectionRequested && (
+            <Button sx={{ mt: 2 }} onClick={onConnectionRequested}>
+              Cambiar servidor
+            </Button>
+          )}
+        </Container>
+      </IonContent>
     );
   const demo = bootstrap.data?.mode === 'DEMO';
   const has = (...roles: string[]) => !!actor?.roles.some((x) => roles.includes(x));
@@ -149,196 +160,198 @@ function ConnectedApp({ onConnectionRequested }: { onConnectionRequested?: () =>
   ) : null;
   return (
     <>
-      <AppBar
-        position="sticky"
-        color="inherit"
-        elevation={0}
-        sx={{ borderBottom: '1px solid', borderColor: 'divider' }}
-      >
-        <Toolbar sx={{ gap: 2, flexWrap: 'wrap', py: 1 }}>
-          <Typography variant="h6" color="primary" sx={{ fontWeight: 800, flexGrow: 1 }}>
-            E-MEDICAPP
-          </Typography>
-          {actor && (
-            <>
-              <Typography variant="body2" sx={{ display: { xs: 'none', sm: 'block' } }}>
-                {actor.name}
-              </Typography>
-              <Chip
-                size="small"
-                variant="outlined"
-                label={actor.roles.map(label).join(' · ')}
-                sx={{ maxWidth: 220 }}
-              />
-              <Button
-                onClick={async () => {
-                  try {
-                    await api('/api/auth/logout', { method: 'POST' });
-                    cache.setQueryData(['session'], null);
-                    cache.removeQueries({
-                      predicate: (query) =>
-                        !['bootstrap', 'session'].includes(String(query.queryKey[0])),
-                    });
-                    navigate('/', { replace: true });
-                  } catch (e) {
-                    setLogoutError(e instanceof Error ? e.message : 'No se pudo cerrar la sesión.');
-                  }
-                }}
-              >
-                Salir
-              </Button>
-            </>
-          )}
-          {!actor && onConnectionRequested && (
-            <Button onClick={onConnectionRequested}>Conexión</Button>
-          )}
-        </Toolbar>
-      </AppBar>
-      {demo && (
-        <Alert severity="info" sx={{ borderRadius: 0 }}>
-          Demostración comercial. Personas, comercios, importes y comprobaciones de ejemplo.
-        </Alert>
-      )}
-      {logoutError && <Alert severity="error">{logoutError}</Alert>}
-      {(bootstrap.error || session.error) && (
-        <Alert severity="warning">
-          Se interrumpió la conexión. Tus datos en pantalla se conservan; podés volver a intentar
-          cuando el servidor esté disponible.
-          <Button
-            onClick={() => {
-              void bootstrap.refetch();
+      <IonHeader className="ion-no-border">
+        <IonToolbar className="application-toolbar">
+          <Toolbar sx={{ gap: 2, flexWrap: 'wrap', py: 1 }}>
+            <Typography variant="h6" color="primary" sx={{ fontWeight: 800, flexGrow: 1 }}>
+              E-MEDICAPP
+            </Typography>
+            {actor && (
+              <>
+                <Typography variant="body2" sx={{ display: { xs: 'none', sm: 'block' } }}>
+                  {actor.name}
+                </Typography>
+                <Chip
+                  size="small"
+                  variant="outlined"
+                  label={actor.roles.map(label).join(' · ')}
+                  sx={{ maxWidth: 220 }}
+                />
+                <Button
+                  onClick={async () => {
+                    try {
+                      await api('/api/auth/logout', { method: 'POST' });
+                      await clearNativeDocuments();
+                      cache.setQueryData(['session'], null);
+                      cache.removeQueries({
+                        predicate: (query) =>
+                          !['bootstrap', 'session'].includes(String(query.queryKey[0])),
+                      });
+                      navigate('/', { replace: true });
+                    } catch (e) {
+                      setLogoutError(
+                        e instanceof Error ? e.message : 'No se pudo cerrar la sesión.',
+                      );
+                    }
+                  }}
+                >
+                  Salir
+                </Button>
+              </>
+            )}
+            {!actor && onConnectionRequested && (
+              <Button onClick={onConnectionRequested}>Conexión</Button>
+            )}
+          </Toolbar>
+        </IonToolbar>
+      </IonHeader>
+      <IonContent id="application-content">
+        {demo && (
+          <Alert severity="info" sx={{ borderRadius: 0 }}>
+            Demostración comercial. Personas, comercios, importes y comprobaciones de ejemplo.
+          </Alert>
+        )}
+        {logoutError && <Alert severity="error">{logoutError}</Alert>}
+        {(bootstrap.error || session.error) && (
+          <Alert severity="warning">
+            Se interrumpió la conexión. Tus datos en pantalla se conservan; podés volver a intentar
+            cuando el servidor esté disponible.
+            <Button
+              onClick={() => {
+                void bootstrap.refetch();
+                void session.refetch();
+              }}
+            >
+              Reintentar
+            </Button>
+          </Alert>
+        )}
+        {!actor || authenticationRequested ? (
+          <AuthenticationPage
+            demo={demo}
+            onLogin={() => {
+              setAuthenticationRequested(false);
+              navigate('/', { replace: true });
+              cache.removeQueries({
+                predicate: (q) => !['session', 'bootstrap'].includes(String(q.queryKey[0])),
+              });
               void session.refetch();
+              void bootstrap.refetch();
             }}
+          />
+        ) : (
+          <CartProvider
+            key={`${actor.id}:${backendUrl() || window.location.origin}`}
+            actorId={actor.id}
           >
-            Reintentar
-          </Button>
-        </Alert>
-      )}
-      {!actor || authenticationRequested ? (
-        <AuthenticationPage
-          demo={demo}
-          onLogin={() => {
-            setAuthenticationRequested(false);
-            navigate('/', { replace: true });
-            cache.removeQueries({
-              predicate: (q) => !['session', 'bootstrap'].includes(String(q.queryKey[0])),
-            });
-            void session.refetch();
-            void bootstrap.refetch();
-          }}
-        />
-      ) : (
-        <CartProvider
-          key={`${actor.id}:${backendUrl() || window.location.origin}`}
-          actorId={actor.id}
-        >
-          <Workspace actor={actor}>
-            <Suspense fallback={<CircularProgress aria-label="Abriendo sección" />}>
-              <Routes>
-                <Route
-                  path="/app/catalog"
-                  element={
-                    has('BUYER') ? (
-                      <MarketplacePage actor={actor} />
-                    ) : (
-                      <Alert severity="warning">
-                        El catálogo de compras está disponible para cuentas de comprador.
-                      </Alert>
-                    )
-                  }
-                />
-                <Route
-                  path="/app/cart"
-                  element={
-                    has('BUYER') ? (
-                      <CartPage />
-                    ) : (
-                      <Alert severity="warning">
-                        El carrito está disponible para cuentas de comprador.
-                      </Alert>
-                    )
-                  }
-                />
-                <Route
-                  path="/app/checkout"
-                  element={
-                    has('BUYER') ? (
-                      <CartCheckoutPage actor={actor} />
-                    ) : (
-                      <Alert severity="warning">
-                        La compra está disponible para cuentas de comprador.
-                      </Alert>
-                    )
-                  }
-                />
-                <Route path="/app/promotions" element={<PromotionsPage />} />
-                <Route
-                  path="/app/pharmacy-promotions"
-                  element={
-                    has('ADMIN', 'PHARMACY_ADMIN', 'PHARMACY', 'PHARMACIST') ? (
-                      <PromotionManagementPage actor={actor} />
-                    ) : (
-                      <Alert severity="warning">
-                        Esta cuenta no tiene acceso a la gestión de promociones.
-                      </Alert>
-                    )
-                  }
-                />
-                <Route
-                  path="/app/reports"
-                  element={
-                    has('ADMIN', 'PHARMACY_ADMIN', 'PHARMACY', 'PHARMACIST') ? (
-                      <SalesReportPage actor={actor} />
-                    ) : (
-                      <Alert severity="warning">
-                        Esta cuenta no tiene acceso a reportes de ventas.
-                      </Alert>
-                    )
-                  }
-                />
-                <Route path="/" element={home} />
-                <Route path="/app" element={home} />
-                <Route
-                  path="/app/stock"
-                  element={
-                    has('PHARMACY', 'PHARMACIST') ? (
-                      <StockPage actor={actor} />
-                    ) : (
-                      <Alert severity="warning">Esta cuenta no tiene acceso a stock.</Alert>
-                    )
-                  }
-                />
-                <Route
-                  path="/app/deliveries"
-                  element={
-                    has('DRIVER', 'PHARMACY', 'PHARMACIST') ? (
-                      <DeliveryPage actor={actor} />
-                    ) : (
-                      <Alert severity="warning">Esta cuenta no tiene entregas asignadas.</Alert>
-                    )
-                  }
-                />
-                <Route
-                  path="/app/admin"
-                  element={
-                    has('ADMIN', 'PHARMACY_ADMIN') ? (
-                      <AdminPage actor={actor} />
-                    ) : (
-                      <Alert severity="warning">
-                        Esta cuenta no tiene acceso a administración.
-                      </Alert>
-                    )
-                  }
-                />
-                <Route
-                  path="*"
-                  element={<Alert severity="info">La página no está disponible.</Alert>}
-                />
-              </Routes>
-            </Suspense>
-          </Workspace>
-        </CartProvider>
-      )}
+            <Workspace actor={actor}>
+              <Suspense fallback={<CircularProgress aria-label="Abriendo sección" />}>
+                <Routes>
+                  <Route
+                    path="/app/catalog"
+                    element={
+                      has('BUYER') ? (
+                        <MarketplacePage actor={actor} />
+                      ) : (
+                        <Alert severity="warning">
+                          El catálogo de compras está disponible para cuentas de comprador.
+                        </Alert>
+                      )
+                    }
+                  />
+                  <Route
+                    path="/app/cart"
+                    element={
+                      has('BUYER') ? (
+                        <CartPage />
+                      ) : (
+                        <Alert severity="warning">
+                          El carrito está disponible para cuentas de comprador.
+                        </Alert>
+                      )
+                    }
+                  />
+                  <Route
+                    path="/app/checkout"
+                    element={
+                      has('BUYER') ? (
+                        <CartCheckoutPage actor={actor} />
+                      ) : (
+                        <Alert severity="warning">
+                          La compra está disponible para cuentas de comprador.
+                        </Alert>
+                      )
+                    }
+                  />
+                  <Route path="/app/promotions" element={<PromotionsPage />} />
+                  <Route
+                    path="/app/pharmacy-promotions"
+                    element={
+                      has('ADMIN', 'PHARMACY_ADMIN', 'PHARMACY', 'PHARMACIST') ? (
+                        <PromotionManagementPage actor={actor} />
+                      ) : (
+                        <Alert severity="warning">
+                          Esta cuenta no tiene acceso a la gestión de promociones.
+                        </Alert>
+                      )
+                    }
+                  />
+                  <Route
+                    path="/app/reports"
+                    element={
+                      has('ADMIN', 'PHARMACY_ADMIN', 'PHARMACY', 'PHARMACIST') ? (
+                        <SalesReportPage actor={actor} />
+                      ) : (
+                        <Alert severity="warning">
+                          Esta cuenta no tiene acceso a reportes de ventas.
+                        </Alert>
+                      )
+                    }
+                  />
+                  <Route path="/" element={home} />
+                  <Route path="/app" element={home} />
+                  <Route
+                    path="/app/stock"
+                    element={
+                      has('PHARMACY', 'PHARMACIST') ? (
+                        <StockPage actor={actor} />
+                      ) : (
+                        <Alert severity="warning">Esta cuenta no tiene acceso a stock.</Alert>
+                      )
+                    }
+                  />
+                  <Route
+                    path="/app/deliveries"
+                    element={
+                      has('DRIVER', 'PHARMACY', 'PHARMACIST') ? (
+                        <DeliveryPage actor={actor} />
+                      ) : (
+                        <Alert severity="warning">Esta cuenta no tiene entregas asignadas.</Alert>
+                      )
+                    }
+                  />
+                  <Route
+                    path="/app/admin"
+                    element={
+                      has('ADMIN', 'PHARMACY_ADMIN') ? (
+                        <AdminPage actor={actor} />
+                      ) : (
+                        <Alert severity="warning">
+                          Esta cuenta no tiene acceso a administración.
+                        </Alert>
+                      )
+                    }
+                  />
+                  <Route
+                    path="*"
+                    element={<Alert severity="info">La página no está disponible.</Alert>}
+                  />
+                </Routes>
+              </Suspense>
+            </Workspace>
+          </CartProvider>
+        )}
+      </IonContent>
     </>
   );
 }

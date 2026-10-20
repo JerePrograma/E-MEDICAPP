@@ -3,6 +3,8 @@ package ar.emedicapp.auth;
 import static org.assertj.core.api.Assertions.*;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -20,11 +22,12 @@ import java.time.Duration;
 import java.util.UUID;
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT, properties = {
-        "emedicapp.mode=DEMO", "emedicapp.security.allowed-origins=https://jereprograma.github.io"})
+        "emedicapp.mode=DEMO", "emedicapp.security.allowed-origins=https://jereprograma.github.io,https://localhost"})
 @EnabledIfEnvironmentVariable(named = "EMEDICAPP_TEST_DB_URL", matches = ".+")
 class CrossOriginSecurityIntegrationTest {
     private static final String ORIGIN = "https://jereprograma.github.io";
     private static final String SESSION = CrossOriginAccess.SESSION_HEADER;
+    private String origin = ORIGIN;
     // Deliberately has no CookieHandler: third-party cookies are unavailable on GitHub Pages.
     private final HttpClient browser = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(10)).build();
     @LocalServerPort int port;
@@ -38,14 +41,16 @@ class CrossOriginSecurityIntegrationTest {
         properties.add("spring.datasource.password", () -> System.getenv("EMEDICAPP_TEST_DB_PASSWORD"));
     }
 
-    @Test
-    void pagesCanAuthenticateMutateAndLogoutWithoutAnyCookies() throws Exception {
+    @ParameterizedTest
+    @ValueSource(strings = {ORIGIN, "https://localhost"})
+    void pagesAndAndroidCanAuthenticateMutateAndLogoutWithoutAnyCookies(String origin) throws Exception {
+        this.origin = origin;
         var preflight = send(request("/api/auth/login", null)
                 .header("Access-Control-Request-Method", "POST")
                 .header("Access-Control-Request-Headers", "x-auth-session,x-csrf-token,content-type")
                 .method("OPTIONS", HttpRequest.BodyPublishers.noBody()));
         assertThat(preflight.statusCode()).isEqualTo(200);
-        assertThat(preflight.headers().firstValue("Access-Control-Allow-Origin")).contains(ORIGIN);
+        assertThat(preflight.headers().firstValue("Access-Control-Allow-Origin")).contains(origin);
         assertThat(preflight.headers().firstValue("Access-Control-Allow-Credentials")).isEmpty();
 
         var csrf = send(request("/api/auth/csrf", null).GET());
@@ -99,7 +104,7 @@ class CrossOriginSecurityIntegrationTest {
 
     private HttpRequest.Builder request(String path, String session) {
         var request = HttpRequest.newBuilder(URI.create("http://127.0.0.1:" + port + path))
-                .timeout(Duration.ofSeconds(20)).header("Origin", ORIGIN);
+                .timeout(Duration.ofSeconds(20)).header("Origin", origin);
         if (session != null) request.header(SESSION, session);
         return request;
     }

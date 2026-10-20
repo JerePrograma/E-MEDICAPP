@@ -1,3 +1,5 @@
+import { Capacitor } from '@capacitor/core';
+
 const BACKEND_KEY = 'emedicapp.backend-url';
 const SESSION_PREFIX = 'emedicapp.session:';
 const memory = new Map<string, string>();
@@ -67,7 +69,10 @@ function frontendHostname(): string {
 
 export function canConfigureBackend(): boolean {
   return (
-    !configuredBackend() && ['localhost', '127.0.0.1', '[::1]', '::1'].includes(frontendHostname())
+    !Capacitor.isNativePlatform() &&
+    import.meta.env.VITE_NATIVE_BUILD !== 'true' &&
+    !configuredBackend() &&
+    ['localhost', '127.0.0.1', '[::1]', '::1'].includes(frontendHostname())
   );
 }
 
@@ -99,7 +104,11 @@ export function initializeBackendConnection(): string {
       } catch {
         return 'La conexión de la aplicación no está disponible. Contactá al administrador.';
       }
-    } else if (frontendHostname().endsWith('.github.io')) {
+    } else if (
+      frontendHostname().endsWith('.github.io') ||
+      Capacitor.isNativePlatform() ||
+      import.meta.env.VITE_NATIVE_BUILD === 'true'
+    ) {
       return 'La demostración no está disponible en este momento. Intentá nuevamente más tarde.';
     }
     return '';
@@ -123,7 +132,12 @@ export function initializeBackendConnection(): string {
 }
 
 export function needsBackendConnection(): boolean {
-  return !backendUrl() && frontendHostname().endsWith('.github.io');
+  return (
+    !backendUrl() &&
+    (frontendHostname().endsWith('.github.io') ||
+      Capacitor.isNativePlatform() ||
+      import.meta.env.VITE_NATIVE_BUILD === 'true')
+  );
 }
 
 export function apiUrl(path: string): string {

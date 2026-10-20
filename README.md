@@ -43,6 +43,11 @@ Un período mensual se calcula por mes calendario en el horario de Mendoza, cons
 
 ## Stack y estructura
 
+La aplicación incorpora **Ionic React 9 y Capacitor 8** como base compartida para
+la web y Android. El proyecto nativo está en `frontend/android`; el flujo Android
+de GitHub genera un APK de prueba y un AAB sin firma. Los pasos de compilación,
+conexión y preparación para Play Store están en la [guía Ionic y Android](docs/ionic-android.txt).
+
 | Parte | Elección |
 |---|---|
 | Backend | Java 25 LTS, Spring Boot 4.1.1, Spring MVC, Spring Security, JdbcClient |

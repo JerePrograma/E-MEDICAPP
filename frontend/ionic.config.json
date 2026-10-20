@@ -1,0 +1,5 @@
+{
+  "name": "E-MEDICAPP",
+  "type": "react-vite",
+  "integrations": { "capacitor": {} }
+}

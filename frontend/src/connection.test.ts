@@ -13,6 +13,7 @@ function storage() {
 
 beforeEach(async () => {
   vi.stubEnv('VITE_API_BASE_URL', '');
+  vi.stubEnv('VITE_NATIVE_BUILD', '');
   vi.stubGlobal('window', {
     location: {
       origin: 'http://localhost:4174',
@@ -36,6 +37,16 @@ afterEach(() => {
 });
 
 describe('Conexión entre Pages y el servidor de la PC', () => {
+  it('una compilación Android sin servidor fijo queda cerrada y no acepta un servidor guardado', () => {
+    vi.stubEnv('VITE_NATIVE_BUILD', 'true');
+    window.localStorage.setItem('emedicapp.backend-url', 'https://ajeno.example');
+    window.location.search = '?api=https%3A%2F%2Fajeno.example';
+    expect(connection.canConfigureBackend()).toBe(false);
+    expect(connection.initializeBackendConnection()).not.toBe('');
+    expect(connection.backendUrl()).toBe('');
+    expect(connection.needsBackendConnection()).toBe(true);
+    expect(() => connection.saveBackendUrl('https://ajeno.example')).toThrow();
+  });
   it('acepta HTTPS y loopback; rechaza URLs con credenciales, rutas o protocolos inseguros', () => {
     expect(connection.normalizeBackendUrl(' https://demo.example.com/ ')).toBe(
       'https://demo.example.com',

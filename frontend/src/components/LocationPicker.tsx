@@ -4,6 +4,7 @@ import L from 'leaflet';
 import type { Branch } from '../catalog/types';
 import { apiFetch, apiUrl } from '../api';
 import { crossOriginBackend } from '../connection';
+import { currentLocation } from '../native/location';
 import 'leaflet/dist/leaflet.css';
 import './LocationPicker.css';
 
@@ -244,20 +245,14 @@ export function LocationPicker({
       {!readOnly && (
         <Button
           variant="outlined"
-          onClick={() => {
-            if (!navigator.geolocation) {
-              setNotice('No se pudo consultar la ubicación. Marcá el punto en el mapa.');
-              return;
-            }
+          onClick={async () => {
             setNotice('Buscando ubicación…');
-            navigator.geolocation.getCurrentPosition(
-              (p) => {
-                onChange({ lat: p.coords.latitude, lon: p.coords.longitude });
-                setNotice('Ubicación marcada. Confirmá que el punto sea correcto.');
-              },
-              () => setNotice('No se pudo consultar la ubicación. Marcá el punto en el mapa.'),
-              { timeout: 10000, maximumAge: 60000 },
-            );
+            try {
+              onChange(await currentLocation());
+              setNotice('Ubicación marcada. Confirmá que el punto sea correcto.');
+            } catch {
+              setNotice('No se pudo consultar la ubicación. Marcá el punto en el mapa.');
+            }
           }}
         >
           Usar mi ubicación actual

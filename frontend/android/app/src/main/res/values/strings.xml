@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">E-MEDICAPP</string>
+    <string name="title_activity_main">E-MEDICAPP</string>
+    <string name="package_name">ar.emedicapp.app</string>
+    <string name="custom_url_scheme">ar.emedicapp.app</string>
+</resources>

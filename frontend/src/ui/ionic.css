@@ -1,0 +1,32 @@
+:root {
+  --ion-font-family: 'Segoe UI', system-ui, sans-serif;
+  --ion-background-color: #f5f6f3;
+  --ion-text-color: #24332e;
+  --ion-color-primary: #176b5b;
+  --ion-color-primary-rgb: 23, 107, 91;
+  --ion-color-primary-contrast: #ffffff;
+  --ion-color-primary-shade: #145e50;
+  --ion-color-primary-tint: #2e7a6b;
+}
+
+ion-app {
+  min-width: 320px;
+}
+
+.application-toolbar {
+  --background: #ffffff;
+  --color: #24332e;
+  --border-color: #e1e7e1;
+  --border-width: 0 0 1px;
+  --border-style: solid;
+}
+
+ion-content::part(scroll) {
+  padding-bottom: var(--ion-safe-area-bottom, 0px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  ion-content::part(scroll) {
+    scroll-behavior: auto;
+  }
+}

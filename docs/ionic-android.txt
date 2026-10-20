@@ -1,0 +1,89 @@
+IONIC REACT Y ANDROID CON CAPACITOR
+Implementación del 20 de octubre de 2026.
+
+ALCANCE
+
+La misma aplicación React se ejecuta en web y se empaqueta para Android.
+Ionic React 9 proporciona IonApp, IonPage, encabezado, barra y contenido con
+desplazamiento propio. Los formularios MUI y las reglas de negocio existentes
+se conservan. React Router 7 mantiene las rutas con # para GitHub Pages y para
+los archivos incluidos en Android. No se incorpora @ionic/react-router 9,
+cuyas dependencias requieren React Router 6; no se usan sus transiciones ni
+su pila de navegación en esta etapa.
+
+Capacitor 8 genera el proyecto nativo en frontend/android. Identificador inicial:
+ar.emedicapp.app. Nombre visible: E-MEDICAPP. Android mínimo API 24; compilación
+y destino API 36. Confirmar el identificador definitivo antes de publicar la
+primera versión en Play Store. Android se compila con JDK 21; el backend Java
+continúa usando su propio JDK 25.
+
+Se incluye manejo del botón Atrás de Android: cierra primero un diálogo abierto,
+vuelve a la pantalla anterior o al inicio y sale desde el inicio. La ubicación
+usa el permiso y GPS nativos cuando se solicita desde el botón; denegar el
+permiso conserva la alternativa del mapa manual. Los PDF/PNG/JPG privados se
+consultan con la sesión de la cuenta y se abren con el visor del dispositivo,
+usando archivos temporales de caché reemplazables. Se limpian al iniciar y al
+cerrar sesión. Se necesita una aplicación compatible para abrir esos archivos.
+La selección de fotos y adjuntos conserva el selector de archivos del sistema.
+
+COMPILAR ANDROID
+
+Requisitos locales: Node.js 24, Android Studio 2025.2.1 o posterior con SDK 36
+y JDK 21. El JDK del backend no reemplaza el JDK del proyecto Android.
+
+Desde frontend, en PowerShell:
+
+  npm.cmd ci
+  $env:VITE_API_BASE_URL='https://servidor-propio.example.com'
+  npm.cmd run android:sync
+  npm.cmd run android:open
+
+La compilación exige una dirección HTTPS accesible desde el teléfono. No acepta
+credenciales, rutas, HTTP ni localhost como backend. Se compila con base / en
+dist-android, sin alterar dist de la web. Capacitor incorpora esos archivos al
+paquete; no se configura server.url para cargar una web remota.
+
+El APK no permite editar el servidor desde la interfaz ni desde enlaces o
+preferencias guardadas. Su servidor queda fijado al compilar. El backend debe
+incluir https://localhost en EMEDICAPP_ALLOWED_ORIGINS, además del origen web
+correspondiente. Start-DemoPages.ps1 prepara ambos orígenes exactos. No se usa
+un permiso CORS global. La autenticación sigue usando X-Auth-Session y CSRF,
+sin depender de cookies de terceros. La sesión debe renovarse tras reiniciar
+la aplicación o cuando venza.
+
+Los archivos generados, SDK local, cachés y claves de firma no se versionan.
+No guardar credenciales ni claves privadas en variables VITE_*.
+
+COMPILACIÓN EN GITHUB
+
+El flujo Android Ionic y Capacitor instala Node.js 24 y Java 21, ejecuta las
+pruebas, compila con VITE_API_BASE_URL del repositorio, sincroniza Capacitor
+y genera un APK debug y un AAB release sin firma. Se descargan como artefacto
+emedicapp-android-<commit> desde la ejecución de GitHub Actions; se conservan
+14 días. No se envían a Google Play. El APK debug sirve para pruebas; el AAB
+sin firma requiere la firma de publicación antes de distribuirse.
+
+PARA LA PUBLICACIÓN FUTURA
+
+Se necesita un servidor HTTPS estable: el túnel temporal de la demo puede
+cambiar y dejar inaccesible un APK compilado con la dirección anterior.
+Faltan la cuenta y ficha de Google Play, identidad visual definitiva, firma
+privada de publicación, versionado de entrega y validación en dispositivos
+reales de ingreso, cámara/archivos, ubicación, documentos y flujos por rol.
+La compilación y las pruebas web no equivalen a esa validación en un teléfono.
+Los usuarios necesitan conexión; no se agrega operación sin Internet.
+
+FUENTES OFICIALES
+
+Integración Ionic en React existente:
+https://ionicframework.com/docs/react/add-to-existing
+React Router de Ionic:
+https://ionicframework.com/docs/react/navigation
+Capacitor y requisitos:
+https://capacitorjs.com/docs/getting-started/environment-setup
+Configuración y publicación Android:
+https://capacitorjs.com/docs/config
+https://capacitorjs.com/docs/android/deploying-to-google-play
+Ubicación y visor de documentos:
+https://capacitorjs.com/docs/apis/geolocation
+https://capacitorjs.com/docs/apis/file-viewer

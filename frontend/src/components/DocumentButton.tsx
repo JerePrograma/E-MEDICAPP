@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Alert, Button, type ButtonProps } from '@mui/material';
 import { apiFetch, apiUrl } from '../api';
+import { Capacitor } from '@capacitor/core';
 
 // A plain link cannot send the session header used from GitHub Pages.
 export function DocumentButton({
@@ -23,7 +24,8 @@ export function DocumentButton({
         disabled={props.disabled || busy}
         onClick={async (event) => {
           event.preventDefault();
-          const tab = window.open('about:blank', '_blank');
+          const native = Capacitor.isNativePlatform();
+          const tab = native ? null : window.open('about:blank', '_blank');
           if (tab) tab.opener = null;
           setBusy(true);
           setError('');
@@ -39,7 +41,13 @@ export function DocumentButton({
                   'No se pudo abrir el documento. Verificá que tu sesión siga activa.',
               );
             }
-            const blobUrl = URL.createObjectURL(await response.blob());
+            const blob = await response.blob();
+            if (native) {
+              const { openNativeDocument } = await import('../native/documents');
+              await openNativeDocument(blob);
+              return;
+            }
+            const blobUrl = URL.createObjectURL(blob);
             if (tab) tab.location.replace(blobUrl);
             else {
               const link = document.createElement('a');

@@ -9,15 +9,25 @@
   "scripts": {
     "dev": "vite --host 127.0.0.1",
     "build": "tsc -b && vite build",
+    "build:android": "tsc -b && node scripts/build-android.mjs",
+    "android:sync": "npm run build:android && cap sync android",
+    "android:open": "cap open android",
     "test": "vitest run",
     "test:e2e": "playwright test",
     "format": "prettier --write src tests *.ts tsconfig.json .prettierrc.json",
     "format:check": "prettier --check src tests *.ts tsconfig.json .prettierrc.json"
   },
   "dependencies": {
+    "@capacitor/android": "8.5.3",
+    "@capacitor/app": "8.1.2",
+    "@capacitor/core": "8.5.3",
+    "@capacitor/file-viewer": "2.0.4",
+    "@capacitor/filesystem": "8.1.5",
+    "@capacitor/geolocation": "8.2.4",
     "@emotion/react": "11.14.0",
     "@emotion/styled": "11.14.1",
     "@hookform/resolvers": "5.9.1",
+    "@ionic/react": "9.0.8",
     "@mui/material": "9.4.0",
     "@tanstack/react-query": "5.104.1",
     "leaflet": "1.9.4",
@@ -28,6 +38,7 @@
     "zod": "4.6.5"
   },
   "devDependencies": {
+    "@capacitor/cli": "8.5.3",
     "@playwright/test": "1.64.0",
     "@types/leaflet": "1.9.22",
     "@types/react": "19.3.0",
