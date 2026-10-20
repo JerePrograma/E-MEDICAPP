@@ -1,0 +1,74 @@
+VERIFICACIÓN DE VENTAS Y PROMOCIONES — 20 DE OCTUBRE DE 2026
+
+Este registro corresponde a la primera entrega del día. La ampliación de
+catálogo y carrito, su paquete final y la demo actualizada se documentan en
+docs/verificacion-catalogo-carrito-20261020.txt.
+
+RESULTADO
+
+Se incorporaron reportes de ventas y cobros por día, semana, mes y año, con
+filtro por sucursal y separación de monedas. Se incorporaron promociones
+administradas por las farmacias, con vigencia, destacado, sucursales exactas,
+direcciones, disponibilidad de retiro y mapa.
+
+La guía funcional está en docs/ventas-y-promociones.txt.
+
+PRUEBAS
+
+- Backend: 195 pruebas, cero fallos, cero errores y ninguna omitida, con
+  PostgreSQL real en una base QA creada para esta ejecución. Registro:
+  .runtime/commerce-qa-final.log.
+- Frontend: 22 pruebas aprobadas; compilación TypeScript y Vite correcta.
+- Cuatro recorridos de navegador aprobados, ejecutados selectivamente:
+  1. Reportes diarios, semanales, mensuales y anuales; sucursales autorizadas,
+     períodos sin movimientos y ausencia de acceso a sucursales ajenas.
+  2. Compra de venta libre y cobro reales del escenario sintético: comprobante
+     pendiente excluido, pago verificado incluido por el importe exacto,
+     resúmenes, movimientos y detalle diario/anual en escritorio y celular.
+  3. Promoción para ambas sucursales Nivalis: persistencia, destacado, datos de
+     sucursal, dirección, mapa, foco individual, regreso a todas, teclado y
+     pausa mientras el comprador mantiene abierto el detalle.
+  4. Regresión del logo de cadena y del mapa de Nueva compra.
+
+Registros de los recorridos:
+.runtime/commerce-browser.log (los dos recorridos de reportes aprobados).
+.runtime/commerce-promotions-release.log (promoción completa aprobada).
+.runtime/commerce-map-regression.log (regresión de mapas aprobada).
+
+El recorrido móvil comprueba imágenes del mapa efectivamente cargadas,
+marcadores dentro de sus límites y popup completo y legible. Las capturas
+están en .runtime/commerce-qa/, incluidos promocion-popup-mobile.png y
+ventas-con-cobro-mobile.png.
+
+CORRECCIONES DURANTE LA VERIFICACIÓN
+
+- Se corrigió la consulta de permisos de sucursal de los reportes.
+- Se evitó que el foco de Leaflet desplazara el diálogo antes de completar un
+  clic en un marcador. Se conservaron el foco y la apertura mediante Enter.
+- Los mapas de promociones no animan zoom: se evitó el temporizador de zoom
+  que seguía activo después de cambiar de sucursal o cerrar el detalle.
+- El mapa recalcula su tamaño y encuadre al cambiar el ancho del diálogo.
+  El ancho del popup se adapta al mapa móvil.
+- El detalle abierto se actualiza con la colección; una oferta pausada o
+  retirada deja de mostrarse también dentro del diálogo.
+- QA limita sus conexiones y empaqueta con un nombre propio para preservar
+  el ejecutable de una demo abierta. Los accesos indican el puerto al iniciar
+  Java, evitando que un SERVER_PORT heredado de otro proyecto lo cambie.
+
+PAQUETE Y DEMO
+
+Paquete final: backend/target/emedicapp-commerce-20261020-release.jar.
+Empaquetado correcto: .runtime/commerce-package-release.log.
+La demo local se actualizó con ese paquete; su ejecutable habitual coincide
+con el archivo verificado. Mantiene el puerto 8082, el túnel y el enlace
+guardado en .runtime/demo-pages.json. Las migraciones V15 y V16 son aditivas.
+
+Se conservó un respaldo previo de la base y sus documentos en:
+.runtime/backups/emedicapp-Demo-20261020-114304-084/.
+
+Las compras, cobros y promociones de las pruebas se crearon exclusivamente
+en las bases QA del recorrido; no se cargaron como operaciones de la demo.
+
+La interfaz nueva está disponible desde el servidor local. El frontend de
+GitHub Pages continúa en su versión anterior hasta publicar la actualización
+del repositorio.

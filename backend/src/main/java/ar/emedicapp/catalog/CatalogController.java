@@ -35,6 +35,11 @@ public class CatalogController {
         return catalog.publicProducts();
     }
 
+    @GetMapping("/catalog/products/{id}/availability")
+    public ProductAvailability productAvailability(@PathVariable UUID id) {
+        return catalog.productAvailability(id);
+    }
+
     @GetMapping("/catalog/branches")
     public List<Branch> branches() {
         return catalog.publicBranches();

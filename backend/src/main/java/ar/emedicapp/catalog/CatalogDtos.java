@@ -34,6 +34,16 @@ public final class CatalogDtos {
             @Min(0) long version,
             Map<String, Object> metadata) {}
 
+    public record ProductAvailability(UUID productId, List<ProductOffer> offers) {}
+
+    public record ProductOffer(
+            Branch branch,
+            String chainName,
+            String price,
+            String currency,
+            int availableQuantity,
+            Instant observedAt) {}
+
     public record Chain(UUID id, String name, boolean active, long version, String logoUrl) {}
 
     public record ChainInput(

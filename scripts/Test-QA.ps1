@@ -44,8 +44,15 @@ try {
   $env:EMEDICAPP_SMTP_HOST=$null
   Push-Location $projectRoot
   try {
-    $mavenArguments=@('-B','-ntp','-f','backend\pom.xml')
-    if ($Package) { $mavenArguments+=@('-Pfrontend',('-Dnpm.executable='+(Join-Path $NodeHome 'npm.cmd')),'package') } else { $mavenArguments+='test' }
+    # Each cached test application owns a pool. Keep the complete suite below
+    # the local cluster's connection limit without changing the running app.
+    $mavenArguments=@('-B','-ntp','-f','backend\pom.xml','-Dspring.datasource.hikari.maximum-pool-size=4','-Dspring.datasource.hikari.minimum-idle=0')
+    if ($Package) {
+      # Packaging QA must never replace a JAR currently used by the presentation.
+      $qaArtifactName='emedicapp-qa-'+$token
+      $state.jar=Join-Path $projectRoot ('backend\target\'+$qaArtifactName+'.jar')
+      $mavenArguments+=@('-Pfrontend',('-Dnpm.executable='+(Join-Path $NodeHome 'npm.cmd')),('-Demedicapp.artifact-name='+$qaArtifactName),'package')
+    } else { $mavenArguments+='test' }
     $previousErrorAction=$ErrorActionPreference
     try {
       $ErrorActionPreference='Continue'

@@ -1,0 +1,144 @@
+VENTAS, PROMOCIONES, CATÁLOGO Y CARRITO
+
+Alcance incorporado el 20 de octubre de 2026.
+
+VENTAS Y COBROS
+
+Desde el menú Ventas y cobros, administradores de plataforma, administradores de
+farmacia, operadores y farmacéuticos consultan las sucursales de su alcance.
+Elegir período Diario, Semanal, Mensual o Anual, una fecha de referencia y una
+sucursal o todas las autorizadas. La semana comienza el lunes. Los límites son
+calendarios en el horario de Mendoza.
+
+Cada movimiento se atribuye al momento de su verificación. Se informa cobrado,
+reintegrado, neto, pedidos distintos con cobro y cantidad de movimientos. Los
+importes conservan su moneda; no se convierten ni se suman monedas distintas.
+El detalle se agrupa por hora, día o mes según el período y también por sucursal.
+Los últimos 500 movimientos se pueden consultar por páginas; el resumen incluye
+todos los movimientos del período aunque el listado alcance ese límite.
+
+Un comprobante informado por un comprador no cuenta como cobro verificado. Un
+reintegro solicitado tampoco se considera devuelto hasta verificarlo. Una
+cancelación no borra el cobro: la devolución se informa como movimiento separado
+en la fecha en que se comprobó. Un pago parcial aparece por el dinero realmente
+comprobado; Pedidos con cobro no equivale a pedidos completamente pagados.
+
+Estos reportes comprenden operaciones registradas en E-MEDICAPP. No incluyen
+ventas de mostrador o de otros sistemas. El neto de cobros menos reintegros no es
+la utilidad de la farmacia ni sustituye su sistema contable o fiscal.
+
+CATÁLOGO PARA EL CLIENTE
+
+Las cuentas de comprador abren Catálogo desde el menú. La búsqueda considera
+nombre, presentación y código. El inicio muestra seis accesos: Promociones,
+Medicamentos, Salud Sexual, Cuidado de Piel, Belleza y Estética, y Vitaminas y
+Suplementos. Más categorías amplía la grilla a doce y agrega Primeros auxilios,
+Bebés, Cuidado personal, Insumos médicos, Alimentos y Bebidas, y Limpieza y Hogar.
+Menos categorías vuelve a los seis accesos iniciales.
+
+Medicamentos reúne los productos con receta y sin receta y permite aplicar esos
+dos filtros por separado. Promociones abre las ofertas vigentes; no constituye
+una categoría asignable a un producto. La administración de plataforma asigna
+la categoría comercial desde Productos. Una categoría sin productos publicados
+muestra un estado vacío; no se crean ejemplos para completarla.
+
+Las doce categorías que se guardan por producto son: Medicamentos con receta,
+Medicamentos sin receta, Salud Sexual, Cuidado de Piel, Belleza y Estética,
+Vitaminas y Suplementos, Primeros auxilios, Bebés, Cuidado personal, Insumos
+médicos, Alimentos y Bebidas, y Limpieza y Hogar. La clasificación comercial no
+cambia el requisito de receta. Un producto que requiere receta conserva esa
+categoría y su identificación; cambiar la categoría no evita los controles
+profesionales del flujo de compra. Para registros anteriores sin categoría, se
+utiliza el requisito de receta existente como valor de respaldo.
+
+DETALLE Y DISPONIBILIDAD DEL PRODUCTO
+
+Abrir un producto muestra presentación, requisitos, cantidad para agregar y
+Disponibilidad por sucursal. La información proviene del stock registrado en el
+servidor: cadena o farmacia, nombre de la sucursal, dirección, precio, moneda,
+unidades disponibles y fecha de actualización en hora de Mendoza. Las unidades
+disponibles descuentan las reservas existentes. Actualizar vuelve a consultar
+la información; la selección en el catálogo todavía no reserva unidades.
+
+Se muestran sólo productos activos y sucursales públicas elegibles, con stock
+activo y saldo disponible, en la moneda operativa vigente. Para productos que
+requieren frío o capacidades especiales, la sucursal también debe tener la
+capacidad y su acreditación documentada. La consulta pública no expone lotes,
+documentos de acreditación, reservas de terceros ni instrucciones privadas de
+cobro, y no habilita acceso al panel de stock de una farmacia.
+
+Ver sucursal en el mapa ubica esa sucursal; Mostrar todas las sucursales con
+disponibilidad recupera el mapa completo del producto. Retirar en esta sucursal
+agrega la cantidad elegida al carrito y registra una preferencia de retiro
+cuando esa modalidad está habilitada. Es una preferencia para la solicitud: la
+farmacia, el stock físico y el punto final de retiro se confirman en la propuesta
+que el comprador revisa y acepta. El precio informado puede variar por sucursal
+y no constituye todavía un presupuesto aceptado ni una promesa de cobertura.
+
+CARRITO Y CONTINUACIÓN DE LA COMPRA
+
+1. Agregar productos desde el catálogo o desde su detalle.
+2. Abrir Mi carrito para revisar, aumentar o reducir cantidades, quitar productos
+   o vaciar la selección. Se admiten hasta 30 presentaciones diferentes y 100
+   unidades de cada una.
+3. Revisar la sucursal preferida, si se eligió retiro. Quitar preferencia permite
+   continuar sin esa elección.
+4. Elegir Continuar con la compra. Se comprueban nuevamente los productos y la
+   sucursal preferida antes de abrir el formulario habitual.
+5. Completar beneficiario, modalidad, ubicación, receta, cobertura y autorización
+   cuando correspondan. Enviar la solicitud para revisión de la farmacia.
+
+El carrito se guarda localmente en el navegador, separado por cuenta y dirección
+del servidor. Se recupera al recargar la página o volver a ingresar a esa misma
+cuenta y servidor en ese navegador; no se sincroniza entre dispositivos. Sólo
+conserva identificadores de productos, cantidades y sucursal preferida. No guarda
+DNI, nombres del beneficiario, credenciales de cobertura, recetas ni comprobantes
+en ese almacenamiento. Si el navegador impide guardar, se informa que la
+selección sólo permanece mientras la pantalla siga abierta.
+
+Un error de conexión o envío conserva la selección. Si un producto deja de estar
+publicado, debe quitarse antes de continuar; si la sucursal deja de permitir
+retiro, debe revisarse la preferencia. Después de crear correctamente la
+solicitud se descuentan del carrito las cantidades enviadas, conservando otras
+cantidades que se hayan agregado mientras tanto.
+
+Agregar al carrito no reserva stock, fija un precio ni realiza un cobro. La
+solicitud sigue los controles existentes: revisión de la farmacia, documentación
+y receta cuando corresponde, presupuesto y aceptación expresa. Al emitirse el
+presupuesto se reservan stock, lote y saldo de receta antes de la aceptación;
+el vencimiento libera esas reservas. El comprador acepta la propuesta antes de
+pagar directamente a la farmacia, que verifica el cobro antes de preparar.
+
+PROMOCIONES PARA LA FARMACIA
+
+1. Abrir Promociones desde el menú de farmacia y elegir Nueva promoción.
+2. Cargar título, beneficio y condiciones: productos, precio o descuento, medios
+   de pago, restricciones y disponibilidad.
+3. Indicar inicio y finalización en hora de Mendoza.
+4. Marcar las sucursales participantes. Deben corresponder a una misma cadena y
+   estar dentro de los permisos de quien publica. Una farmacia independiente
+   publica para su única sucursal.
+5. Marcar Mostrar como destacada para que aparezca también en Mis compras.
+6. Dejar Publicada marcada y registrar el motivo. Guardar promoción.
+7. Para corregir o pausar, elegir Modificar promoción. Desmarcar Publicada la
+   retira de la vista del cliente sin borrar el registro.
+
+Las promociones programadas se muestran al comenzar su vigencia y dejan de
+mostrarse al finalizar. Las sucursales que ya no son elegibles se omiten de la
+vista del cliente. La oferta no se extiende a otras sucursales de la cadena.
+Se conserva versión, responsable y motivo de cada creación o modificación.
+Para editar una promoción de varias sucursales se necesita permiso sobre todas.
+
+PROMOCIONES PARA EL CLIENTE
+
+Las ofertas destacadas se muestran en Mis compras. El menú Promociones y el
+acceso Promociones del catálogo permiten consultar todas las vigentes. Cada
+tarjeta identifica cadena y sucursales con dirección. Ver promoción y mapa abre
+condiciones, fechas y ubicación de las
+sucursales participantes. Ubicar [sucursal] en el mapa centra esa sucursal;
+Mostrar todas las sucursales participantes vuelve al mapa completo de la oferta.
+
+El detalle informa si cada sucursal permite retiro en la app. La promoción no
+crea un pedido ni modifica automáticamente el precio: para comprar se utiliza
+Nueva compra y la farmacia confirma el importe y las condiciones en el
+presupuesto que acepta el comprador.

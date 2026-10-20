@@ -747,11 +747,33 @@ function ProductForm({
   const [minimum, setMinimum] = useState(String(value?.metadata.minTemperatureC ?? ''));
   const [maximum, setMaximum] = useState(String(value?.metadata.maxTemperatureC ?? ''));
   const patch = (part: Partial<ProductInput>) => set((previous) => ({ ...previous, ...part }));
+  const categories = [
+    { id: 'PRESCRIPTION', name: 'Medicamentos con receta' },
+    { id: 'NON_PRESCRIPTION', name: 'Medicamentos sin receta' },
+    { id: 'SEXUAL_HEALTH', name: 'Salud Sexual' },
+    { id: 'SKIN_CARE', name: 'Cuidado de Piel' },
+    { id: 'BEAUTY', name: 'Belleza y Estética' },
+    { id: 'VITAMINS_SUPPLEMENTS', name: 'Vitaminas y Suplementos' },
+    { id: 'FIRST_AID', name: 'Primeros auxilios' },
+    { id: 'BABY', name: 'Bebés' },
+    { id: 'PERSONAL_CARE', name: 'Cuidado personal' },
+    { id: 'MEDICAL_SUPPLIES', name: 'Insumos médicos' },
+    { id: 'FOOD_DRINK', name: 'Alimentos y Bebidas' },
+    { id: 'HOUSEHOLD', name: 'Limpieza y Hogar' },
+  ];
+  const category = draft.requiresPrescription
+    ? 'PRESCRIPTION'
+    : categories.some(
+          (option) => option.id !== 'PRESCRIPTION' && option.id === draft.metadata.catalogCategory,
+        )
+      ? String(draft.metadata.catalogCategory)
+      : 'NON_PRESCRIPTION';
   return (
     <Form
       busy={busy}
       submit={() => {
         const metadata = { ...draft.metadata };
+        metadata.catalogCategory = category;
         if (minimum !== '') metadata.minTemperatureC = Number(minimum);
         else delete metadata.minTemperatureC;
         if (maximum !== '') metadata.maxTemperatureC = Number(maximum);
@@ -771,8 +793,46 @@ function ProductForm({
       <Toggle
         label="Requiere receta"
         value={draft.requiresPrescription}
-        set={(requiresPrescription) => patch({ requiresPrescription })}
+        set={(requiresPrescription) =>
+          patch({
+            requiresPrescription,
+            metadata: {
+              ...draft.metadata,
+              catalogCategory: requiresPrescription
+                ? 'PRESCRIPTION'
+                : category === 'PRESCRIPTION'
+                  ? 'NON_PRESCRIPTION'
+                  : category,
+            },
+          })
+        }
       />
+      <TextField
+        fullWidth
+        select
+        required
+        label="Categoría del catálogo"
+        value={category}
+        disabled={draft.requiresPrescription}
+        onChange={(event) =>
+          patch({ metadata: { ...draft.metadata, catalogCategory: event.target.value } })
+        }
+        helperText={
+          draft.requiresPrescription
+            ? 'Los medicamentos que requieren receta se muestran en Medicamentos con receta.'
+            : 'Elegí la sección donde se mostrará el producto. Para medicamentos con receta, activá Requiere receta.'
+        }
+      >
+        {categories.map((option) => (
+          <MenuItem
+            key={option.id}
+            value={option.id}
+            disabled={option.id === 'PRESCRIPTION' && !draft.requiresPrescription}
+          >
+            {option.name}
+          </MenuItem>
+        ))}
+      </TextField>
       <Toggle
         label="Requiere cadena de frío"
         value={draft.coldChain}

@@ -10,6 +10,13 @@ Aplicación Java + React con PostgreSQL. La autoridad funcional actual es `CASOS
 
 ## Qué se puede demostrar
 
+- **Ventas y cobros:** reportes diarios, semanales (lunes a domingo), mensuales y anuales, con selección de sucursal. Muestran cobros, reintegros verificados, neto y pedidos con cobro, separados por moneda, con detalle por fecha, sucursal y movimiento. Los períodos usan la hora de Mendoza y la fecha de verificación del movimiento. Incluyen únicamente operaciones de E-MEDICAPP; el neto no es una ganancia contable.
+- **Promociones:** las farmacias y sus administradores publican, programan, destacan o pausan ofertas con condiciones, vigencia y sucursales participantes de una misma cadena. El cliente encuentra destacadas en Mis compras y todas las vigentes en Promociones; el detalle muestra cadena, sucursal, dirección, disponibilidad de retiro y mapa. Las promociones informan las condiciones anunciadas; la farmacia confirma el importe en el presupuesto habitual.
+- **Catálogo:** las cuentas de comprador exploran seis accesos iniciales y amplían a doce con Más categorías. Medicamentos permite filtrar con receta o sin receta; las demás categorías incluyen salud sexual, piel, belleza, vitaminas, primeros auxilios, bebés, cuidado personal, insumos médicos, alimentos y hogar. Cada producto muestra las sucursales con disponibilidad registrada, su cadena, dirección, precio, moneda, unidades libres de reservas, fecha de actualización y mapa. Se conservan los requisitos de receta y las capacidades necesarias para productos especiales; la farmacia confirma stock físico e importe al cotizar.
+- **Carrito:** permite agregar productos, modificar cantidades, quitarlos y elegir una preferencia de retiro. La selección se conserva en el navegador por cuenta y servidor, con hasta 30 productos distintos y 100 unidades de cada presentación. Guarda identificadores, cantidades y sucursal preferida; la documentación y los datos del beneficiario se completan en el flujo habitual de compra. Agregar al carrito no reserva stock ni genera un cobro. La sucursal y el importe definitivos se confirman en la propuesta; las reservas se realizan al emitir el presupuesto.
+
+La [guía de ventas, promociones, catálogo y carrito](docs/ventas-y-promociones.txt) explica el alcance y los pasos de uso.
+
 - Un comprador adulto crea una solicitud para sí mismo o para un familiar adulto con autorización firmada. Elige entrega o retiro y confirma el punto geográfico correspondiente.
 - El alta solicita DNI y confirmación del correo, sin aprobación manual de la cuenta. La nota de representación se verifica manualmente por compra; se puede pedir más información, rechazarla, reemplazarla o revocarla.
 - El comprador elige compra particular o solicita cobertura con obra social/prepaga, plan opcional y número de afiliado o credencial privada. Esos datos corresponden al beneficiario; la farmacia comprueba la cobertura externamente antes de cotizar.
@@ -45,7 +52,7 @@ Un período mensual se calcula por mes calendario en el horario de Mendoza, cons
 | Ubicación | Leaflet 1.9.4 y mapa OpenStreetMap con atribución |
 | Verificación | JUnit, pruebas HTTP con PostgreSQL, Vitest y Playwright |
 
-Un único backend organizado por función: `auth`, `documents`, `catalog`, `purchase`, `payments`, `fulfillment`, `replacements`, `config`. Las transacciones quedan en los servicios; el servidor decide precios, reservas, estados y permisos. La web compartida se sirve desde GitHub Pages. El JAR también incluye la SPA para usarla como alternativa local en esta PC. Vite se utiliza durante desarrollo.
+Un único backend organizado por función: `auth`, `documents`, `catalog`, `purchase`, `payments`, `fulfillment`, `replacements`, `promotions`, `reports`, `config`. Las transacciones quedan en los servicios; el servidor decide precios, reservas, estados y permisos. La web compartida se sirve desde GitHub Pages. El JAR también incluye la SPA para usarla como alternativa local en esta PC. Vite se utiliza durante desarrollo.
 
 Se aplican transacciones, estados explícitos, control de versión, idempotencia y separación por rol y sucursal donde resuelven problemas reales. No se introduce un motor editable de flujos. Los parámetros cambian desde el panel; una etapa nueva se implementa en código y se verifica.
 
@@ -154,7 +161,7 @@ npm.cmd --prefix frontend test
 .\scripts\Test-Workflow.ps1
 ```
 
-`Test.ps1` delega en `Test-QA.ps1`, que crea una base `emedicapp_qa_*_demo` nueva y documentos propios en cada ejecución. No borra ni reutiliza datos de operación o de QA anterior. `-Package` también compila e incluye el frontend en el JAR. Las pruebas de integración requieren PostgreSQL real; una ejecución de Maven sin las variables de prueba informa esos casos como omitidos. La compilación sola no prueba la operación de la base.
+`Test.ps1` delega en `Test-QA.ps1`, que crea una base `emedicapp_qa_*_demo` nueva y documentos propios en cada ejecución. No borra ni reutiliza datos de operación o de QA anterior. `-Package` también compila e incluye el frontend en un JAR propio de QA; su ruta queda en el campo `jar` del estado `.runtime/qa-*.json` y se puede pasar a `Test-Workflow.ps1 -JarPath`. Así no reemplaza el ejecutable de una demo abierta. Las pruebas de integración requieren PostgreSQL real; una ejecución de Maven sin las variables de prueba informa esos casos como omitidos. La compilación sola no prueba la operación de la base.
 
 `Test-Workflow.ps1` crea una base QA nueva y un directorio de documentos propios en cada invocación. Inicia la aplicación en `http://127.0.0.1:8083`, espera disponibilidad, ejecuta los recorridos Playwright y detiene sólo el proceso que inició. La base y las evidencias QA se conservan para revisión; el estado queda en `.runtime/workflow-*.json` y la salida del navegador en `.runtime/verification-browser.log`.
 

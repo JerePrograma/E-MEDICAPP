@@ -2,11 +2,23 @@ import type { ReactNode } from 'react';
 import { Box, Button, Divider, Stack, Typography } from '@mui/material';
 import { NavLink } from 'react-router-dom';
 import type { Actor } from '../api';
+import { useCart } from '../cart/CartContext';
 
 export function Workspace({ actor, children }: { actor: Actor; children: ReactNode }) {
+  const cart = useCart();
   const has = (...roles: string[]) => actor.roles.some((role) => roles.includes(role));
   const pharmacy = has('PHARMACY', 'PHARMACIST');
   const links = [
+    ...(has('BUYER')
+      ? [
+          { to: '/app/catalog', text: 'Catálogo', glyph: '01' },
+          {
+            to: '/app/cart',
+            text: cart.totalUnits ? `Carrito (${cart.totalUnits})` : 'Carrito',
+            glyph: '02',
+          },
+        ]
+      : []),
     ...(has('BUYER', 'PHARMACY', 'PHARMACIST')
       ? [{ to: '/app', text: pharmacy ? 'Solicitudes y pedidos' : 'Mis compras', glyph: '01' }]
       : []),
@@ -16,6 +28,13 @@ export function Workspace({ actor, children }: { actor: Actor; children: ReactNo
       : []),
     ...(has('ADMIN', 'PHARMACY_ADMIN')
       ? [{ to: '/app/admin', text: 'Administración', glyph: '01' }]
+      : []),
+    ...(has('BUYER') ? [{ to: '/app/promotions', text: 'Promociones', glyph: '02' }] : []),
+    ...(has('ADMIN', 'PHARMACY_ADMIN', 'PHARMACY', 'PHARMACIST')
+      ? [
+          { to: '/app/reports', text: 'Ventas y cobros', glyph: '04' },
+          { to: '/app/pharmacy-promotions', text: 'Promociones', glyph: '05' },
+        ]
       : []),
   ];
   return (

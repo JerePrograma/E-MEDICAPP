@@ -4,7 +4,7 @@
   <parent><groupId>org.springframework.boot</groupId><artifactId>spring-boot-starter-parent</artifactId><version>4.1.1</version><relativePath/></parent>
   <groupId>ar.emedicapp</groupId><artifactId>emedicapp</artifactId><version>0.1.0-SNAPSHOT</version>
   <name>E-MEDICAPP</name><description>MVP de coordinación de compras en farmacias</description>
-  <properties><java.version>25</java.version><project.build.sourceEncoding>UTF-8</project.build.sourceEncoding><npm.executable>npm</npm.executable></properties>
+  <properties><java.version>25</java.version><project.build.sourceEncoding>UTF-8</project.build.sourceEncoding><npm.executable>npm</npm.executable><emedicapp.artifact-name>${project.artifactId}-${project.version}</emedicapp.artifact-name></properties>
   <dependencies>
     <dependency><groupId>org.springframework.boot</groupId><artifactId>spring-boot-starter-webmvc</artifactId></dependency>
     <dependency><groupId>org.springframework.boot</groupId><artifactId>spring-boot-starter-security</artifactId></dependency>
@@ -19,7 +19,7 @@
     <dependency><groupId>org.springframework.boot</groupId><artifactId>spring-boot-starter-test</artifactId><scope>test</scope></dependency>
     <dependency><groupId>org.springframework.security</groupId><artifactId>spring-security-test</artifactId><scope>test</scope></dependency>
   </dependencies>
-  <build><plugins><plugin><groupId>org.springframework.boot</groupId><artifactId>spring-boot-maven-plugin</artifactId></plugin></plugins></build>
+  <build><finalName>${emedicapp.artifact-name}</finalName><plugins><plugin><groupId>org.springframework.boot</groupId><artifactId>spring-boot-maven-plugin</artifactId></plugin></plugins></build>
   <profiles>
     <profile><id>frontend</id><build><plugins>
       <plugin><groupId>org.codehaus.mojo</groupId><artifactId>exec-maven-plugin</artifactId><version>3.6.2</version><executions>

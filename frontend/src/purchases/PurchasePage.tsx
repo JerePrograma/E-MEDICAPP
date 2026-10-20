@@ -1,5 +1,6 @@
 import { DocumentButton } from '../components/DocumentButton';
 import { useEffect, useState } from 'react';
+import { Link, useLocation } from 'react-router-dom';
 import {
   Alert,
   Box,
@@ -33,6 +34,7 @@ import { Action, OrderActionDialog } from './OrderActionDialog';
 import { Order, Purchase } from './types';
 import { SubstitutionDialog } from './SubstitutionDialog';
 import { ReplacementPanel } from './ReplacementPanel';
+import { PromotionsPage } from '../promotions/PromotionsPage';
 import { EmptyState, MetricRow, PageHeader, StatusChip } from '../components/PageElements';
 import { pharmacyNextTask, purchaseStep, purchaseSteps } from './presentation';
 
@@ -130,10 +132,13 @@ function fulfillmentLabel(order: Order, mode: string) {
 }
 
 export function PurchasePage({ actor }: { actor: Actor }) {
+  const location = useLocation();
   const cache = useQueryClient();
   const [creating, setCreating] = useState(false);
   const [substitutingOrder, setSubstitutingOrder] = useState<Order | null>(null);
-  const [selected, setSelected] = useState('');
+  const [selected, setSelected] = useState(
+    (location.state as { purchaseId?: string } | null)?.purchaseId ?? '',
+  );
   const [action, setAction] = useState<{ kind: Action; order: Order } | null>(null);
   const [notice, setNotice] = useState('');
   const [consent, setConsent] = useState(false);
@@ -368,12 +373,18 @@ export function PurchasePage({ actor }: { actor: Actor }) {
         }
         action={
           buyer ? (
-            <Button variant="contained" onClick={() => setCreating(true)}>
-              Nueva compra
-            </Button>
+            <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: 'wrap' }}>
+              <Button component={Link} to="/app/catalog" variant="outlined">
+                Explorar catálogo
+              </Button>
+              <Button variant="contained" onClick={() => setCreating(true)}>
+                Nueva compra
+              </Button>
+            </Stack>
           ) : undefined
         }
       />
+      {buyer && <PromotionsPage compact />}
       {purchases.data && (
         <MetricRow
           metrics={[

@@ -17,6 +17,15 @@ import { Workspace } from './components/Workspace';
 import { Actor, ApiError, api, Bootstrap, label } from './api';
 import { initializeBackendConnection, needsBackendConnection } from './connection';
 import { ConnectionPage } from './components/ConnectionPage';
+import { CartProvider } from './cart/CartContext';
+import { backendUrl } from './connection';
+const MarketplacePage = lazy(() =>
+  import('./catalog/MarketplacePage').then((m) => ({ default: m.MarketplacePage })),
+);
+const CartPage = lazy(() => import('./cart/CartPage').then((m) => ({ default: m.CartPage })));
+const CartCheckoutPage = lazy(() =>
+  import('./cart/CartCheckoutPage').then((m) => ({ default: m.CartCheckoutPage })),
+);
 const PurchasePage = lazy(() =>
   import('./purchases/PurchasePage').then((m) => ({ default: m.PurchasePage })),
 );
@@ -24,6 +33,17 @@ const AdminPage = lazy(() => import('./admin/AdminPage').then((m) => ({ default:
 const StockPage = lazy(() => import('./catalog/StockPage').then((m) => ({ default: m.StockPage })));
 const DeliveryPage = lazy(() =>
   import('./deliveries/DeliveryPage').then((m) => ({ default: m.DeliveryPage })),
+);
+const SalesReportPage = lazy(() =>
+  import('./reports/SalesReportPage').then((m) => ({ default: m.SalesReportPage })),
+);
+const PromotionsPage = lazy(() =>
+  import('./promotions/PromotionsPage').then((m) => ({ default: m.PromotionsPage })),
+);
+const PromotionManagementPage = lazy(() =>
+  import('./promotions/PromotionManagementPage').then((m) => ({
+    default: m.PromotionManagementPage,
+  })),
 );
 
 export function App() {
@@ -191,48 +211,116 @@ function ConnectedApp({ onConnectionRequested }: { onConnectionRequested: () => 
           }}
         />
       ) : (
-        <Workspace actor={actor}>
-          <Suspense fallback={<CircularProgress aria-label="Abriendo sección" />}>
-            <Routes>
-              <Route path="/" element={home} />
-              <Route path="/app" element={home} />
-              <Route
-                path="/app/stock"
-                element={
-                  has('PHARMACY', 'PHARMACIST') ? (
-                    <StockPage actor={actor} />
-                  ) : (
-                    <Alert severity="warning">Esta cuenta no tiene acceso a stock.</Alert>
-                  )
-                }
-              />
-              <Route
-                path="/app/deliveries"
-                element={
-                  has('DRIVER', 'PHARMACY', 'PHARMACIST') ? (
-                    <DeliveryPage actor={actor} />
-                  ) : (
-                    <Alert severity="warning">Esta cuenta no tiene entregas asignadas.</Alert>
-                  )
-                }
-              />
-              <Route
-                path="/app/admin"
-                element={
-                  has('ADMIN', 'PHARMACY_ADMIN') ? (
-                    <AdminPage actor={actor} />
-                  ) : (
-                    <Alert severity="warning">Esta cuenta no tiene acceso a administración.</Alert>
-                  )
-                }
-              />
-              <Route
-                path="*"
-                element={<Alert severity="info">La página no está disponible.</Alert>}
-              />
-            </Routes>
-          </Suspense>
-        </Workspace>
+        <CartProvider
+          key={`${actor.id}:${backendUrl() || window.location.origin}`}
+          actorId={actor.id}
+        >
+          <Workspace actor={actor}>
+            <Suspense fallback={<CircularProgress aria-label="Abriendo sección" />}>
+              <Routes>
+                <Route
+                  path="/app/catalog"
+                  element={
+                    has('BUYER') ? (
+                      <MarketplacePage actor={actor} />
+                    ) : (
+                      <Alert severity="warning">
+                        El catálogo de compras está disponible para cuentas de comprador.
+                      </Alert>
+                    )
+                  }
+                />
+                <Route
+                  path="/app/cart"
+                  element={
+                    has('BUYER') ? (
+                      <CartPage />
+                    ) : (
+                      <Alert severity="warning">
+                        El carrito está disponible para cuentas de comprador.
+                      </Alert>
+                    )
+                  }
+                />
+                <Route
+                  path="/app/checkout"
+                  element={
+                    has('BUYER') ? (
+                      <CartCheckoutPage actor={actor} />
+                    ) : (
+                      <Alert severity="warning">
+                        La compra está disponible para cuentas de comprador.
+                      </Alert>
+                    )
+                  }
+                />
+                <Route path="/app/promotions" element={<PromotionsPage />} />
+                <Route
+                  path="/app/pharmacy-promotions"
+                  element={
+                    has('ADMIN', 'PHARMACY_ADMIN', 'PHARMACY', 'PHARMACIST') ? (
+                      <PromotionManagementPage actor={actor} />
+                    ) : (
+                      <Alert severity="warning">
+                        Esta cuenta no tiene acceso a la gestión de promociones.
+                      </Alert>
+                    )
+                  }
+                />
+                <Route
+                  path="/app/reports"
+                  element={
+                    has('ADMIN', 'PHARMACY_ADMIN', 'PHARMACY', 'PHARMACIST') ? (
+                      <SalesReportPage actor={actor} />
+                    ) : (
+                      <Alert severity="warning">
+                        Esta cuenta no tiene acceso a reportes de ventas.
+                      </Alert>
+                    )
+                  }
+                />
+                <Route path="/" element={home} />
+                <Route path="/app" element={home} />
+                <Route
+                  path="/app/stock"
+                  element={
+                    has('PHARMACY', 'PHARMACIST') ? (
+                      <StockPage actor={actor} />
+                    ) : (
+                      <Alert severity="warning">Esta cuenta no tiene acceso a stock.</Alert>
+                    )
+                  }
+                />
+                <Route
+                  path="/app/deliveries"
+                  element={
+                    has('DRIVER', 'PHARMACY', 'PHARMACIST') ? (
+                      <DeliveryPage actor={actor} />
+                    ) : (
+                      <Alert severity="warning">Esta cuenta no tiene entregas asignadas.</Alert>
+                    )
+                  }
+                />
+                <Route
+                  path="/app/admin"
+                  element={
+                    has('ADMIN', 'PHARMACY_ADMIN') ? (
+                      <AdminPage actor={actor} />
+                    ) : (
+                      <Alert severity="warning">
+                        Esta cuenta no tiene acceso a administración.
+                      </Alert>
+                    )
+                  }
+                />
+                <Route
+                  path="*"
+                  element={<Alert severity="info">La página no está disponible.</Alert>}
+                />
+              </Routes>
+            </Suspense>
+          </Workspace>
+        </CartProvider>
       )}
     </>
   );

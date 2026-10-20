@@ -71,11 +71,19 @@ export function LocationPicker({
   onChange,
   delivery,
   branches = NO_BRANCHES,
+  readOnly = false,
+  readOnlyTitle = 'Sucursales participantes en el mapa',
+  readOnlyDescription = 'Tocá una sucursal para consultar su dirección. Sólo se muestran las sucursales de esta promoción.',
+  readOnlyMapLabel = 'Mapa de sucursales participantes',
 }: {
   value: Point | null;
   onChange: (point: Point) => void;
   delivery: boolean;
   branches?: Branch[];
+  readOnly?: boolean;
+  readOnlyTitle?: string;
+  readOnlyDescription?: string;
+  readOnlyMapLabel?: string;
 }) {
   const element = useRef<HTMLDivElement>(null);
   const map = useRef<L.Map | null>(null);
@@ -91,16 +99,17 @@ export function LocationPicker({
     if (!element.current) return;
     fittedBranches.current = false;
     interacted.current = false;
-    const instance = L.map(element.current, { scrollWheelZoom: false }).setView(
-      [-32.8895, -68.8458],
-      13,
-    );
+    const instance = L.map(element.current, {
+      scrollWheelZoom: false,
+      zoomAnimation: !readOnly,
+    }).setView([-32.8895, -68.8458], 13);
     map.current = instance;
     L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
       attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
       maxZoom: 19,
     }).addTo(instance);
     instance.on('click', (e: L.LeafletMouseEvent) => {
+      if (readOnly) return;
       interacted.current = true;
       change.current({ lat: e.latlng.lat, lon: e.latlng.lng });
     });
@@ -112,7 +121,7 @@ export function LocationPicker({
       map.current = null;
       marker.current = null;
     };
-  }, []);
+  }, [readOnly]);
   useEffect(() => {
     const instance = map.current;
     if (!instance) return;
@@ -141,23 +150,65 @@ export function LocationPicker({
         bubblingMouseEvents: false,
         riseOnHover: true,
       })
-        .bindPopup(branchPopup(branch))
+        .bindPopup(
+          branchPopup(branch),
+          readOnly
+            ? { maxWidth: Math.max(80, Math.min(240, instance.getSize().x - 80)) }
+            : undefined,
+        )
         .addTo(layer);
-      branchMarker.getElement()?.setAttribute('aria-label', `Sucursal ${branch.name}`);
+      const icon = branchMarker.getElement();
+      icon?.setAttribute('aria-label', `Sucursal ${branch.name}`);
+      if (readOnly && icon) {
+        // Leaflet's default mouse focus scrolls a containing dialog between
+        // mousedown and mouseup. Keep focus in place so the marker receives the click.
+        icon.addEventListener('mousedown', (event) => {
+          event.preventDefault();
+          event.stopPropagation();
+          icon.focus({ preventScroll: true });
+        });
+      }
       branchMarker.on('click', () => {
         interacted.current = true;
       });
     }
+    const fitBranches = () => {
+      instance.fitBounds(L.latLngBounds(points), {
+        ...(readOnly
+          ? {
+              paddingTopLeft: [56, 82] as L.PointExpression,
+              paddingBottomRight: [56, 36] as L.PointExpression,
+            }
+          : { padding: [36, 36] as L.PointExpression }),
+        maxZoom: 15,
+        animate: false,
+      });
+    };
     if (points.length && !currentValue.current && !fittedBranches.current && !interacted.current) {
       fittedBranches.current = true;
-      instance.fitBounds(L.latLngBounds(points), { padding: [36, 36], maxZoom: 15 });
+      fitBranches();
     }
+    const observer = readOnly
+      ? new ResizeObserver(() => {
+          if (map.current !== instance || !element.current?.clientWidth) return;
+          instance.invalidateSize({ pan: false, animate: false });
+          instance.closePopup();
+          layer.eachLayer((branchLayer) => {
+            const popup = branchLayer.getPopup();
+            if (popup)
+              popup.options.maxWidth = Math.max(80, Math.min(240, instance.getSize().x - 80));
+          });
+          if (points.length) fitBranches();
+        })
+      : null;
+    if (observer && element.current) observer.observe(element.current);
     return () => {
+      observer?.disconnect();
       active = false;
       objectUrls.forEach((url) => URL.revokeObjectURL(url));
       if (map.current === instance) layer.remove();
     };
-  }, [branches]);
+  }, [branches, readOnly]);
   useEffect(() => {
     if (!value) {
       marker.current?.remove();
@@ -173,43 +224,49 @@ export function LocationPicker({
         }).addTo(map.current);
       map.current.panTo(point);
     }
-  }, [value]);
+  }, [value, readOnly]);
   return (
     <Stack spacing={1.5}>
       <Typography sx={{ fontWeight: 650 }}>
-        {delivery
-          ? 'Ubicación del domicilio de entrega'
-          : 'Tu ubicación actual para buscar el retiro'}
+        {readOnly
+          ? readOnlyTitle
+          : delivery
+            ? 'Ubicación del domicilio de entrega'
+            : 'Tu ubicación actual para buscar el retiro'}
       </Typography>
       <Typography variant="body2" color="text.secondary">
-        {delivery
-          ? 'Marcá el domicilio exacto en el mapa y completá la dirección.'
-          : 'Usá tu ubicación actual o confirmá en el mapa dónde estás.'}
+        {readOnly
+          ? readOnlyDescription
+          : delivery
+            ? 'Marcá el domicilio exacto en el mapa y completá la dirección.'
+            : 'Usá tu ubicación actual o confirmá en el mapa dónde estás.'}
       </Typography>
-      <Button
-        variant="outlined"
-        onClick={() => {
-          if (!navigator.geolocation) {
-            setNotice('No se pudo consultar la ubicación. Marcá el punto en el mapa.');
-            return;
-          }
-          setNotice('Buscando ubicación…');
-          navigator.geolocation.getCurrentPosition(
-            (p) => {
-              onChange({ lat: p.coords.latitude, lon: p.coords.longitude });
-              setNotice('Ubicación marcada. Confirmá que el punto sea correcto.');
-            },
-            () => setNotice('No se pudo consultar la ubicación. Marcá el punto en el mapa.'),
-            { timeout: 10000, maximumAge: 60000 },
-          );
-        }}
-      >
-        Usar mi ubicación actual
-      </Button>
+      {!readOnly && (
+        <Button
+          variant="outlined"
+          onClick={() => {
+            if (!navigator.geolocation) {
+              setNotice('No se pudo consultar la ubicación. Marcá el punto en el mapa.');
+              return;
+            }
+            setNotice('Buscando ubicación…');
+            navigator.geolocation.getCurrentPosition(
+              (p) => {
+                onChange({ lat: p.coords.latitude, lon: p.coords.longitude });
+                setNotice('Ubicación marcada. Confirmá que el punto sea correcto.');
+              },
+              () => setNotice('No se pudo consultar la ubicación. Marcá el punto en el mapa.'),
+              { timeout: 10000, maximumAge: 60000 },
+            );
+          }}
+        >
+          Usar mi ubicación actual
+        </Button>
+      )}
       <Box
         ref={element}
         role="region"
-        aria-label="Mapa para confirmar ubicación"
+        aria-label={readOnly ? readOnlyMapLabel : 'Mapa para confirmar ubicación'}
         sx={{
           height: 280,
           borderRadius: 2,
@@ -225,13 +282,17 @@ export function LocationPicker({
           </span>{' '}
           Sucursales: logo de la cadena o cruz de farmacia. Tocá un ícono para ver la dirección.
         </Typography>
-        <Typography variant="caption" color="text.secondary">
-          <span className="emedicapp-map-legend__point" aria-hidden="true" /> Tu punto confirmado.
-        </Typography>
+        {!readOnly && (
+          <Typography variant="caption" color="text.secondary">
+            <span className="emedicapp-map-legend__point" aria-hidden="true" /> Tu punto confirmado.
+          </Typography>
+        )}
       </Stack>
-      <Typography variant="caption" color={value ? 'primary' : 'text.secondary'}>
-        {value ? 'Punto confirmado en el mapa.' : 'Todavía no confirmaste un punto.'} {notice}
-      </Typography>
+      {!readOnly && (
+        <Typography variant="caption" color={value ? 'primary' : 'text.secondary'}>
+          {value ? 'Punto confirmado en el mapa.' : 'Todavía no confirmaste un punto.'} {notice}
+        </Typography>
+      )}
     </Stack>
   );
 }

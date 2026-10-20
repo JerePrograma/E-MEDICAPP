@@ -43,20 +43,26 @@ function adultBirthLimit() {
 export function CreatePurchase({
   actor,
   onCreated,
+  initialItems,
+  initialPreferredBranchId = '',
+  initialMode = 'DELIVERY',
 }: {
   actor: Actor;
-  onCreated: (id: string) => void;
+  onCreated: (id: string, submittedItems: Record<string, number>) => void;
+  initialItems?: Record<string, number>;
+  initialPreferredBranchId?: string;
+  initialMode?: 'DELIVERY' | 'PICKUP';
 }) {
-  const [items, setItems] = useState<Record<string, number>>({});
+  const [items, setItems] = useState<Record<string, number>>(() => ({ ...initialItems }));
   const [search, setSearch] = useState('');
-  const [mode, setMode] = useState('DELIVERY');
+  const [mode, setMode] = useState<string>(initialMode);
   const [point, setPoint] = useState<Point | null>(null);
   const [address, setAddress] = useState(actor.address ?? '');
   const [step, setStep] = useState(0);
   const [sameReceiver, setSameReceiver] = useState(true);
   const [receiverName, setReceiverName] = useState('');
   const [receiverIdentity, setReceiverIdentity] = useState('');
-  const [branch, setBranch] = useState('');
+  const [branch, setBranch] = useState(initialPreferredBranchId);
   const [thirdParty, setThirdParty] = useState(false);
   const [name, setName] = useState(actor.name);
   const ownBirthDate = actor.birthDate ?? '';
@@ -97,6 +103,14 @@ export function CreatePurchase({
     }
   }, [mode, deliveryEnabled, pickupEnabled]);
   const selected = products.data?.filter((x) => (items[x.id] ?? 0) > 0) ?? [];
+  const availableProducts = products.data;
+  const missingProducts =
+    availableProducts &&
+    Object.keys(items).some(
+      (id) =>
+        (items[id] ?? 0) > 0 &&
+        !availableProducts.some((product) => product.id === id && product.active),
+    );
   const visibleProducts = filterProducts(products.data ?? [], search);
   const requiresPrescription = selected.some((x) => x.requiresPrescription);
   function updateQuantity(product: Product, quantity: number) {
@@ -117,6 +131,12 @@ export function CreatePurchase({
   }, [notice]);
   async function submit() {
     setNotice('');
+    if (!products.data || products.error || missingProducts) {
+      setNotice(
+        'No se pudieron comprobar todos los productos seleccionados. Revisá tu selección antes de continuar.',
+      );
+      return;
+    }
     if (!name.trim() || !birthDate || birthDate > birthLimit) {
       setNotice(
         'Indicá el nombre completo y la fecha de nacimiento de una persona de 18 años o más.',
@@ -129,7 +149,7 @@ export function CreatePurchase({
     }
     if ((thirdParty || !sameReceiver) && !authorization) {
       setNotice(
-        'Adjuntá una nota firmada para esta compra, autorizando a comprar y recibir los medicamentos.',
+        'Adjuntá una nota firmada para esta compra, autorizando a comprar y recibir los productos.',
       );
       return;
     }
@@ -203,7 +223,10 @@ export function CreatePurchase({
         },
         idempotent: true,
       });
-      onCreated(result.id);
+      onCreated(
+        result.id,
+        Object.fromEntries(selected.map((product) => [product.id, items[product.id] ?? 0])),
+      );
     } catch (e) {
       setNotice(e instanceof Error ? e.message : 'No se pudo enviar la solicitud.');
     } finally {
@@ -212,6 +235,12 @@ export function CreatePurchase({
   }
   function continueStep() {
     setNotice('');
+    if (missingProducts) {
+      setNotice(
+        'Hay productos que dejaron de estar publicados. Revisá tu selección antes de continuar.',
+      );
+      return;
+    }
     if (step === 0) {
       if (!name.trim() || !birthDate || birthDate > birthLimit) {
         setNotice('Indicá el nombre y la fecha de nacimiento de una persona adulta.');
@@ -270,7 +299,7 @@ export function CreatePurchase({
         description="La farmacia confirma disponibilidad, receta y cobertura. Recibís una propuesta para aceptar antes de pagar."
       />
       <Stepper activeStep={step} alternativeLabel sx={{ py: 1 }}>
-        {['Persona y recepción', 'Medicamentos', 'Cobertura', 'Revisión'].map((title) => (
+        {['Persona y recepción', 'Productos', 'Cobertura', 'Revisión'].map((title) => (
           <Step key={title}>
             <StepLabel>{title}</StepLabel>
           </Step>
@@ -454,7 +483,7 @@ export function CreatePurchase({
         <Card>
           <CardContent>
             <Stack spacing={2}>
-              <Typography variant="h6">2. Medicamentos</Typography>
+              <Typography variant="h6">2. Productos</Typography>
               <Typography variant="body2" color="text.secondary">
                 Agregá cada presentación que necesitás y elegí la cantidad de envases. Podés buscar
                 otra presentación sin perder las que ya agregaste.
@@ -465,13 +494,13 @@ export function CreatePurchase({
                   presentaciones de la lista para recorrer la compra.
                 </Alert>
               )}
-              <Box component="section" aria-label="Medicamentos seleccionados">
+              <Box component="section" aria-label="Productos seleccionados">
                 <Typography sx={{ fontWeight: 650 }}>
                   Tu solicitud: {selected.length} de 30 presentaciones
                 </Typography>
                 {selected.length === 0 ? (
                   <Typography variant="body2" color="text.secondary">
-                    Todavía no agregaste medicamentos. Usá Agregar o indicá una cantidad en la
+                    Todavía no agregaste productos. Usá Agregar o indicá una cantidad en la
                     presentación que querés solicitar.
                   </Typography>
                 ) : (
@@ -520,18 +549,18 @@ export function CreatePurchase({
                     </Button>
                   }
                 >
-                  No se pudo cargar el catálogo de medicamentos. {products.error.message}
+                  No se pudo cargar el catálogo de productos. {products.error.message}
                 </Alert>
               )}
               {products.isPending && (
                 <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
-                  <CircularProgress size={24} aria-label="Cargando catálogo de medicamentos" />
+                  <CircularProgress size={24} aria-label="Cargando catálogo de productos" />
                   <Typography variant="body2">Cargando presentaciones…</Typography>
                 </Stack>
               )}
               {products.data && products.data.length === 0 && (
                 <Alert severity="warning">
-                  Todavía no hay medicamentos publicados. La administración debe cargar las
+                  Todavía no hay productos publicados. La administración debe cargar las
                   presentaciones y la farmacia debe registrar sus existencias para poder cotizarlas.
                 </Alert>
               )}
@@ -540,8 +569,8 @@ export function CreatePurchase({
                   <Stack spacing={1} sx={{ alignItems: 'flex-start' }}>
                     <Typography variant="body2">
                       No hay presentaciones que coincidan con «{search.trim()}» en este catálogo.
-                      Probá con otra parte del nombre o consultá a la farmacia si falta el
-                      medicamento que necesitás.
+                      Probá con otra parte del nombre o consultá a la farmacia si falta el producto
+                      que necesitás.
                     </Typography>
                     <Button size="small" onClick={() => setSearch('')}>
                       Ver todas las presentaciones
@@ -621,7 +650,7 @@ export function CreatePurchase({
               <Typography variant="h6">3. Forma de compra y cobertura</Typography>
               <TextField
                 select
-                label="Cómo querés cotizar los medicamentos"
+                label="Cómo querés cotizar los productos"
                 value={coverageRequested ? 'COVERAGE' : 'PARTICULAR'}
                 onChange={(e) => setCoverageRequested(e.target.value === 'COVERAGE')}
               >
@@ -710,7 +739,7 @@ export function CreatePurchase({
               )}
               <Divider />
               {selected.length === 0 ? (
-                <Typography color="text.secondary">Todavía no agregaste medicamentos.</Typography>
+                <Typography color="text.secondary">Todavía no agregaste productos.</Typography>
               ) : (
                 selected.map((x) => (
                   <Stack
@@ -737,7 +766,7 @@ export function CreatePurchase({
               )}
               <Alert severity="info">
                 Solicitar la propuesta no genera un cobro. Primero la farmacia confirma los
-                medicamentos y el importe; después aceptás expresamente las condiciones y pagás
+                productos y el importe; después aceptás expresamente las condiciones y pagás
                 directamente a cada farmacia.
               </Alert>
             </Stack>
@@ -772,7 +801,7 @@ export function CreatePurchase({
             disabled={!deliveryEnabled && !pickupEnabled}
             onClick={continueStep}
           >
-            {['Continuar a medicamentos', 'Continuar a cobertura', 'Revisar solicitud'][step]}
+            {['Continuar a productos', 'Continuar a cobertura', 'Revisar solicitud'][step]}
           </Button>
         ) : (
           <Button

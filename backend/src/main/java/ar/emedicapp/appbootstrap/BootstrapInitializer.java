@@ -522,6 +522,11 @@ public class BootstrapInitializer implements ApplicationRunner {
                 "Marca, presentación, requisitos y precio de escenario. No es información para"
                         + " indicar ni dispensar un producto real.");
         metadata.put("source", "CATALOGO_ESCENARIO_MENDOZA_2026");
+        metadata.put(
+                "catalogCategory",
+                product.prescription()
+                        ? "PRESCRIPTION"
+                        : product.code().equals("o") ? "SKIN_CARE" : "NON_PRESCRIPTION");
         if (product.cold()) {
             metadata.put("minTemperatureC", 2);
             metadata.put("maxTemperatureC", 8);

@@ -92,7 +92,7 @@ try {
   $env:EMEDICAPP_SMTP_HOST=$null
   $env:PATH=$NodeHome+';'+$env:PATH
   $env:NO_COLOR=$null
-  $startedProcess=Start-Process -FilePath $javaPath -ArgumentList @('-jar',('"'+$jarPath+'"')) -WorkingDirectory $projectRoot -WindowStyle Hidden -PassThru -RedirectStandardOutput $stdoutPath -RedirectStandardError $stderrPath
+  $startedProcess=Start-Process -FilePath $javaPath -ArgumentList @('-jar',('"'+$jarPath+'"'),'--server.port=8083','--server.address=127.0.0.1') -WorkingDirectory $projectRoot -WindowStyle Hidden -PassThru -RedirectStandardOutput $stdoutPath -RedirectStandardError $stderrPath
   $startedTicks=$startedProcess.StartTime.ToUniversalTime().Ticks
   $state.processId=$startedProcess.Id
   $state.processStartedTicks=$startedTicks

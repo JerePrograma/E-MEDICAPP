@@ -31,7 +31,7 @@ async function openMedicines(page: Page) {
   await expect(page.getByText('Punto confirmado en el mapa.', { exact: false })).toBeVisible();
   await page.getByRole('combobox', { name: 'Farmacia de preferencia' }).click();
   await page.getByRole('option', { name: /^Nivalis · Ciudad/ }).click();
-  await page.getByRole('button', { name: 'Continuar a medicamentos', exact: true }).click();
+  await page.getByRole('button', { name: 'Continuar a productos', exact: true }).click();
 }
 
 test('Incidencias farmacia - medicamentos recupera la búsqueda, conserva envases y crea la compra completa', async ({
@@ -44,7 +44,7 @@ test('Incidencias farmacia - medicamentos recupera la búsqueda, conserva envase
     name: 'Buscar por nombre o presentación',
     exact: true,
   });
-  const basket = page.getByRole('region', { name: 'Medicamentos seleccionados', exact: true });
+  const basket = page.getByRole('region', { name: 'Productos seleccionados', exact: true });
   const productsResponse = await page.request.get('/api/catalog/products');
   expect(productsResponse.ok()).toBeTruthy();
   const products = (await productsResponse.json()) as Product[];
@@ -164,7 +164,7 @@ test('Incidencias farmacia - medicamentos distingue catálogo vacío de una fall
     } else await route.continue();
   });
   await openMedicines(page);
-  await expect(page.getByText(/No se pudo cargar el catálogo de medicamentos/)).toBeVisible({
+  await expect(page.getByText(/No se pudo cargar el catálogo de productos/)).toBeVisible({
     timeout: 15000,
   });
   await expect(page.getByText(/No hay presentaciones que coincidan/)).toHaveCount(0);
@@ -178,8 +178,8 @@ test('Incidencias farmacia - medicamentos distingue catálogo vacío de una fall
   await page.getByRole('option', { name: 'Retiro en farmacia', exact: true }).click();
   await page.getByRole('button', { name: 'Usar mi ubicación actual' }).click();
   await expect(page.getByText('Punto confirmado en el mapa.', { exact: false })).toBeVisible();
-  await page.getByRole('button', { name: 'Continuar a medicamentos', exact: true }).click();
-  await expect(page.getByText(/Todavía no hay medicamentos publicados/)).toBeVisible();
+  await page.getByRole('button', { name: 'Continuar a productos', exact: true }).click();
+  await expect(page.getByText(/Todavía no hay productos publicados/)).toBeVisible();
   await page.getByRole('button', { name: 'Continuar a cobertura', exact: true }).click();
   await expect(
     page.getByText('Seleccioná entre una y treinta presentaciones diferentes.', { exact: true }),

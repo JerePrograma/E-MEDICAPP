@@ -1,0 +1,71 @@
+VERIFICACIÓN DEL CATÁLOGO Y CARRITO — 20 DE OCTUBRE DE 2026
+
+RESULTADO
+
+Catálogo con tres columnas de categorías, fotos ilustrativas, seis accesos
+iniciales y doce al desplegar Más categorías, siguiendo las referencias.
+Medicamentos reúne los filtros con y sin receta. La categoría se administra
+por producto sin alterar su requisito de receta ni otros metadatos.
+
+Cada producto muestra disponibilidad real por sucursal: cadena, dirección,
+precio, moneda, saldo disponible, fecha de actualización y mapa. Elegir Retirar
+en esta sucursal agrega el producto y conserva la preferencia para la compra.
+El carrito guarda productos y cantidades por cuenta y servidor en el navegador.
+El formulario existente conserva sus controles de documentación y presupuesto.
+
+PRUEBAS
+
+- Backend: la ejecución completa de 199 pruebas aprobó 198. La restante falló
+  por dos campos booleanos obligatorios omitidos en el nuevo dato de prueba;
+  no fue un defecto del servicio. Corregido el dato, las cuatro pruebas de
+  ProductCatalogIntegrationTest aprobaron, sin errores ni omisiones. Evidencia:
+  .runtime/catalog-cart-backend-qa.log y .runtime/catalog-category-target.log.
+- Frontend: 30 pruebas aprobadas en siete archivos. Compilación TypeScript y
+  Vite correcta. Formato correcto en todos los archivos nuevos y modificados.
+- Tres recorridos completos del paquete final aprobados, con PostgreSQL real
+  y documentos sintéticos en una base QA propia:
+  1. Categorías, filtros, once fotos cargadas, tres columnas móviles, ausencia
+     de desborde horizontal y disponibilidad coincidente con el servidor.
+     Mapa con marcador, dirección y popup completo dentro del mapa móvil;
+     imágenes del mapa efectivamente cargadas.
+  2. Cantidades, eliminación, recarga y separación de cuentas en el mismo
+     navegador; almacenamiento limitado a identificadores y cantidades.
+  3. Preferencia de retiro, ubicación obligatoria, receta obligatoria cuando
+     corresponde, error de envío sin pérdida del carrito, creación real de
+     la solicitud y descuento exclusivo de las cantidades enviadas.
+  Registro: .runtime/catalog-cart-release-browser.log (tres aprobados).
+- Regresiones aprobadas: dos recorridos del formulario de productos y uno del
+  logo de cadena y mapa de Nueva compra. Registros:
+  .runtime/catalog-cart-wizard-regression.log (dos aprobados).
+  .runtime/catalog-cart-map-regression.log (uno aprobado).
+
+Las pruebas de ventas y promociones anteriores se detallan en
+docs/verificacion-ventas-promociones-20261020.txt.
+
+CAPTURAS E IMÁGENES
+
+Capturas finales en .runtime/catalog-cart-qa/, incluidas
+catalogo-referencia-mobile.png, catalogo-referencia-desktop.png,
+catalogo-disponibilidad-mapa-mobile.png y carrito-revision-con-receta.png.
+
+Las once fotos de categorías ocupan 51.770 bytes en total, en WebP de 512 x 256.
+Son ilustrativas; no se presentan como fotografías de las marcas ficticias del
+catálogo. Los archivos y prompts completos están en docs/imagenes-catalogo.txt.
+
+PAQUETE Y DEMO
+
+Paquete final: backend/target/emedicapp-catalog-20261020-release.jar.
+Empaquetado correcto: .runtime/catalog-cart-package-release.log.
+La demo local usa un ejecutable idéntico a ese paquete, comprobado por SHA-256.
+Se aplicó correctamente la migración V17; conserva los requisitos de receta y
+sólo clasifica un producto cosmético conocido del escenario de demostración.
+
+Antes de actualizar se respaldaron base y documentos en:
+.runtime/backups/emedicapp-Demo-20261020-122846-148/.
+
+Se conservaron el puerto local 8082 y el proceso de túnel existente. Se validó
+la conexión pública del servidor después de reiniciar únicamente la demo propia.
+Las operaciones sintéticas de pruebas permanecen en bases QA independientes.
+
+La interfaz está disponible en http://127.0.0.1:8082/#/app/catalog.
+GitHub Pages conserva el frontend anterior hasta publicar el repositorio.

@@ -256,7 +256,7 @@ test('compra real persistida: solicitud, revisión, aceptación, pago documentad
   await expect(buyer.getByText('Punto confirmado en el mapa.', { exact: false })).toBeVisible();
   await buyer.getByRole('combobox', { name: 'Farmacia de preferencia' }).click();
   await buyer.getByRole('option', { name: /^Nivalis · Ciudad/ }).click();
-  await buyer.getByRole('button', { name: 'Continuar a medicamentos', exact: true }).click();
+  await buyer.getByRole('button', { name: 'Continuar a productos', exact: true }).click();
   await buyer.getByLabel('Cantidad de Paracetamol Nivalen 500 mg', { exact: true }).fill('1');
   await buyer.getByRole('button', { name: 'Continuar a cobertura', exact: true }).click();
   await buyer.getByRole('button', { name: 'Revisar solicitud', exact: true }).click();
@@ -651,7 +651,7 @@ test('familiar adulto con receta, cobertura y alto valor: doble revisión, pago 
   await expect(buyer.getByText('Punto confirmado en el mapa.', { exact: false })).toBeVisible();
   await buyer.getByRole('combobox', { name: 'Farmacia de preferencia' }).click();
   await buyer.getByRole('option', { name: /^Nivalis · Ciudad/ }).click();
-  await buyer.getByRole('button', { name: 'Continuar a medicamentos', exact: true }).click();
+  await buyer.getByRole('button', { name: 'Continuar a productos', exact: true }).click();
   await buyer.getByLabel('Buscar por nombre o presentación').fill('Immunavia');
   await buyer.getByLabel('Cantidad de Adalimumab Immunavia 40 mg', { exact: true }).fill('1');
   await buyer
@@ -659,7 +659,7 @@ test('familiar adulto con receta, cobertura y alto valor: doble revisión, pago 
     .setInputFiles(fixture('receta-externa.pdf'));
   await expect(buyer.getByText('Archivo guardado', { exact: true })).toHaveCount(1);
   await buyer.getByRole('button', { name: 'Continuar a cobertura', exact: true }).click();
-  await buyer.getByRole('combobox', { name: 'Cómo querés cotizar los medicamentos' }).click();
+  await buyer.getByRole('combobox', { name: 'Cómo querés cotizar los productos' }).click();
   await buyer
     .getByRole('option', { name: 'Solicitar cobertura de obra social o prepaga', exact: true })
     .click();

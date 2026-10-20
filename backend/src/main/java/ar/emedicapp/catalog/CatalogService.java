@@ -12,6 +12,7 @@ import ar.emedicapp.config.OperationalConfigService;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
@@ -26,6 +27,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Service
 public class CatalogService {
@@ -82,7 +84,65 @@ public class CatalogService {
                 rs.getBoolean("restricted"),
                 rs.getBoolean("active"),
                 rs.getLong("version"),
-                json.decodeMap(rs.getString("metadata")));
+                CatalogCategory.normalize(
+                        json.decodeMap(rs.getString("metadata")),
+                        rs.getBoolean("requires_prescription")));
+    }
+
+    @Transactional(readOnly = true, isolation = Isolation.REPEATABLE_READ)
+    public ProductAvailability productAvailability(UUID productId) {
+        access.actor();
+        var product =
+                jdbc.sql("SELECT * FROM product WHERE id=:id AND active")
+                        .param("id", productId)
+                        .query(this::product)
+                        .optional()
+                        .orElseThrow(
+                                () ->
+                                        AppException.notFound(
+                                                "PRODUCT_NOT_FOUND",
+                                                "El producto no existe o no está activo."));
+        var branches =
+                publicBranches().stream()
+                        .filter(b -> b.pickupEnabled() || b.deliveryEnabled())
+                        .filter(b -> !product.coldChain() || b.coldChainCapable())
+                        .filter(b -> !product.restricted() || b.restrictedCapable())
+                        .collect(Collectors.toMap(Branch::id, b -> b));
+        if (branches.isEmpty()) return new ProductAvailability(productId, List.of());
+        // Stock availability follows the routing policy. It is informational and does not
+        // reserve a quantity or promise the final price, coverage, or fulfillment.
+        var offers =
+                jdbc.sql(
+                                """
+                                SELECT s.branch_id,s.price,s.currency,s.quantity-s.reserved_quantity AS available,
+                                    s.observed_at,coalesce(c.name,b.merchant_name) AS chain_name
+                                FROM branch_stock s JOIN branch b ON b.id=s.branch_id
+                                    LEFT JOIN chain c ON c.id=b.chain_id
+                                WHERE s.product_id=:product AND s.branch_id IN (:branches)
+                                    AND s.active AND s.quantity>s.reserved_quantity AND s.currency=:currency
+                                    AND (:ordinary OR (
+                                        b.capabilities->>'verifiedBy' IS NOT NULL
+                                        AND b.capabilities->>'verifiedAt' IS NOT NULL
+                                        AND EXISTS(SELECT 1 FROM document d WHERE d.id::text=
+                                            b.capabilities->>'capabilityEvidenceDocumentId'
+                                            AND d.branch_id=b.id AND d.kind='CAPABILITY')))
+                                ORDER BY coalesce(c.name,b.merchant_name),b.name,b.id
+                                """)
+                        .param("product", productId)
+                        .param("branches", branches.keySet())
+                        .param("currency", config.current().currency())
+                        .param("ordinary", !product.coldChain() && !product.restricted())
+                        .query(
+                                (rs, row) ->
+                                        new ProductOffer(
+                                                branches.get(uuid(rs, "branch_id")),
+                                                rs.getString("chain_name"),
+                                                rs.getBigDecimal("price").toPlainString(),
+                                                rs.getString("currency"),
+                                                rs.getInt("available"),
+                                                instant(rs, "observed_at")))
+                        .list();
+        return new ProductAvailability(productId, offers);
     }
 
     private List<Chain> chains() {
@@ -415,6 +475,7 @@ public class CatalogService {
     @Transactional
     public Product saveProduct(UUID id, ProductInput input) {
         var actor = admin();
+        CatalogCategory.validate(input.metadata(), input.requiresPrescription());
         var actualId = id == null ? UUID.randomUUID() : id;
         var values = new HashMap<String, Object>();
         values.put("id", actualId);
@@ -425,7 +486,11 @@ public class CatalogService {
         values.put("cold", input.coldChain());
         values.put("restricted", input.restricted());
         values.put("active", input.active());
-        values.put("metadata", json.encode(safeMetadata(input.metadata())));
+        values.put(
+                "metadata",
+                json.encode(
+                        CatalogCategory.normalize(
+                                safeMetadata(input.metadata()), input.requiresPrescription())));
         values.put("version", input.version());
         if (id == null)
             jdbc.sql(

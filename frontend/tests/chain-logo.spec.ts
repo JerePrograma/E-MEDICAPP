@@ -302,7 +302,7 @@ test('logo de cadena: carga, persistencia, mapa, reemplazo y eliminación con va
     await buyer
       .getByRole('textbox', { name: 'Dirección completa de entrega', exact: true })
       .fill('QA logo 123, Mendoza');
-    await buyer.getByRole('button', { name: 'Continuar a medicamentos', exact: true }).click();
+    await buyer.getByRole('button', { name: 'Continuar a productos', exact: true }).click();
     await buyer.getByLabel('Cantidad de Paracetamol Nivalen 500 mg', { exact: true }).fill('1');
     await buyer.getByRole('button', { name: 'Continuar a cobertura', exact: true }).click();
     await buyer.getByRole('button', { name: 'Revisar solicitud', exact: true }).click();

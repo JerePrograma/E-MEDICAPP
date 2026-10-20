@@ -58,7 +58,7 @@ try {
     if (-not $env:EMEDICAPP_ADMIN_EMAIL) { $env:EMEDICAPP_ADMIN_EMAIL=Read-Host 'Correo de la primera cuenta administradora' }
     if (-not $env:EMEDICAPP_ADMIN_PASSWORD) { $env:EMEDICAPP_ADMIN_PASSWORD=[Net.NetworkCredential]::new('',(Read-Host 'Contraseña propia (mínimo 12 caracteres)' -AsSecureString)).Password }
   }
-  $process=Start-Process -FilePath $javaPath -ArgumentList @('-jar',('"'+$jarPath+'"')) -WorkingDirectory $projectRoot -WindowStyle Hidden -PassThru -RedirectStandardOutput (Join-Path $projectRoot ".runtime\app-$Environment.stdout.log") -RedirectStandardError (Join-Path $projectRoot ".runtime\app-$Environment.stderr.log")
+  $process=Start-Process -FilePath $javaPath -ArgumentList @('-jar',('"'+$jarPath+'"'),('--server.port='+$Port)) -WorkingDirectory $projectRoot -WindowStyle Hidden -PassThru -RedirectStandardOutput (Join-Path $projectRoot ".runtime\app-$Environment.stdout.log") -RedirectStandardError (Join-Path $projectRoot ".runtime\app-$Environment.stderr.log")
   @{processId=$process.Id;port=$Port;environment=$Environment;startedAt=(Get-Date).ToUniversalTime().ToString('o');jar=$jarPath;restrictedDatabase=[bool]$RestrictedDatabase;databaseUser=$credentials.user} | ConvertTo-Json | Set-Content -LiteralPath $statePath -Encoding UTF8
 }
 finally { foreach ($key in $saved.Keys) { [Environment]::SetEnvironmentVariable($key,$saved[$key],'Process') }; $mailParameters=$null }
