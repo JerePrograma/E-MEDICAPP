@@ -188,8 +188,13 @@ Compila `frontend/` con la ruta `/E-MEDICAPP/` y carga solamente sus archivos
 estáticos. Configurar **Settings → Pages → Source → GitHub Actions** en el
 repositorio. Un push a `main` con cambios del frontend ejecuta el flujo.
 El origen HTTPS del backend se configura desde la pantalla de conexión o con
-el enlace `?api=...` generado por `AbrirDemoPages.cmd`. Para una dirección estable
-se puede definir la variable de repositorio `VITE_API_BASE_URL`.
+el enlace `?api=...` generado por `AbrirDemoPages.cmd`, que se conserva al copiar
+la dirección y abrirla en otro dispositivo. Ese acceso también sincroniza
+`VITE_API_BASE_URL` con el túnel vigente y solicita publicar Pages cuando cambia,
+si GitHub CLI tiene acceso al repositorio. Esto permite abrir el enlace general
+desde un celular después de completar la publicación. La sincronización se puede
+repetir con `scripts/Sync-DemoPages.ps1`; `-Force` vuelve a solicitar la publicación.
+Para un backend permanente se debe utilizar una dirección estable.
 
 La [guía de Pages y demo](docs/github-pages-demo.txt) reúne los accesos, cuentas,
 actualización y diagnóstico. El despliegue anterior de ngrok/MANUAL y sus

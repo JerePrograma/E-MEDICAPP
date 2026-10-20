@@ -4,6 +4,7 @@ param(
   [string]$JavaHome=$env:EMEDICAPP_JAVA_HOME,
   [string]$CloudflaredPath=$env:EMEDICAPP_CLOUDFLARED,
   [switch]$Build,
+  [switch]$PublishFrontend,
   [switch]$OpenBrowser
 )
 $ErrorActionPreference='Stop'
@@ -25,6 +26,10 @@ if (Test-Path -LiteralPath $demoPagesStatePath) {
       if ($Build -or $existing.pagesUrl -ne $PagesUrl -or $existing.port -ne $Port) { throw 'La demo ya esta iniciada. DetenerDemoPages.cmd permite cerrarla antes de actualizarla.' }
       $bootstrap=Invoke-RestMethod ($existing.apiUrl+'/api/bootstrap') -TimeoutSec 10
       if ($bootstrap.mode -ne 'DEMO') { throw 'El backend publico no confirma modo DEMO. Revisa el estado antes de compartir.' }
+      if ($PublishFrontend) {
+        try { & (Join-Path $PSScriptRoot 'Sync-DemoPages.ps1') }
+        catch { Write-Warning $_.Exception.Message }
+      }
       Write-Host "Frontend: $($existing.connectionUrl)"
       Write-Host "Backend HTTPS de esta PC: $($existing.apiUrl)"
       if ($OpenBrowser) { Start-Process $existing.connectionUrl -WindowStyle Hidden }
@@ -105,6 +110,10 @@ try {
   $state.status='UP'
   $state.verifiedAt=(Get-Date).ToUniversalTime().ToString('o')
   Write-DemoPagesState $state
+  if ($PublishFrontend) {
+    try { & (Join-Path $PSScriptRoot 'Sync-DemoPages.ps1') }
+    catch { Write-Warning $_.Exception.Message }
+  }
   Write-Host ''
   Write-Host "Frontend y enlace para compartir: $($state.connectionUrl)"
   Write-Host "Backend HTTPS de esta PC: $($state.apiUrl)"

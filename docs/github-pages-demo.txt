@@ -1,5 +1,5 @@
 E-MEDICAPP - GITHUB PAGES + BACKEND EN ESTA PC
-19 de octubre de 2026
+Actualizado el 20 de octubre de 2026
 
 DIRECCIONES
 Repositorio: https://github.com/JerePrograma/E-MEDICAPP
@@ -8,7 +8,7 @@ Backend local: http://127.0.0.1:8082
 Base propia: 127.0.0.1:5544 en esta PC (el puerto persistido se lee de .runtime/local-db.json).
 
 PRESENTAR LA DEMO
-1. Abrir C:\laburo\E-MEDICAPP\AbrirDemoPages.cmd.
+1. Abrir AbrirDemoPages.cmd desde la carpeta del proyecto.
 2. Esperar la confirmacion del backend HTTPS y compartir el enlace completo que
    muestra el acceso. Tambien queda guardado en .runtime/demo-pages.json,
    campo connectionUrl. El enlace contiene ?api=... para conectar automaticamente
@@ -27,8 +27,19 @@ La URL trycloudflare.com cambia al reiniciar el tunel; volver a compartir el
 enlace generado por el acceso. La direccion de GitHub Pages permanece estable.
 El dominio del tunel puede tardar unos segundos en propagarse. El acceso espera
 hasta 90 segundos y solo confirma disponibilidad cuando recibe respuesta HTTPS.
-Al entrar directamente a Pages sin ?api=..., la web permite pegar el origen
-HTTPS del backend y conserva esa configuracion en ese navegador.
+El acceso AbrirDemoPages.cmd tambien actualiza VITE_API_BASE_URL y solicita
+publicar Pages cuando cambia el tunel, si GitHub CLI tiene acceso al repositorio.
+Al completar esa publicacion, el enlace general de Pages conecta nuevos celulares
+con el servidor actual. Si la publicacion no puede solicitarse, la demo continua
+disponible mediante el enlace completo; el acceso muestra el aviso correspondiente.
+Para repetir la sincronizacion ejecutar scripts/Sync-DemoPages.ps1. El parametro
+-Force vuelve a solicitar la publicacion aunque la variable ya este actualizada.
+Desde PowerShell, agregar -PublishFrontend a Start-DemoPages.ps1 para sincronizar.
+
+La web conserva ?api=... en la direccion, de modo que copiarla a otro dispositivo
+conserva tambien la conexion. Un enlace completo nuevo reemplaza la direccion
+anterior guardada por ese navegador. La pantalla Conexion permite ingresar otro
+servidor; el enlace sigue funcionando aunque el navegador impida guardar ajustes.
 Para un enlace permanente del backend hace falta un tunel con dominio estable;
 se puede usar ese dominio en VITE_API_BASE_URL sin cambiar la arquitectura.
 
@@ -49,8 +60,10 @@ en GitHub Actions. Al completar el flujo aparece la URL del sitio.
 
 La ruta Vite es /E-MEDICAPP/ para Pages y / para el JAR local. Las rutas de
 navegacion usan # para que recargar o compartir una pantalla no produzca 404.
-Opcionalmente agregar una variable de repositorio VITE_API_BASE_URL con el origen
-HTTPS de un backend estable; el navegador puede cambiarlo desde Conexion.
+La variable de repositorio VITE_API_BASE_URL define el origen HTTPS predeterminado.
+Con el backend temporal, AbrirDemoPages.cmd la sincroniza cuando cambia el tunel.
+El navegador puede reemplazar ese valor desde Conexion o con un enlace ?api=...;
+para un despliegue permanente corresponde utilizar un backend con dominio estable.
 Los valores VITE_* son publicos y nunca deben contener credenciales.
 
 PRIMERA INSTALACION O ACTUALIZACION EN WINDOWS

@@ -9,7 +9,7 @@ import {
   TextField,
   Typography,
 } from '@mui/material';
-import { backendUrl, saveBackendUrl } from '../connection';
+import { backendUrl, normalizeBackendUrl, saveBackendUrl } from '../connection';
 
 export function ConnectionPage({
   onConnected,
@@ -34,7 +34,15 @@ export function ConnectionPage({
               try {
                 if (!url.trim())
                   throw new Error('Ingresá la dirección del servidor para continuar.');
-                saveBackendUrl(url);
+                const normalized = normalizeBackendUrl(url);
+                saveBackendUrl(normalized);
+                const params = new URLSearchParams(window.location.search);
+                params.set('api', normalized);
+                window.history.replaceState(
+                  null,
+                  '',
+                  `${window.location.pathname}?${params}${window.location.hash}`,
+                );
                 onConnected();
               } catch (cause) {
                 setError(

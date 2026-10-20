@@ -1,22 +1,29 @@
 const BACKEND_KEY = 'emedicapp.backend-url';
 const SESSION_PREFIX = 'emedicapp.session:';
 const memory = new Map<string, string>();
+const memoryOnly = new Set<string>();
 
 function read(storage: 'localStorage' | 'sessionStorage', key: string) {
+  const cacheKey = `${storage}:${key}`;
+  // A failed write can leave a readable but outdated value in browser storage.
+  if (memoryOnly.has(cacheKey)) return memory.get(cacheKey) ?? '';
   try {
     return window[storage].getItem(key) ?? '';
   } catch {
-    return memory.get(key) ?? '';
+    return memory.get(cacheKey) ?? '';
   }
 }
 
 function write(storage: 'localStorage' | 'sessionStorage', key: string, value: string) {
-  if (value) memory.set(key, value);
-  else memory.delete(key);
+  const cacheKey = `${storage}:${key}`;
+  if (value) memory.set(cacheKey, value);
+  else memory.delete(cacheKey);
   try {
     if (value) window[storage].setItem(key, value);
     else window[storage].removeItem(key);
+    memoryOnly.delete(cacheKey);
   } catch {
+    memoryOnly.add(cacheKey);
     // A restricted browser can still keep the connection for the current page.
   }
 }
@@ -56,12 +63,12 @@ export function initializeBackendConnection(): string {
     const value = normalizeBackendUrl(params.get('api') ?? '');
     if (!value) throw new Error('El enlace no incluye la dirección del servidor.');
     saveBackendUrl(value);
-    params.delete('api');
-    const search = params.size ? `?${params}` : '';
+    // Keep the public server address so copying this URL works on a fresh device.
+    params.set('api', value);
     window.history.replaceState(
       null,
       '',
-      `${window.location.pathname}${search}${window.location.hash}`,
+      `${window.location.pathname}?${params}${window.location.hash}`,
     );
     return '';
   } catch (error) {
