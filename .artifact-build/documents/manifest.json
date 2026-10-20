@@ -1,0 +1,48 @@
+[
+  {
+    "file": "01_Plan_de_Negocio_EMEDICAPP.pdf",
+    "pages": 6,
+    "bytes": 88910,
+    "sha256": "17e5d0337ee97806e20aa1be59627fa19c3985e33a9ff57823f8e50495d4797e",
+    "chars_per_page": [
+      2065,
+      1953,
+      2089,
+      2362,
+      1928,
+      1955
+    ]
+  },
+  {
+    "file": "02_Datos_Financieros_EMEDICAPP.pdf",
+    "pages": 2,
+    "bytes": 78057,
+    "sha256": "814bff239f350b04df938bd327177d123f4755240fb21e31b95933a6274a8a93",
+    "chars_per_page": [
+      1886,
+      1956
+    ]
+  },
+  {
+    "file": "04_Resumen_Ejecutivo_EMEDICAPP.pdf",
+    "pages": 2,
+    "bytes": 77748,
+    "sha256": "b35593b46cbe4d96f76e13f49f1deddfd3039a32cfd7b6b710940ae7c6595195",
+    "chars_per_page": [
+      1893,
+      2011
+    ]
+  },
+  {
+    "file": "05_Anexo_Tecnico_y_Documental_EMEDICAPP.pdf",
+    "pages": 4,
+    "bytes": 119451,
+    "sha256": "077f2e51b030a9e6ef30fd2caad0b1d29c3d08ba17abf658f89fbe20dfbd0b28",
+    "chars_per_page": [
+      1748,
+      1719,
+      1269,
+      1924
+    ]
+  }
+]
