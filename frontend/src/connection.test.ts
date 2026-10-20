@@ -12,10 +12,11 @@ function storage() {
 }
 
 beforeEach(async () => {
+  vi.stubEnv('VITE_API_BASE_URL', '');
   vi.stubGlobal('window', {
     location: {
-      origin: 'https://jereprograma.github.io',
-      hostname: 'jereprograma.github.io',
+      origin: 'http://localhost:4174',
+      hostname: 'localhost',
       pathname: '/E-MEDICAPP/',
       search: '',
       hash: '#/app',
@@ -31,6 +32,7 @@ beforeEach(async () => {
 afterEach(() => {
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
+  vi.unstubAllEnvs();
 });
 
 describe('Conexión entre Pages y el servidor de la PC', () => {
@@ -48,7 +50,7 @@ describe('Conexión entre Pages y el servidor de la PC', () => {
     ])
       expect(() => connection.normalizeBackendUrl(url)).toThrow();
   });
-  it('conserva el servidor público normalizado para compartir el enlace con otro dispositivo', () => {
+  it('permite configurar un frontend local sin servidor fijado y conserva su enlace de prueba', () => {
     window.location.search = '?api=https%3A%2F%2Fdemo.example.com%2F&source=demo';
     expect(connection.initializeBackendConnection()).toBe('');
     expect(connection.apiUrl('/api/auth/me')).toBe('https://demo.example.com/api/auth/me');
@@ -141,5 +143,112 @@ describe('Conexión entre Pages y el servidor de la PC', () => {
     expect(connection.backendUrl()).toBe('https://second.example.com');
     window.localStorage.removeItem('emedicapp.backend-url');
     expect(connection.backendUrl()).toBe('');
+  });
+});
+
+describe('Conexión fija de la aplicación publicada', () => {
+  function pages() {
+    Object.assign(window.location, {
+      origin: 'https://jereprograma.github.io',
+      hostname: 'jereprograma.github.io',
+    });
+  }
+
+  it('prioriza el servidor publicado e ignora enlaces y preferencias anteriores', () => {
+    pages();
+    vi.stubEnv('VITE_API_BASE_URL', ' https://trusted.example.com/ ');
+    window.localStorage.setItem('emedicapp.backend-url', 'https://untrusted.example.com');
+    window.location.search = '?api=https%3A%2F%2Funtrusted.example.com&source=mobile';
+    expect(connection.canConfigureBackend()).toBe(false);
+    expect(connection.backendUrl()).toBe('https://trusted.example.com');
+    expect(connection.apiUrl('/api/auth/login')).toBe('https://trusted.example.com/api/auth/login');
+    expect(connection.initializeBackendConnection()).toBe('');
+    expect(window.history.replaceState).toHaveBeenCalledWith(
+      null,
+      '',
+      '/E-MEDICAPP/?source=mobile#/app',
+    );
+    expect(window.localStorage.getItem('emedicapp.backend-url')).toBeNull();
+    window.localStorage.setItem('emedicapp.backend-url', 'https://another.example.com');
+    expect(connection.backendUrl()).toBe('https://trusted.example.com');
+    expect(() => connection.saveBackendUrl('https://another.example.com')).toThrow(
+      'definida por su publicación',
+    );
+  });
+
+  it('no consulta preferencias guardadas para resolver el servidor publicado', () => {
+    pages();
+    vi.stubEnv('VITE_API_BASE_URL', 'https://trusted.example.com');
+    const read = vi.spyOn(window.localStorage, 'getItem').mockImplementation(() => {
+      throw new Error('Storage reads denied');
+    });
+    vi.spyOn(window.localStorage, 'removeItem').mockImplementation(() => {
+      throw new Error('Storage removal denied');
+    });
+    window.location.search = '?api=invalid';
+    expect(connection.backendUrl()).toBe('https://trusted.example.com');
+    expect(connection.initializeBackendConnection()).toBe('');
+    expect(connection.backendUrl()).toBe('https://trusted.example.com');
+    expect(read).not.toHaveBeenCalled();
+    expect(window.history.replaceState).toHaveBeenCalledWith(null, '', '/E-MEDICAPP/#/app');
+  });
+
+  it('mantiene el servidor fijado incluso al abrir la aplicación desde localhost', () => {
+    vi.stubEnv('VITE_API_BASE_URL', 'https://trusted.example.com');
+    expect(connection.canConfigureBackend()).toBe(false);
+    expect(() => connection.saveBackendUrl('https://another.example.com')).toThrow();
+    expect(connection.backendUrl()).toBe('https://trusted.example.com');
+  });
+
+  it('rechaza una publicación de Pages sin servidor configurado aunque el enlace incluya uno', () => {
+    pages();
+    window.location.search = '?api=https%3A%2F%2Funtrusted.example.com';
+    window.localStorage.setItem('emedicapp.backend-url', 'https://untrusted.example.com');
+    expect(connection.canConfigureBackend()).toBe(false);
+    expect(connection.backendUrl()).toBe('');
+    expect(connection.initializeBackendConnection()).toContain('no está disponible');
+    expect(connection.needsBackendConnection()).toBe(true);
+    expect(connection.backendUrl()).toBe('');
+    expect(() => connection.saveBackendUrl('https://untrusted.example.com')).toThrow();
+  });
+
+  it('rechaza una configuración de publicación inválida sin usar enlaces ni valores guardados', () => {
+    pages();
+    vi.stubEnv('VITE_API_BASE_URL', 'https://trusted.example.com/api');
+    window.location.search = '?api=https%3A%2F%2Funtrusted.example.com';
+    window.localStorage.setItem('emedicapp.backend-url', 'https://untrusted.example.com');
+    expect(connection.initializeBackendConnection()).toContain('no está disponible');
+    expect(connection.backendUrl()).toBe('');
+    expect(connection.canConfigureBackend()).toBe(false);
+  });
+
+  it('usa el servidor del mismo origen en una instalación pública del JAR', () => {
+    Object.assign(window.location, {
+      origin: 'https://medicapp.example.com',
+      hostname: 'medicapp.example.com',
+    });
+    window.location.search = '?source=mobile&api=https%3A%2F%2Funtrusted.example.com';
+    window.localStorage.setItem('emedicapp.backend-url', 'https://untrusted.example.com');
+    expect(connection.canConfigureBackend()).toBe(false);
+    expect(connection.backendUrl()).toBe('');
+    expect(connection.initializeBackendConnection()).toBe('');
+    expect(connection.apiUrl('/api/auth/login')).toBe('/api/auth/login');
+    expect(connection.needsBackendConnection()).toBe(false);
+    expect(window.history.replaceState).toHaveBeenCalledWith(
+      null,
+      '',
+      '/E-MEDICAPP/?source=mobile#/app',
+    );
+  });
+
+  it('permite configuración manual únicamente en orígenes de loopback sin servidor publicado', () => {
+    for (const hostname of ['localhost', '127.0.0.1', '[::1]']) {
+      window.location.hostname = hostname;
+      expect(connection.canConfigureBackend()).toBe(true);
+    }
+    for (const hostname of ['jereprograma.github.io', 'medicapp.example.com', '192.168.1.10']) {
+      window.location.hostname = hostname;
+      expect(connection.canConfigureBackend()).toBe(false);
+    }
   });
 });

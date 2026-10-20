@@ -4,7 +4,7 @@ param(
   [string]$JavaHome=$env:EMEDICAPP_JAVA_HOME,
   [string]$CloudflaredPath=$env:EMEDICAPP_CLOUDFLARED,
   [switch]$Build,
-  [switch]$PublishFrontend,
+  [switch]$PublishFrontend=$true,
   [switch]$OpenBrowser
 )
 $ErrorActionPreference='Stop'
@@ -26,13 +26,18 @@ if (Test-Path -LiteralPath $demoPagesStatePath) {
       if ($Build -or $existing.pagesUrl -ne $PagesUrl -or $existing.port -ne $Port) { throw 'La demo ya esta iniciada. DetenerDemoPages.cmd permite cerrarla antes de actualizarla.' }
       $bootstrap=Invoke-RestMethod ($existing.apiUrl+'/api/bootstrap') -TimeoutSec 10
       if ($bootstrap.mode -ne 'DEMO') { throw 'El backend publico no confirma modo DEMO. Revisa el estado antes de compartir.' }
+      $existing.connectionUrl=$PagesUrl
+      Write-DemoPagesState $existing
+      $frontendReady=$true
       if ($PublishFrontend) {
-        try { & (Join-Path $PSScriptRoot 'Sync-DemoPages.ps1') }
-        catch { Write-Warning $_.Exception.Message }
+        try { & (Join-Path $PSScriptRoot 'Sync-DemoPages.ps1') -Wait }
+        catch { $frontendReady=$false; Write-Warning $_.Exception.Message }
       }
-      Write-Host "Frontend: $($existing.connectionUrl)"
+      if ($frontendReady) { Write-Host "Frontend: $($existing.connectionUrl)" }
+      else { Write-Warning 'El backend sigue activo; la publicacion de la conexion esta pendiente.' }
       Write-Host "Backend HTTPS de esta PC: $($existing.apiUrl)"
-      if ($OpenBrowser) { Start-Process $existing.connectionUrl -WindowStyle Hidden }
+      if (-not $frontendReady) { throw 'La publicacion sigue pendiente; el backend y el tunel se conservaron activos.' }
+      if ($OpenBrowser -and $frontendReady) { Start-Process $existing.connectionUrl -WindowStyle Hidden }
       return
     }
     # A tunnel may have died while Java remained up. Close only this prior owned attempt.
@@ -89,7 +94,7 @@ try {
     Start-Sleep -Milliseconds 500
   }
   if (-not $state.apiUrl) { throw 'No se obtuvo la URL HTTPS del tunel. Revisa .runtime\demo-tunnel.stderr.log.' }
-  $state.connectionUrl=$PagesUrl+'?api='+[Uri]::EscapeDataString($state.apiUrl)+'#/'
+  $state.connectionUrl=$PagesUrl
   Write-DemoPagesState $state
   Write-Host 'Esperando la propagacion del dominio HTTPS y verificando el backend...'
   $verified=$false
@@ -110,17 +115,19 @@ try {
   $state.status='UP'
   $state.verifiedAt=(Get-Date).ToUniversalTime().ToString('o')
   Write-DemoPagesState $state
+  $frontendReady=$true
   if ($PublishFrontend) {
-    try { & (Join-Path $PSScriptRoot 'Sync-DemoPages.ps1') }
-    catch { Write-Warning $_.Exception.Message }
+    try { & (Join-Path $PSScriptRoot 'Sync-DemoPages.ps1') -Wait }
+    catch { $frontendReady=$false; Write-Warning $_.Exception.Message }
   }
   Write-Host ''
-  Write-Host "Frontend y enlace para compartir: $($state.connectionUrl)"
+  if ($frontendReady) { Write-Host "Frontend y enlace para compartir: $($state.connectionUrl)" }
+  else { Write-Warning 'El backend sigue activo; la publicacion de la conexion esta pendiente.' }
   Write-Host "Backend HTTPS de esta PC: $($state.apiUrl)"
   Write-Host 'Mantene esta PC encendida y conectada. El tunel y Java siguen abiertos en segundo plano.'
-  Write-Host 'La direccion del tunel cambia al reiniciarlo. Conserva el enlace actual de .runtime\demo-pages.json.'
+  Write-Host 'La direccion del tunel cambia al reiniciarlo; el enlace de Pages sigue siendo el mismo.'
   Write-Host 'Para detener: DetenerDemoPages.cmd. Los datos de la demostracion se conservan.'
-  if ($OpenBrowser) { Start-Process $state.connectionUrl -WindowStyle Hidden }
+  if ($OpenBrowser -and $frontendReady) { Start-Process $state.connectionUrl -WindowStyle Hidden }
 } catch {
   $message=$_.Exception.Message
   # Start.ps1 registers Java before checking readiness. Capture that attempt for cleanup.
@@ -139,3 +146,4 @@ try {
   try { & (Join-Path $PSScriptRoot 'Stop-DemoPages.ps1') } catch { Write-Warning 'El cierre necesita revision. Se conservaron los procesos que no pudieron identificarse como propios.' }
   throw $message
 } finally { foreach ($key in $saved.Keys) { [Environment]::SetEnvironmentVariable($key,$saved[$key],'Process') } }
+if (-not $frontendReady) { throw 'La publicacion sigue pendiente; el backend y el tunel se conservaron activos.' }

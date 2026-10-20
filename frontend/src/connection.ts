@@ -46,18 +46,64 @@ export function normalizeBackendUrl(value: string): string {
 }
 
 export function backendUrl(): string {
+  const configured = configuredBackend();
+  if (configured) {
+    try {
+      return normalizeBackendUrl(configured);
+    } catch {
+      return '';
+    }
+  }
+  return canConfigureBackend() ? read('localStorage', BACKEND_KEY) : '';
+}
+
+function configuredBackend(): string {
+  return (import.meta.env.VITE_API_BASE_URL ?? '').trim();
+}
+
+function frontendHostname(): string {
+  return window.location.hostname || new URL(window.location.origin).hostname;
+}
+
+export function canConfigureBackend(): boolean {
   return (
-    read('localStorage', BACKEND_KEY) ||
-    (import.meta.env.VITE_API_BASE_URL ?? '').replace(/\/$/, '')
+    !configuredBackend() && ['localhost', '127.0.0.1', '[::1]', '::1'].includes(frontendHostname())
   );
 }
 
 export function saveBackendUrl(value: string) {
+  if (!canConfigureBackend())
+    throw new Error('La conexión de esta aplicación está definida por su publicación.');
   write('localStorage', BACKEND_KEY, normalizeBackendUrl(value));
 }
 
 export function initializeBackendConnection(): string {
   const params = new URLSearchParams(window.location.search);
+  if (!canConfigureBackend()) {
+    // Published applications choose their own server. Old links and browser
+    // preferences must never redirect authentication or document requests.
+    write('localStorage', BACKEND_KEY, '');
+    if (params.has('api')) {
+      params.delete('api');
+      const query = params.toString();
+      window.history.replaceState(
+        null,
+        '',
+        `${window.location.pathname}${query ? `?${query}` : ''}${window.location.hash}`,
+      );
+    }
+    const configured = configuredBackend();
+    if (configured) {
+      try {
+        normalizeBackendUrl(configured);
+      } catch {
+        return 'La conexión de la aplicación no está disponible. Contactá al administrador.';
+      }
+    } else if (frontendHostname().endsWith('.github.io')) {
+      return 'La demostración no está disponible en este momento. Intentá nuevamente más tarde.';
+    }
+    return '';
+  }
   if (!params.has('api')) return '';
   try {
     const value = normalizeBackendUrl(params.get('api') ?? '');
@@ -77,7 +123,7 @@ export function initializeBackendConnection(): string {
 }
 
 export function needsBackendConnection(): boolean {
-  return !backendUrl() && window.location.hostname.endsWith('.github.io');
+  return !backendUrl() && frontendHostname().endsWith('.github.io');
 }
 
 export function apiUrl(path: string): string {

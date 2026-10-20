@@ -25,9 +25,19 @@ jobs:
       - uses: actions/checkout@v6
       - uses: actions/setup-node@v7
         with:
-          node-version: '24'
+          node-version: "24"
           cache: npm
           cache-dependency-path: frontend/package-lock.json
+      - name: Validar servidor de la web publica
+        env:
+          VITE_API_BASE_URL: ${{ vars.VITE_API_BASE_URL }}
+        run: |
+          node --input-type=module <<'NODE'
+          const url = new URL(process.env.VITE_API_BASE_URL ?? '');
+          if (url.protocol !== 'https:' || url.username || url.password || url.search || url.hash || url.pathname !== '/') {
+            throw new Error('VITE_API_BASE_URL debe definir el origen HTTPS del servidor autorizado.');
+          }
+          NODE
       - name: Instalar dependencias
         working-directory: frontend
         run: npm ci
@@ -40,6 +50,16 @@ jobs:
           VITE_BASE_PATH: /E-MEDICAPP/
           VITE_API_BASE_URL: ${{ vars.VITE_API_BASE_URL }}
         run: npm run build
+      - name: Registrar configuracion publicada
+        working-directory: frontend
+        env:
+          VITE_API_BASE_URL: ${{ vars.VITE_API_BASE_URL }}
+        run: |
+          node --input-type=module <<'NODE'
+          import { writeFileSync } from 'node:fs';
+          const backendUrl = new URL(process.env.VITE_API_BASE_URL).origin;
+          writeFileSync('dist/deployment.json', JSON.stringify({ backendUrl, commit: process.env.GITHUB_SHA, runId: process.env.GITHUB_RUN_ID }));
+          NODE
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v4
         with:

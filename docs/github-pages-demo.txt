@@ -9,10 +9,10 @@ Base propia: 127.0.0.1:5544 en esta PC (el puerto persistido se lee de .runtime/
 
 PRESENTAR LA DEMO
 1. Abrir AbrirDemoPages.cmd desde la carpeta del proyecto.
-2. Esperar la confirmacion del backend HTTPS y compartir el enlace completo que
-   muestra el acceso. Tambien queda guardado en .runtime/demo-pages.json,
-   campo connectionUrl. El enlace contiene ?api=... para conectar automaticamente
-   la web de GitHub Pages con esta PC.
+2. Esperar las confirmaciones del backend HTTPS y de la conexion publicada.
+   Compartir https://jereprograma.github.io/E-MEDICAPP/. La direccion normal
+   tambien queda guardada en .runtime/demo-pages.json, campo connectionUrl.
+   Los usuarios no necesitan agregar parametros ni configurar el servidor.
 3. Ingresar con comprador@demo.invalid y DemoMedicapp2026! o elegir un perfil
    de demostracion. Otros perfiles: farmacia@demo.invalid,
    farmaceutico@demo.invalid, farmaceutico2@demo.invalid, cadete@demo.invalid,
@@ -23,23 +23,26 @@ PRESENTAR LA DEMO
 
 La PC debe permanecer encendida, sin suspension y conectada a Internet.
 Cloudflare proporciona un tunel HTTPS temporal sin configurar el router.
-La URL trycloudflare.com cambia al reiniciar el tunel; volver a compartir el
-enlace generado por el acceso. La direccion de GitHub Pages permanece estable.
+La URL trycloudflare.com cambia al reiniciar el tunel. La direccion que se
+comparte de GitHub Pages permanece estable.
 El dominio del tunel puede tardar unos segundos en propagarse. El acceso espera
 hasta 90 segundos y solo confirma disponibilidad cuando recibe respuesta HTTPS.
-El acceso AbrirDemoPages.cmd tambien actualiza VITE_API_BASE_URL y solicita
-publicar Pages cuando cambia el tunel, si GitHub CLI tiene acceso al repositorio.
-Al completar esa publicacion, el enlace general de Pages conecta nuevos celulares
-con el servidor actual. Si la publicacion no puede solicitarse, la demo continua
-disponible mediante el enlace completo; el acceso muestra el aviso correspondiente.
-Para repetir la sincronizacion ejecutar scripts/Sync-DemoPages.ps1. El parametro
--Force vuelve a solicitar la publicacion aunque la variable ya este actualizada.
-Desde PowerShell, agregar -PublishFrontend a Start-DemoPages.ps1 para sincronizar.
+AbrirDemoPages.cmd actualiza VITE_API_BASE_URL y solicita publicar Pages cuando
+la configuracion publicada no coincide con el tunel actual. Necesita GitHub CLI
+con acceso al repositorio. Espera hasta tres minutos a que deployment.json confirme
+el servidor nuevo antes de mostrar el enlace para compartir. Si falla la
+publicacion, el backend se conserva activo y el acceso informa que sigue pendiente;
+no utiliza una direccion ingresada por el usuario como alternativa.
+Para repetir la sincronizacion ejecutar scripts/Sync-DemoPages.ps1 -Wait.
+El parametro -Force vuelve a solicitar la publicacion. Start-DemoPages.ps1
+sincroniza de forma predeterminada, tambien al reutilizar una demo ya iniciada.
 
-La web conserva ?api=... en la direccion, de modo que copiarla a otro dispositivo
-conserva tambien la conexion. Un enlace completo nuevo reemplaza la direccion
-anterior guardada por ese navegador. La pantalla Conexion permite ingresar otro
-servidor; el enlace sigue funcionando aunque el navegador impida guardar ajustes.
+La web publicada utiliza exclusivamente su servidor configurado. Ignora cualquier
+servidor guardado en el navegador y elimina ?api=... de enlaces antiguos conservando
+los demas parametros y la pantalla. No muestra Conexion, Cambiar servidor ni un
+campo para editar la direccion. Una falla ofrece reintentar; una configuracion
+invalida no habilita un servidor alternativo. La edicion manual queda limitada al
+acceso local de desarrollo, cuando no hay servidor fijado en la compilacion.
 Para un enlace permanente del backend hace falta un tunel con dominio estable;
 se puede usar ese dominio en VITE_API_BASE_URL sin cambiar la arquitectura.
 
@@ -60,11 +63,14 @@ en GitHub Actions. Al completar el flujo aparece la URL del sitio.
 
 La ruta Vite es /E-MEDICAPP/ para Pages y / para el JAR local. Las rutas de
 navegacion usan # para que recargar o compartir una pantalla no produzca 404.
-La variable de repositorio VITE_API_BASE_URL define el origen HTTPS predeterminado.
+La variable de repositorio VITE_API_BASE_URL define el unico origen HTTPS autorizado.
 Con el backend temporal, AbrirDemoPages.cmd la sincroniza cuando cambia el tunel.
-El navegador puede reemplazar ese valor desde Conexion o con un enlace ?api=...;
-para un despliegue permanente corresponde utilizar un backend con dominio estable.
+El flujo valida esa direccion antes de compilar y registra el servidor y el commit
+en deployment.json; no se publica una web de Pages sin configuracion. Los usuarios
+no pueden reemplazar la conexion mediante el enlace o los ajustes del navegador.
+Para un despliegue permanente corresponde utilizar un backend con dominio estable.
 Los valores VITE_* son publicos y nunca deben contener credenciales.
+La autenticacion y los permisos siguen siendo responsabilidad del backend.
 
 PRIMERA INSTALACION O ACTUALIZACION EN WINDOWS
 Requisitos: JDK 25, Node.js 24, PostgreSQL 17 o superior y cloudflared.
@@ -112,7 +118,7 @@ El guion de presentacion recomienda crear una compra sencilla con retiro y luego
 mostrar entrega, pagos, factura y cierre mediante las cuentas de cada rol.
 
 DIAGNOSTICO
-.runtime/demo-pages.json: estado, backend HTTPS y enlace completo para compartir.
+.runtime/demo-pages.json: estado, backend HTTPS y enlace normal de Pages para compartir.
 .runtime/demo-tunnel.stderr.log: conexion saliente de Cloudflare.
 .runtime/app-Demo.stdout.log y .stderr.log: inicio del backend.
 .runtime/postgres.log: base local.

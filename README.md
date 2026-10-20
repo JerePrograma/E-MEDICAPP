@@ -1,6 +1,6 @@
 # E-MEDICAPP — MVP de operación manual
 
-El despliegue actual separa la web en **[GitHub Pages](https://jereprograma.github.io/E-MEDICAPP/)** y el backend en esta PC. Para presentar desde otras computadoras, abrir **`AbrirDemoPages.cmd`** y compartir el enlace completo que genera. **`DetenerDemoPages.cmd`** cierra el backend y su túnel; conserva los datos. Ver [guía de GitHub Pages y demo](docs/github-pages-demo.txt).
+El despliegue actual separa la web en **[GitHub Pages](https://jereprograma.github.io/E-MEDICAPP/)** y el backend en esta PC. Para presentar desde otras computadoras, abrir **`AbrirDemoPages.cmd`**, esperar la confirmación y compartir el enlace normal de Pages. La conexión se administra desde la publicación y no puede cambiarse desde la interfaz pública, el enlace ni los ajustes guardados del navegador. **`DetenerDemoPages.cmd`** cierra el backend y su túnel; conserva los datos. Ver [guía de GitHub Pages y demo](docs/github-pages-demo.txt).
 
 La [verificación del 19 de octubre](docs/verificacion-pages-demo-20261019.txt) registra las correcciones, los datos cargados y las pruebas de esta entrega.
 
@@ -68,7 +68,7 @@ cd C:\laburo\E-MEDICAPP
 .\scripts\Start-DemoPages.ps1 -OpenBrowser
 ```
 
-Después de compilar, también se puede abrir `AbrirDemoPages.cmd` con doble clic. El acceso comprueba el backend HTTPS y genera el enlace completo de GitHub Pages para compartirlo.
+Después de compilar, también se puede abrir `AbrirDemoPages.cmd` con doble clic. El acceso comprueba el backend HTTPS y su configuración publicada antes de mostrar el enlace normal de GitHub Pages para compartirlo.
 
 Como alternativa de uso exclusivo en esta PC, detener primero la demo de Pages y abrir `AbrirDemo.cmd`: sirve la web incluida en el JAR en `http://127.0.0.1:8082`. Ambos accesos utilizan el mismo escenario DEMO y el mismo puerto; se inicia uno por vez.
 
@@ -187,14 +187,19 @@ La web se publica con [el flujo de GitHub Pages](.github/workflows/pages.yml).
 Compila `frontend/` con la ruta `/E-MEDICAPP/` y carga solamente sus archivos
 estáticos. Configurar **Settings → Pages → Source → GitHub Actions** en el
 repositorio. Un push a `main` con cambios del frontend ejecuta el flujo.
-El origen HTTPS del backend se configura desde la pantalla de conexión o con
-el enlace `?api=...` generado por `AbrirDemoPages.cmd`, que se conserva al copiar
-la dirección y abrirla en otro dispositivo. Ese acceso también sincroniza
-`VITE_API_BASE_URL` con el túnel vigente y solicita publicar Pages cuando cambia,
-si GitHub CLI tiene acceso al repositorio. Esto permite abrir el enlace general
-desde un celular después de completar la publicación. La sincronización se puede
-repetir con `scripts/Sync-DemoPages.ps1`; `-Force` vuelve a solicitar la publicación.
-Para un backend permanente se debe utilizar una dirección estable.
+El origen HTTPS autorizado se fija en la variable de publicación `VITE_API_BASE_URL`.
+La web pública ignora `?api=...` y cualquier servidor guardado anteriormente; no
+ofrece opciones para cambiarlo. Los enlaces antiguos se limpian conservando su
+pantalla de destino. La configuración manual queda disponible sólo en localhost
+cuando no hay un servidor fijado en la compilación.
+
+`AbrirDemoPages.cmd` sincroniza la dirección del túnel y espera que Pages confirme
+la configuración publicada, mediante `deployment.json`. Una publicación fallida
+no se considera actualizada sólo porque la variable ya coincida. La sincronización
+se puede repetir con `scripts/Sync-DemoPages.ps1 -Wait`; `-Force` solicita otra
+publicación. Se necesita GitHub CLI con acceso al repositorio. Para un backend
+permanente corresponde utilizar una dirección estable. La autenticación y los
+permisos de cada acción siguen controlados por el backend.
 
 La [guía de Pages y demo](docs/github-pages-demo.txt) reúne los accesos, cuentas,
 actualización y diagnóstico. El despliegue anterior de ngrok/MANUAL y sus
@@ -217,7 +222,7 @@ El mismo JAR puede desplegarse en un servidor Java 25 con PostgreSQL 17 o superi
 | EMEDICAPP_BUSINESS_ZONE | Zona de fechas del negocio; por defecto `America/Argentina/Mendoza` |
 | EMEDICAPP_ADMIN_EMAIL / EMEDICAPP_ADMIN_PASSWORD | Primer administrador de un entorno MANUAL nuevo |
 
-El acceso de presentación utiliza GitHub Pages, un túnel HTTPS al backend DEMO y documentos privados servidos por endpoints autenticados. El frontend conserva la conexión por navegador y la sesión por pestaña, sin depender de cookies de terceros. La geolocalización del navegador necesita HTTPS fuera de localhost. El mapa requiere Internet; las ubicaciones también pueden marcarse manualmente. No se modificó el firewall ni se abrieron puertos del router.
+El acceso de presentación utiliza GitHub Pages, un túnel HTTPS al backend DEMO y documentos privados servidos por endpoints autenticados. La conexión se fija en la publicación y la sesión se conserva por pestaña, sin depender de cookies de terceros. La geolocalización del navegador necesita HTTPS fuera de localhost. El mapa requiere Internet; las ubicaciones también pueden marcarse manualmente. No se modificó el firewall ni se abrieron puertos del router.
 
 ## Límites de esta primera versión
 

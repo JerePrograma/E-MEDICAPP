@@ -9,7 +9,34 @@ import {
   TextField,
   Typography,
 } from '@mui/material';
-import { backendUrl, normalizeBackendUrl, saveBackendUrl } from '../connection';
+import {
+  backendUrl,
+  canConfigureBackend,
+  normalizeBackendUrl,
+  saveBackendUrl,
+} from '../connection';
+
+export function ServiceUnavailable() {
+  return (
+    <Container maxWidth="sm" sx={{ py: 8 }}>
+      <Card>
+        <CardContent sx={{ p: 4 }}>
+          <Stack spacing={3}>
+            <Typography component="h1" variant="h5">
+              E-MEDICAPP no está disponible
+            </Typography>
+            <Typography color="text.secondary">
+              No pudimos abrir el servicio en este momento. Volvé a intentarlo en unos minutos.
+            </Typography>
+            <Button variant="contained" onClick={() => window.location.reload()}>
+              Reintentar
+            </Button>
+          </Stack>
+        </CardContent>
+      </Card>
+    </Container>
+  );
+}
 
 export function ConnectionPage({
   onConnected,
@@ -20,8 +47,9 @@ export function ConnectionPage({
   error?: string;
   onCancel?: () => void;
 }) {
-  const [url, setUrl] = useState(backendUrl());
+  const [url, setUrl] = useState(() => (canConfigureBackend() ? backendUrl() : ''));
   const [error, setError] = useState(initialError);
+  if (!canConfigureBackend()) return <ServiceUnavailable />;
   return (
     <Container maxWidth="sm" sx={{ py: 8 }}>
       <Card>
@@ -31,6 +59,7 @@ export function ConnectionPage({
             spacing={3}
             onSubmit={(event) => {
               event.preventDefault();
+              if (!canConfigureBackend()) return;
               try {
                 if (!url.trim())
                   throw new Error('Ingresá la dirección del servidor para continuar.');

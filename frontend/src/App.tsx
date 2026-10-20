@@ -15,10 +15,14 @@ import { Route, Routes, useLocation, useNavigate } from 'react-router-dom';
 import { AuthenticationPage, authenticationIntent } from './components/AuthenticationPage';
 import { Workspace } from './components/Workspace';
 import { Actor, ApiError, api, Bootstrap, label } from './api';
-import { initializeBackendConnection, needsBackendConnection } from './connection';
-import { ConnectionPage } from './components/ConnectionPage';
+import {
+  backendUrl,
+  canConfigureBackend,
+  initializeBackendConnection,
+  needsBackendConnection,
+} from './connection';
+import { ConnectionPage, ServiceUnavailable } from './components/ConnectionPage';
 import { CartProvider } from './cart/CartContext';
-import { backendUrl } from './connection';
 const MarketplacePage = lazy(() =>
   import('./catalog/MarketplacePage').then((m) => ({ default: m.MarketplacePage })),
 );
@@ -48,10 +52,13 @@ const PromotionManagementPage = lazy(() =>
 
 export function App() {
   const [connectionError] = useState(initializeBackendConnection);
+  const configurableConnection = canConfigureBackend();
   const [connectionRequested, setConnectionRequested] = useState(
-    () => needsBackendConnection() || !!connectionError,
+    () => canConfigureBackend() && (needsBackendConnection() || !!connectionError),
   );
-  if (connectionRequested)
+  if (!configurableConnection && (connectionError || needsBackendConnection()))
+    return <ServiceUnavailable />;
+  if (configurableConnection && connectionRequested)
     return (
       <ConnectionPage
         error={connectionError}
@@ -63,10 +70,16 @@ export function App() {
         }
       />
     );
-  return <ConnectedApp onConnectionRequested={() => setConnectionRequested(true)} />;
+  return (
+    <ConnectedApp
+      onConnectionRequested={
+        configurableConnection ? () => setConnectionRequested(true) : undefined
+      }
+    />
+  );
 }
 
-function ConnectedApp({ onConnectionRequested }: { onConnectionRequested: () => void }) {
+function ConnectedApp({ onConnectionRequested }: { onConnectionRequested?: () => void }) {
   const cache = useQueryClient();
   const navigate = useNavigate();
   const location = useLocation();
@@ -116,9 +129,11 @@ function ConnectedApp({ onConnectionRequested }: { onConnectionRequested: () => 
         >
           Volver a intentar
         </Button>
-        <Button sx={{ mt: 2 }} onClick={onConnectionRequested}>
-          Cambiar servidor
-        </Button>
+        {onConnectionRequested && (
+          <Button sx={{ mt: 2 }} onClick={onConnectionRequested}>
+            Cambiar servidor
+          </Button>
+        )}
       </Container>
     );
   const demo = bootstrap.data?.mode === 'DEMO';
@@ -174,7 +189,9 @@ function ConnectedApp({ onConnectionRequested }: { onConnectionRequested: () => 
               </Button>
             </>
           )}
-          {!actor && <Button onClick={onConnectionRequested}>Conexión</Button>}
+          {!actor && onConnectionRequested && (
+            <Button onClick={onConnectionRequested}>Conexión</Button>
+          )}
         </Toolbar>
       </AppBar>
       {demo && (
