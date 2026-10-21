@@ -36,8 +36,15 @@ function Get-PublishedDemoConfiguration {
     return Invoke-RestMethod ($state.pagesUrl+'deployment.json?check='+$nonce) -Headers @{'Cache-Control'='no-cache'} -TimeoutSec 8
   } catch { return $null }
 }
+function Test-PublicDemoApi([object]$Configuration) {
+  if (-not $Configuration -or $Configuration.publicApiBaseUrl -ne 'https://scalaris.com.ar/e-medicapp') { return $false }
+  try {
+    $bootstrap=Invoke-RestMethod ($Configuration.publicApiBaseUrl+'/api/bootstrap') -Headers @{'Cache-Control'='no-cache'} -TimeoutSec 10
+    return $bootstrap.mode -eq 'DEMO'
+  } catch { return $false }
+}
 $previousPublication=Get-PublishedDemoConfiguration
-if (-not $Force -and $previousPublication -and ($previousPublication.backendUrl -eq $state.apiUrl) -and ($previousPublication.commit -eq $expectedCommit)) {
+if (-not $Force -and $previousPublication -and ($previousPublication.backendUrl -eq $state.apiUrl) -and ($previousPublication.commit -eq $expectedCommit) -and (Test-PublicDemoApi $previousPublication)) {
   Write-Host 'La pagina publica ya utiliza el commit remoto y el servidor actual de la demo.'
   return
 }
@@ -54,7 +61,7 @@ do {
   $backendMatches=$published -and ($published.backendUrl -eq $state.apiUrl)
   $commitMatches=$published -and ($published.commit -eq $expectedCommit)
   $freshPublication=$published -and $published.runId -and ($published.runId -ne $previousPublication.runId)
-  if ($backendMatches -and $commitMatches -and (-not $Force -or $freshPublication)) {
+  if ($backendMatches -and $commitMatches -and (-not $Force -or $freshPublication) -and (Test-PublicDemoApi $published)) {
     Write-Host 'La pagina publica confirmo el commit remoto y el servidor actual. Ya se puede compartir el enlace general.'
     return
   }

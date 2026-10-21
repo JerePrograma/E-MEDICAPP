@@ -26,6 +26,9 @@ La PC debe permanecer encendida, sin suspension y conectada a Internet.
 Cloudflare proporciona un tunel HTTPS temporal sin configurar el router.
 La URL trycloudflare.com cambia al reiniciar el tunel. La direccion que se
 comparte de Scalaris permanece estable.
+Los visitantes consultan exclusivamente scalaris.com.ar/e-medicapp/api/.
+Cloudflare resuelve el tunel en el servidor: el navegador no consulta el DNS
+de trycloudflare.com ni conserva una direccion temporal dentro de la aplicacion.
 El dominio del tunel puede tardar unos segundos en propagarse. El acceso espera
 hasta 90 segundos y solo confirma disponibilidad cuando recibe respuesta HTTPS.
 AbrirDemoPages.cmd actualiza VITE_API_BASE_URL y solicita publicar Pages cuando
@@ -44,8 +47,8 @@ los demas parametros y la pantalla. No muestra Conexion, Cambiar servidor ni un
 campo para editar la direccion. Una falla ofrece reintentar; una configuracion
 invalida no habilita un servidor alternativo. La edicion manual queda limitada al
 acceso local de desarrollo, cuando no hay servidor fijado en la compilacion.
-Para un enlace permanente del backend hace falta un tunel con dominio estable;
-se puede usar ese dominio en VITE_API_BASE_URL sin cambiar la arquitectura.
+El acceso publico a la API es estable aun cuando cambia el tunel interno.
+La disponibilidad del backend sigue dependiendo de esta PC y del tunel activo.
 
 El inicio carga automaticamente el escenario ficticio si la base DEMO es nueva:
 personas y roles, farmacias de Mendoza, catalogo, precios, existencias, lotes y
@@ -65,23 +68,37 @@ en GitHub Actions. Al completar el flujo aparece la URL del sitio.
 La ruta Vite es ./ para Pages y / para el JAR local. Los recursos relativos
 permiten servir la misma compilacion en /E-MEDICAPP/ y /e-medicapp/. Las rutas de
 navegacion usan # para que recargar o compartir una pantalla no produzca 404.
-La variable de repositorio VITE_API_BASE_URL define el unico origen HTTPS autorizado.
+La variable de repositorio VITE_API_BASE_URL define el tunel interno HTTPS autorizado.
 Con el backend temporal, AbrirDemoPages.cmd la sincroniza cuando cambia el tunel.
 El flujo valida esa direccion antes de compilar y registra el servidor y el commit
-en deployment.json; no se publica una web de Pages sin configuracion. Los usuarios
+en deployment.json; publicApiBaseUrl registra https://scalaris.com.ar/e-medicapp.
+El frontend web y Android se compilan con esa direccion estable, no con el tunel.
+No se publica una web de Pages sin configuracion. Los usuarios
 no pueden reemplazar la conexion mediante el enlace o los ajustes del navegador.
 Para un despliegue permanente corresponde utilizar un backend con dominio estable.
 Los valores VITE_* son publicos y nunca deben contener credenciales.
 La autenticacion y los permisos siguen siendo responsabilidad del backend.
 
 El dominio scalaris.com.ar ya pertenece al sitio Scalaris de Cloudflare Pages.
-Su repositorio JerePrograma/scalaris contiene functions/e-medicapp/[[path]].js:
-solo GET y HEAD bajo /e-medicapp/ consultan los archivos publicos de GitHub Pages.
-No se reenvian cookies ni credenciales del visitante. La portada y deployment.json
-no se guardan en cache. /e-medicapp redirige a /e-medicapp/ conservando parametros.
-Las demas rutas de Scalaris siguen sirviendo sus archivos estaticos habituales.
+El Worker propio emedicapp-public, definido en deployment/cloudflare/wrangler.jsonc,
+intercepta exclusivamente /e-medicapp y /e-medicapp/*. La funcion anterior de Pages
+queda como publicacion estatica de respaldo; no es necesario modificar ese proyecto.
+GET y HEAD estaticos consultan GitHub Pages sin reenviar credenciales. /api/ consulta
+el tunel indicado por deployment.json exclusivamente desde Cloudflare. Conserva
+X-Auth-Session, CSRF, idempotencia, archivos y permisos del backend; no reenvia
+cookies del sitio Scalaris ni guarda respuestas de API en cache. Admite los origenes
+Scalaris, GitHub Pages y Android (https://localhost), sin ampliar permisos de cuentas.
+La portada y deployment.json se consultan sin cache, incluyendo el cache del origen.
+/e-medicapp redirige a /e-medicapp/ conservando parametros. Las demas rutas de
+Scalaris siguen sirviendo sus archivos estaticos habituales.
 Cada nueva publicacion de GitHub se refleja en Scalaris sin copiar archivos ni
 republicar el sitio corporativo. El enlace anterior de GitHub sigue disponible.
+Para modificar el Worker: ejecutar node --test deployment/cloudflare/*.test.mjs y
+publicar con wrangler deploy --config deployment/cloudflare/wrangler.jsonc desde
+la cuenta Cloudflare autorizada. La configuracion fija el nombre y las dos rutas
+del recurso propio. No requiere secretos en GitHub ni cambios en la base.
+Sync-DemoPages.ps1 confirma tambien /e-medicapp/api/bootstrap antes de dar el acceso
+por disponible, ademas del commit y del tunel registrados en deployment.json.
 
 PRIMERA INSTALACION O ACTUALIZACION EN WINDOWS
 Requisitos: JDK 25, Node.js 24, PostgreSQL 17 o superior y cloudflared.
@@ -119,6 +136,8 @@ El backend admite https://scalaris.com.ar y https://jereprograma.github.io,
 ademas de https://localhost para el cliente Android.
 La sesion entre dominios se conserva por pestana mediante X-Auth-Session y
 mantiene validacion CSRF. No depende de habilitar cookies de terceros.
+El proxy del mismo dominio tambien usa estas sesiones aisladas: nunca mezcla
+cookies del sitio corporativo con las cuentas de E-MEDICAPP.
 La sesion vence a los 30 minutos de inactividad o al reiniciar Java; el navegador
 solicita ingresar nuevamente. El correo tipeado en el ingreso no se borra al
 cambiar de ventana o minimizar. La contrasena no se guarda en localStorage.

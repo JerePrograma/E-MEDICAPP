@@ -1,6 +1,6 @@
 # E-MEDICAPP — MVP de operación manual
 
-La web pública está en **[scalaris.com.ar/e-medicapp/](https://scalaris.com.ar/e-medicapp/)** y el backend en esta PC. Cloudflare sirve la publicación de [GitHub Pages](https://jereprograma.github.io/E-MEDICAPP/) bajo el dominio de Scalaris. Para presentar desde otras computadoras, abrir **`AbrirDemoPages.cmd`**, esperar la confirmación y compartir el enlace de Scalaris. La conexión se administra desde la publicación y no puede cambiarse desde la interfaz pública, el enlace ni los ajustes guardados del navegador. **`DetenerDemoPages.cmd`** cierra el backend y su túnel; conserva los datos. Ver [guía de GitHub Pages y demo](docs/github-pages-demo.txt).
+La web pública está en **[scalaris.com.ar/e-medicapp/](https://scalaris.com.ar/e-medicapp/)** y el backend en esta PC. Cloudflare sirve la publicación de [GitHub Pages](https://jereprograma.github.io/E-MEDICAPP/) y la API bajo el dominio de Scalaris. El navegador usa `/e-medicapp/api/`; la resolución del túnel temporal ocurre en Cloudflare y no depende del DNS de cada visitante. Para presentar desde otras computadoras, abrir **`AbrirDemoPages.cmd`**, esperar la confirmación y compartir el enlace de Scalaris. La conexión se administra desde la publicación y no puede cambiarse desde la interfaz pública, el enlace ni los ajustes guardados del navegador. **`DetenerDemoPages.cmd`** cierra el backend y su túnel; conserva los datos. Ver [guía de GitHub Pages y demo](docs/github-pages-demo.txt).
 
 La [verificación del 19 de octubre](docs/verificacion-pages-demo-20261019.txt) registra las correcciones, los datos cargados y las pruebas de esta entrega.
 
@@ -199,8 +199,9 @@ La web se publica con [el flujo de GitHub Pages](.github/workflows/pages.yml).
 Compila `frontend/` con recursos relativos (`./`) y carga solamente sus archivos
 estáticos. Configurar **Settings → Pages → Source → GitHub Actions** en el
 repositorio. Un push a `main` con cambios del frontend ejecuta el flujo.
-La función `functions/e-medicapp/[[path]].js` del repositorio `JerePrograma/scalaris`
-sirve esos mismos archivos en `/e-medicapp/`, sin redirigir al visitante a GitHub.
+El Worker `emedicapp-public`, definido en `deployment/cloudflare/`, sirve esos mismos
+archivos en `/e-medicapp/` y comunica `/e-medicapp/api/` con el túnel activo. Sólo
+intercepta las rutas de E-MEDICAPP, sin volver a publicar el sitio Scalaris.
 El backend admite los orígenes de Scalaris y GitHub Pages.
 El origen HTTPS autorizado se fija en la variable de publicación `VITE_API_BASE_URL`.
 La web pública ignora `?api=...` y cualquier servidor guardado anteriormente; no
@@ -209,7 +210,7 @@ pantalla de destino. La configuración manual queda disponible sólo en localhos
 cuando no hay un servidor fijado en la compilación.
 
 `AbrirDemoPages.cmd` sincroniza la dirección del túnel y espera que Pages confirme
-el commit remoto y el servidor de la configuración publicada, mediante `deployment.json`.
+el commit remoto, el servidor de la configuración publicada y la API pública, mediante `deployment.json`.
 Una publicación fallida
 no se considera actualizada sólo porque la variable ya coincida. La sincronización
 se puede repetir con `scripts/Sync-DemoPages.ps1 -Wait`; `-Force` solicita otra

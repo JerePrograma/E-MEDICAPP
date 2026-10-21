@@ -158,6 +158,31 @@ describe('Conexión entre Pages y el servidor de la PC', () => {
 });
 
 describe('Conexión fija de la aplicación publicada', () => {
+  it('usa el proxy del dominio público y conserva sesiones aisladas aunque comparta origen', () => {
+    Object.assign(window.location, {
+      origin: 'https://scalaris.com.ar',
+      hostname: 'scalaris.com.ar',
+      pathname: '/e-medicapp/',
+    });
+    vi.stubEnv('VITE_API_BASE_URL', 'https://scalaris.com.ar/e-medicapp/');
+    expect(connection.initializeBackendConnection()).toBe('');
+    expect(connection.backendUrl()).toBe('https://scalaris.com.ar/e-medicapp');
+    expect(connection.apiUrl('/api/auth/login')).toBe(
+      'https://scalaris.com.ar/e-medicapp/api/auth/login',
+    );
+    expect(connection.crossOriginBackend()).toBe(false);
+    expect(connection.usesHeaderSessions()).toBe(true);
+    connection.rememberAuthSession(
+      new Response(null, { headers: { 'X-Auth-Session': 'proxy-session' } }),
+      '',
+    );
+    expect(connection.authSession()).toBe('proxy-session');
+    connection.clearAuthSession();
+    expect(connection.authSession()).toBe('');
+    expect(() => connection.saveBackendUrl('https://other.example.com')).toThrow();
+    expect(() => connection.normalizeBackendUrl('https://scalaris.com.ar/e-medicapp')).toThrow();
+  });
+
   function pages() {
     Object.assign(window.location, {
       origin: 'https://jereprograma.github.io',

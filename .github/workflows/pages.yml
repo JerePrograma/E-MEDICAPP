@@ -6,6 +6,7 @@ on:
     paths:
       - frontend/**
       - .github/workflows/pages.yml
+      - deployment/cloudflare/**
   workflow_dispatch:
 
 permissions:
@@ -38,6 +39,8 @@ jobs:
             throw new Error('VITE_API_BASE_URL debe definir el origen HTTPS del servidor autorizado.');
           }
           NODE
+      - name: Verificar acceso publico y proxy API
+        run: node --test deployment/cloudflare/*.test.mjs
       - name: Instalar dependencias
         working-directory: frontend
         run: npm ci
@@ -49,7 +52,7 @@ jobs:
         env:
           # The same files are served from GitHub Pages and scalaris.com.ar/e-medicapp/.
           VITE_BASE_PATH: ./
-          VITE_API_BASE_URL: ${{ vars.VITE_API_BASE_URL }}
+          VITE_API_BASE_URL: https://scalaris.com.ar/e-medicapp
         run: npm run build
       - name: Registrar configuracion publicada
         working-directory: frontend
@@ -59,7 +62,7 @@ jobs:
           node --input-type=module <<'NODE'
           import { writeFileSync } from 'node:fs';
           const backendUrl = new URL(process.env.VITE_API_BASE_URL).origin;
-          writeFileSync('dist/deployment.json', JSON.stringify({ backendUrl, commit: process.env.GITHUB_SHA, runId: process.env.GITHUB_RUN_ID }));
+          writeFileSync('dist/deployment.json', JSON.stringify({ backendUrl, publicApiBaseUrl: 'https://scalaris.com.ar/e-medicapp', commit: process.env.GITHUB_SHA, runId: process.env.GITHUB_RUN_ID }));
           NODE
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v4

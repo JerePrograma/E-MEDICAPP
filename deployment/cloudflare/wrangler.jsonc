@@ -1,0 +1,13 @@
+{
+  "name": "emedicapp-public",
+  "account_id": "de1ec344dec57f522c0d70dc8616f4a5",
+  "main": "public-proxy.mjs",
+  "compatibility_date": "2026-10-21",
+  "compatibility_flags": ["global_fetch_strictly_public"],
+  "workers_dev": false,
+  "preview_urls": false,
+  "routes": [
+    { "pattern": "scalaris.com.ar/e-medicapp", "zone_name": "scalaris.com.ar" },
+    { "pattern": "scalaris.com.ar/e-medicapp/*", "zone_name": "scalaris.com.ar" }
+  ]
+}

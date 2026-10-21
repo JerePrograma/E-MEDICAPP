@@ -3,7 +3,7 @@ import {
   authSession,
   backendUrl,
   clearAuthSession,
-  crossOriginBackend,
+  usesHeaderSessions,
   rememberAuthSession,
 } from './connection';
 
@@ -35,7 +35,7 @@ export async function apiFetch(path: string, options: RequestInit = {}): Promise
     response = await fetch(apiUrl(path), {
       ...options,
       headers: Object.fromEntries(headers.entries()),
-      credentials: crossOriginBackend() ? 'omit' : 'same-origin',
+      credentials: usesHeaderSessions() ? 'omit' : 'same-origin',
     });
   } catch {
     throw new ApiError(

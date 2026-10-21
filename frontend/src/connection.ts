@@ -30,7 +30,7 @@ function write(storage: 'localStorage' | 'sessionStorage', key: string, value: s
   }
 }
 
-export function normalizeBackendUrl(value: string): string {
+export function normalizeBackendUrl(value: string, allowBasePath = false): string {
   const input = value.trim();
   if (!input) return '';
   let url: URL;
@@ -42,16 +42,27 @@ export function normalizeBackendUrl(value: string): string {
   const loopback = ['localhost', '127.0.0.1', '[::1]'].includes(url.hostname);
   if (url.protocol !== 'https:' && !(url.protocol === 'http:' && loopback))
     throw new Error('El servidor debe usar HTTPS. HTTP solo está disponible en esta misma PC.');
-  if (url.username || url.password || url.search || url.hash || url.pathname !== '/')
+  const basePath = url.pathname.replace(/\/$/, '');
+  const validBasePath =
+    allowBasePath &&
+    /^\/(?:[a-zA-Z0-9_-]+\/)*[a-zA-Z0-9_-]+$/.test(basePath) &&
+    !basePath.endsWith('/api');
+  if (
+    url.username ||
+    url.password ||
+    url.search ||
+    url.hash ||
+    (url.pathname !== '/' && !validBasePath)
+  )
     throw new Error('Usá la dirección del servidor sin /api, rutas, credenciales ni parámetros.');
-  return url.origin;
+  return url.origin + (validBasePath ? basePath : '');
 }
 
 export function backendUrl(): string {
   const configured = configuredBackend();
   if (configured) {
     try {
-      return normalizeBackendUrl(configured);
+      return normalizeBackendUrl(configured, true);
     } catch {
       return '';
     }
@@ -100,7 +111,7 @@ export function initializeBackendConnection(): string {
     const configured = configuredBackend();
     if (configured) {
       try {
-        normalizeBackendUrl(configured);
+        normalizeBackendUrl(configured, true);
       } catch {
         return 'La conexión de la aplicación no está disponible. Contactá al administrador.';
       }
@@ -148,12 +159,19 @@ export function crossOriginBackend(): boolean {
   return !!backendUrl() && new URL(backendUrl()).origin !== window.location.origin;
 }
 
+// A public API proxy also uses isolated header sessions when it shares the
+// website's origin. Cookies belonging to the surrounding website stay separate.
+export function usesHeaderSessions(): boolean {
+  const backend = backendUrl();
+  return !!backend && (crossOriginBackend() || new URL(backend).pathname !== '/');
+}
+
 function sessionKey() {
   return SESSION_PREFIX + backendUrl();
 }
 
 export function authSession(): string {
-  return crossOriginBackend() ? read('sessionStorage', sessionKey()) : '';
+  return usesHeaderSessions() ? read('sessionStorage', sessionKey()) : '';
 }
 
 export function clearAuthSession(expectedBackend = backendUrl()) {
@@ -165,7 +183,7 @@ export function rememberAuthSession(
   sentSession: string,
   expectedBackend = backendUrl(),
 ) {
-  if (backendUrl() !== expectedBackend || !crossOriginBackend() || authSession() !== sentSession)
+  if (backendUrl() !== expectedBackend || !usesHeaderSessions() || authSession() !== sentSession)
     return;
   const value = response.headers.get('X-Auth-Session');
   if (value !== null) write('sessionStorage', sessionKey(), value);

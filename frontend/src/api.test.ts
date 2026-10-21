@@ -18,8 +18,33 @@ beforeEach(() => {
   });
 });
 
-afterEach(() => vi.unstubAllGlobals());
+afterEach(() => {
+  vi.unstubAllGlobals();
+  vi.unstubAllEnvs();
+});
 describe('Operaciones verificables desde el navegador', () => {
+  it('el proxy del mismo origen usa cabecera de sesión y CSRF, sin cookies del sitio', async () => {
+    Object.assign(window.location, { origin: 'https://scalaris.com.ar' });
+    vi.stubEnv('VITE_API_BASE_URL', 'https://scalaris.com.ar/e-medicapp');
+    const fetcher = vi.fn(async (url: string, request?: RequestInit) => {
+      expect(url.startsWith('https://scalaris.com.ar/e-medicapp/api/')).toBe(true);
+      expect(request?.credentials).toBe('omit');
+      const headers = new Headers(request?.headers);
+      if (url.endsWith('/csrf'))
+        return Response.json(
+          { token: 'csrf-proxy', headerName: 'X-CSRF-TOKEN' },
+          { headers: { 'X-Auth-Session': 'proxy-anonymous' } },
+        );
+      expect(headers.get('X-Auth-Session')).toBe('proxy-anonymous');
+      expect(headers.get('X-CSRF-TOKEN')).toBe('csrf-proxy');
+      return Response.json({ ok: true }, { headers: { 'X-Auth-Session': 'proxy-signed-in' } });
+    });
+    vi.stubGlobal('fetch', fetcher);
+    await expect(
+      api('/api/auth/login', { method: 'POST', body: { email: 'demo' } }),
+    ).resolves.toEqual({ ok: true });
+    expect(authSession()).toBe('proxy-signed-in');
+  });
   it('conserva centavos y moneda de importes grandes sin convertir a punto flotante', () => {
     expect(money('99999999999999.99', 'USD')).toBe('USD 99.999.999.999.999,99');
   });
