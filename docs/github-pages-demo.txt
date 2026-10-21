@@ -1,16 +1,17 @@
-E-MEDICAPP - GITHUB PAGES + BACKEND EN ESTA PC
-Actualizado el 20 de octubre de 2026
+E-MEDICAPP - DOMINIO SCALARIS + GITHUB PAGES + BACKEND EN ESTA PC
+Actualizado el 21 de octubre de 2026
 
 DIRECCIONES
 Repositorio: https://github.com/JerePrograma/E-MEDICAPP
-Frontend: https://jereprograma.github.io/E-MEDICAPP/
+Frontend para compartir: https://scalaris.com.ar/e-medicapp/
+Publicacion de origen: https://jereprograma.github.io/E-MEDICAPP/
 Backend local: http://127.0.0.1:8082
 Base propia: 127.0.0.1:5544 en esta PC (el puerto persistido se lee de .runtime/local-db.json).
 
 PRESENTAR LA DEMO
 1. Abrir AbrirDemoPages.cmd desde la carpeta del proyecto.
 2. Esperar las confirmaciones del backend HTTPS y de la conexion publicada.
-   Compartir https://jereprograma.github.io/E-MEDICAPP/. La direccion normal
+   Compartir https://scalaris.com.ar/e-medicapp/. La direccion normal
    tambien queda guardada en .runtime/demo-pages.json, campo connectionUrl.
    Los usuarios no necesitan agregar parametros ni configurar el servidor.
 3. Ingresar con comprador@demo.invalid y DemoMedicapp2026! o elegir un perfil
@@ -24,13 +25,13 @@ PRESENTAR LA DEMO
 La PC debe permanecer encendida, sin suspension y conectada a Internet.
 Cloudflare proporciona un tunel HTTPS temporal sin configurar el router.
 La URL trycloudflare.com cambia al reiniciar el tunel. La direccion que se
-comparte de GitHub Pages permanece estable.
+comparte de Scalaris permanece estable.
 El dominio del tunel puede tardar unos segundos en propagarse. El acceso espera
 hasta 90 segundos y solo confirma disponibilidad cuando recibe respuesta HTTPS.
 AbrirDemoPages.cmd actualiza VITE_API_BASE_URL y solicita publicar Pages cuando
 la configuracion publicada no coincide con el tunel actual. Necesita GitHub CLI
 con acceso al repositorio. Espera hasta tres minutos a que deployment.json confirme
-el servidor nuevo antes de mostrar el enlace para compartir. Si falla la
+el commit remoto y el servidor nuevo antes de mostrar el enlace para compartir. Si falla la
 publicacion, el backend se conserva activo y el acceso informa que sigue pendiente;
 no utiliza una direccion ingresada por el usuario como alternativa.
 Para repetir la sincronizacion ejecutar scripts/Sync-DemoPages.ps1 -Wait.
@@ -54,14 +55,15 @@ El DEMO no envia correo real, aun si Windows tiene un proveedor SMTP configurado
 El alta/recuperacion de cuentas necesita proveedor en MANUAL; para la demo usar
 las cuentas ya habilitadas. No usar datos reales en esta demostracion publica.
 
-PUBLICAR EL FRONTEND EN GITHUB PAGES
+PUBLICAR EL FRONTEND EN GITHUB PAGES Y SCALARIS
 El flujo .github/workflows/pages.yml compila y prueba frontend/ con Node.js 24.
 Solo sube frontend/dist; no sube Java, PostgreSQL, .runtime ni documentos privados.
 Se ejecuta al actualizar frontend/ en main o desde Actions -> Run workflow.
 En el repositorio, Settings -> Pages -> Build and deployment -> Source debe estar
 en GitHub Actions. Al completar el flujo aparece la URL del sitio.
 
-La ruta Vite es /E-MEDICAPP/ para Pages y / para el JAR local. Las rutas de
+La ruta Vite es ./ para Pages y / para el JAR local. Los recursos relativos
+permiten servir la misma compilacion en /E-MEDICAPP/ y /e-medicapp/. Las rutas de
 navegacion usan # para que recargar o compartir una pantalla no produzca 404.
 La variable de repositorio VITE_API_BASE_URL define el unico origen HTTPS autorizado.
 Con el backend temporal, AbrirDemoPages.cmd la sincroniza cuando cambia el tunel.
@@ -71,6 +73,15 @@ no pueden reemplazar la conexion mediante el enlace o los ajustes del navegador.
 Para un despliegue permanente corresponde utilizar un backend con dominio estable.
 Los valores VITE_* son publicos y nunca deben contener credenciales.
 La autenticacion y los permisos siguen siendo responsabilidad del backend.
+
+El dominio scalaris.com.ar ya pertenece al sitio Scalaris de Cloudflare Pages.
+Su repositorio JerePrograma/scalaris contiene functions/e-medicapp/[[path]].js:
+solo GET y HEAD bajo /e-medicapp/ consultan los archivos publicos de GitHub Pages.
+No se reenvian cookies ni credenciales del visitante. La portada y deployment.json
+no se guardan en cache. /e-medicapp redirige a /e-medicapp/ conservando parametros.
+Las demas rutas de Scalaris siguen sirviendo sus archivos estaticos habituales.
+Cada nueva publicacion de GitHub se refleja en Scalaris sin copiar archivos ni
+republicar el sitio corporativo. El enlace anterior de GitHub sigue disponible.
 
 PRIMERA INSTALACION O ACTUALIZACION EN WINDOWS
 Requisitos: JDK 25, Node.js 24, PostgreSQL 17 o superior y cloudflared.
@@ -104,7 +115,8 @@ una contrasena aleatoria protegida mediante DPAPI para el usuario de Windows.
 No borrar .runtime: contiene los datos, documentos, credenciales locales y logs.
 El tunel publica el backend; GitHub Pages conserva solo los archivos de la web.
 
-El backend admite exclusivamente el origen https://jereprograma.github.io.
+El backend admite https://scalaris.com.ar y https://jereprograma.github.io,
+ademas de https://localhost para el cliente Android.
 La sesion entre dominios se conserva por pestana mediante X-Auth-Session y
 mantiene validacion CSRF. No depende de habilitar cookies de terceros.
 La sesion vence a los 30 minutos de inactividad o al reiniciar Java; el navegador
@@ -118,12 +130,12 @@ El guion de presentacion recomienda crear una compra sencilla con retiro y luego
 mostrar entrega, pagos, factura y cierre mediante las cuentas de cada rol.
 
 DIAGNOSTICO
-.runtime/demo-pages.json: estado, backend HTTPS y enlace normal de Pages para compartir.
+.runtime/demo-pages.json: estado, backend HTTPS y enlace de Scalaris para compartir.
 .runtime/demo-tunnel.stderr.log: conexion saliente de Cloudflare.
 .runtime/app-Demo.stdout.log y .stderr.log: inicio del backend.
 .runtime/postgres.log: base local.
 El acceso informa disponibilidad solamente despues de comprobar modo DEMO por
-HTTPS y el permiso CORS para GitHub Pages. La verificacion del frontend publico
+HTTPS y el permiso CORS para el frontend publico. La verificacion del frontend publico
 se completa en GitHub Actions; el tunel por si solo no publica el frontend.
 
 El mecanismo anterior de ngrok y MANUAL queda en scripts/Start-Public.ps1,

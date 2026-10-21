@@ -47,7 +47,8 @@ jobs:
       - name: Compilar frontend
         working-directory: frontend
         env:
-          VITE_BASE_PATH: /E-MEDICAPP/
+          # The same files are served from GitHub Pages and scalaris.com.ar/e-medicapp/.
+          VITE_BASE_PATH: ./
           VITE_API_BASE_URL: ${{ vars.VITE_API_BASE_URL }}
         run: npm run build
       - name: Registrar configuracion publicada

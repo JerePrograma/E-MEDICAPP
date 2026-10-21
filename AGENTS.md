@@ -9,7 +9,8 @@ autoriza el commit, push y despliegue necesarios como parte de la entrega.
   web pública cuando corresponda; no terminar dejando solo el cambio local.
 - Preservar la base y los documentos de la demo. Respaldar antes de migraciones
   y reemplazar únicamente procesos y paquetes propios, comprobando su identidad.
-- El frontend público es https://jereprograma.github.io/E-MEDICAPP/ y el backend
+- El frontend público es https://scalaris.com.ar/e-medicapp/ (publicación de origen
+  en https://jereprograma.github.io/E-MEDICAPP/) y el backend
   se administra en esta PC. Seguir `docs/github-pages-demo.txt` y los scripts.
 - Confirmar el éxito de GitHub Actions y comprobar que `deployment.json.commit`
   corresponda al commit enviado y que `backendUrl` coincida con el servidor

@@ -1,5 +1,5 @@
 param(
-  [string]$PagesUrl='https://jereprograma.github.io/E-MEDICAPP/',
+  [string]$PagesUrl='https://scalaris.com.ar/e-medicapp/',
   [int]$Port=8082,
   [string]$JavaHome=$env:EMEDICAPP_JAVA_HOME,
   [string]$CloudflaredPath=$env:EMEDICAPP_CLOUDFLARED,
@@ -64,7 +64,7 @@ $saved=@{}; foreach ($key in $keys) { $saved[$key]=[Environment]::GetEnvironment
 $backendStartRequested=$false
 try {
   $env:EMEDICAPP_ADDRESS='127.0.0.1'
-  $env:EMEDICAPP_ALLOWED_ORIGINS=$allowedOrigin+',https://localhost'
+  $env:EMEDICAPP_ALLOWED_ORIGINS=(@($allowedOrigin,'https://scalaris.com.ar','https://jereprograma.github.io','https://localhost') | Select-Object -Unique) -join ','
   $env:EMEDICAPP_EMAIL_BASE_URL=$PagesUrl
   $env:EMEDICAPP_PUBLIC_URL=$null
   $env:EMEDICAPP_SECURE_COOKIES='true'
@@ -111,7 +111,7 @@ try {
   }
   if (-not $verified) { throw 'El tunel no confirmo acceso al backend DEMO. Revisa la conexion antes de compartir.' }
   $cors=Invoke-WebRequest ($state.apiUrl+'/api/bootstrap') -UseBasicParsing -Headers @{Origin=$allowedOrigin} -TimeoutSec 10
-  if ([string]$cors.Headers['Access-Control-Allow-Origin'] -ne $allowedOrigin) { throw 'El backend no permite la conexion desde GitHub Pages. Compila nuevamente el proyecto antes de compartir.' }
+  if ([string]$cors.Headers['Access-Control-Allow-Origin'] -ne $allowedOrigin) { throw 'El backend no permite la conexion desde el frontend publico. Revisa los origenes autorizados antes de compartir.' }
   $state.status='UP'
   $state.verifiedAt=(Get-Date).ToUniversalTime().ToString('o')
   Write-DemoPagesState $state
