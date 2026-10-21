@@ -5,7 +5,7 @@ RUN --mount=type=cache,target=/root/.npm npm ci
 COPY frontend/ ./
 ARG PUBLIC_ORIGIN=https://srv2083548.hstgr.cloud
 ENV VITE_BASE_PATH=/ VITE_API_BASE_URL=${PUBLIC_ORIGIN}
-RUN npm test && npm run build
+RUN VITE_API_BASE_URL= npm test && npm run build
 
 FROM maven:3.9-eclipse-temurin-25 AS backend
 WORKDIR /build
