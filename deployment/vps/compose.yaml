@@ -38,7 +38,7 @@ services:
       EMEDICAPP_MODE: DEMO
       EMEDICAPP_DOCUMENTS_DIR: /data/documents
       EMEDICAPP_SECURE_COOKIES: "true"
-      EMEDICAPP_PUBLIC_URL: https://srv2083548.hstgr.cloud
+      SERVER_FORWARD_HEADERS_STRATEGY: NATIVE
       EMEDICAPP_ALLOWED_ORIGINS: https://srv2083548.hstgr.cloud,https://scalaris.com.ar,https://jereprograma.github.io,https://localhost
       TZ: America/Argentina/Buenos_Aires
     volumes:
