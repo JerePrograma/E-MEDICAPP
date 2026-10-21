@@ -15,7 +15,7 @@ function unavailable() {
 function safeBackend(value) {
   const url = new URL(value);
   if (url.protocol !== 'https:' || url.username || url.password || url.port || url.pathname !== '/' ||
-      url.search || url.hash || !/^[a-z0-9-]+\.trycloudflare\.com$/.test(url.hostname)) {
+      url.search || url.hash || !(url.hostname === 'srv2083548.hstgr.cloud' || /^[a-z0-9-]+\.trycloudflare\.com$/.test(url.hostname))) {
     throw new Error('Invalid published backend');
   }
   return url;

@@ -1,0 +1,34 @@
+E-MEDICAPP EN EL VPS HOSTINGER
+
+Backend y web directa: https://srv2083548.hstgr.cloud/
+Enlace publico habitual: https://scalaris.com.ar/e-medicapp/
+Origen alternativo: https://jereprograma.github.io/E-MEDICAPP/
+
+Java y PostgreSQL se ejecutan en Docker en el VPS 200.141.20.63.
+La PC ya no necesita permanecer encendida. AbrirDemoPages.cmd consulta
+el VPS y abre la publicacion; no vuelve a iniciar el tunel temporal.
+El backend mantiene el escenario DEMO y las cuentas existentes.
+
+La migracion conserva la base DEMO y sus documentos mediante un respaldo
+PostgreSQL custom y una copia de archivos. La base de Windows y los
+respaldos originales se conservan para recuperacion.
+
+El despliegue esta en /srv/apps/emedicapp. La clave de base se guarda
+exclusivamente en el archivo privado .env de ese directorio. PostgreSQL
+no publica puertos a Internet. Los documentos estan en data/documents.
+El volumen postgres_data conserva la base al reemplazar la aplicacion.
+
+Acceso: ssh scalaris-vps
+Estado: cd /srv/apps/emedicapp && docker compose ps
+Registros: docker compose logs --tail=100 -f app
+Salud: https://srv2083548.hstgr.cloud/actuator/health
+
+Para actualizar: verificar los cambios, publicarlos en GitHub y ejecutar
+scripts/Deploy-Vps.ps1. El comando respalda los datos y reemplaza la app.
+El frontend de GitHub Pages conserva su workflow; VITE_API_BASE_URL en el
+repositorio debe seguir apuntando al origen HTTPS del VPS. El Worker de
+Scalaris admite solamente ese VPS y los tuneles temporales permitidos.
+Comprobar deployment.json.commit contra el commit publicado.
+
+Las instrucciones de docs/github-pages-demo.txt sobre tuneles y backend
+Windows se conservan como antecedente y recuperacion de la instalacion.

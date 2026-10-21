@@ -6,6 +6,20 @@ const base = 'https://scalaris.com.ar/e-medicapp/';
 const backend = 'https://demo-current.trycloudflare.com';
 const marker = () => Response.json({ backendUrl: backend, commit: 'published' });
 
+test('accepts the approved VPS origin and rejects similar or private destinations', async (t) => {
+  const approved = 'https://srv2083548.hstgr.cloud';
+  const fetcher = t.mock.method(globalThis, 'fetch', async (url) => {
+    if (url.includes('deployment.json')) return Response.json({ backendUrl: approved });
+    assert.equal(url, approved + '/api/bootstrap');
+    return Response.json({ mode: 'DEMO' });
+  });
+  assert.equal((await handleRequest(new Request(base + 'api/bootstrap'))).status, 200);
+  for (const backendUrl of ['https://srv2083548.hstgr.cloud.attacker.example', 'https://srv999.hstgr.cloud', 'https://srv2083548.hstgr.cloud:8443', 'https://127.0.0.1']) {
+    fetcher.mock.mockImplementation(async () => Response.json({ backendUrl }));
+    assert.equal((await handleRequest(new Request(base + 'api/bootstrap'))).status, 503);
+  }
+});
+
 test('serves only its own path and canonicalizes the public URL', async () => {
   assert.equal((await handleRequest(new Request('https://scalaris.com.ar/tienda/'))).status, 404);
   const response = await handleRequest(new Request(base.slice(0, -1) + '?source=qa'));

@@ -8,6 +8,17 @@ param(
   [switch]$OpenBrowser
 )
 $ErrorActionPreference='Stop'
+$vpsConfigurationPath=Join-Path $PSScriptRoot '..\deployment\vps\public.json'
+if (Test-Path -LiteralPath $vpsConfigurationPath) {
+  $vpsConfiguration=Get-Content -LiteralPath $vpsConfigurationPath -Raw | ConvertFrom-Json
+  $vpsBootstrap=Invoke-RestMethod ($vpsConfiguration.backendUrl+'/api/bootstrap') -TimeoutSec 20
+  if ($vpsBootstrap.mode -ne 'DEMO') { throw 'El VPS no confirma el escenario DEMO.' }
+  Write-Host "Medicapp esta desplegado en el VPS: $($vpsConfiguration.pagesUrl)"
+  Write-Host "Acceso directo: $($vpsConfiguration.directUrl)"
+  if ($Build) { Write-Host 'Para actualizar el servidor utilizar scripts\Deploy-Vps.ps1.' }
+  if ($OpenBrowser) { Start-Process $vpsConfiguration.pagesUrl -WindowStyle Hidden }
+  return
+}
 . (Join-Path $PSScriptRoot 'DemoPages.Common.ps1')
 $pagesUri=$null
 if (-not [Uri]::TryCreate($PagesUrl,[UriKind]::Absolute,[ref]$pagesUri) -or $pagesUri.Scheme -ne 'https' -or $pagesUri.Port -ne 443 -or $pagesUri.UserInfo -or $pagesUri.Query -or $pagesUri.Fragment) {

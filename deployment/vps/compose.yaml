@@ -1,0 +1,58 @@
+name: emedicapp
+services:
+  db:
+    image: postgres:17
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: emedicapp
+      POSTGRES_DB: emedicapp_demo
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?Set DB_PASSWORD in the private .env}
+      TZ: America/Argentina/Buenos_Aires
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks: [private]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U emedicapp -d emedicapp_demo"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    mem_limit: 768m
+  app:
+    image: scalaris/emedicapp:${BUILD_COMMIT:?Set BUILD_COMMIT}
+    build:
+      context: .
+      dockerfile: deployment/vps/Dockerfile
+      args:
+        BUILD_COMMIT: ${BUILD_COMMIT}
+        PUBLIC_ORIGIN: https://srv2083548.hstgr.cloud
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      EMEDICAPP_ADDRESS: 0.0.0.0
+      EMEDICAPP_PORT: 8082
+      EMEDICAPP_DB_URL: jdbc:postgresql://db:5432/emedicapp_demo
+      EMEDICAPP_DB_USER: emedicapp
+      EMEDICAPP_DB_PASSWORD: ${DB_PASSWORD}
+      EMEDICAPP_MODE: DEMO
+      EMEDICAPP_DOCUMENTS_DIR: /data/documents
+      EMEDICAPP_SECURE_COOKIES: "true"
+      EMEDICAPP_PUBLIC_URL: https://srv2083548.hstgr.cloud
+      EMEDICAPP_ALLOWED_ORIGINS: https://srv2083548.hstgr.cloud,https://scalaris.com.ar,https://jereprograma.github.io,https://localhost
+      TZ: America/Argentina/Buenos_Aires
+    volumes:
+      - ./data/documents:/data/documents
+    networks:
+      private:
+      proxy:
+        aliases: [emedicapp]
+    mem_limit: 1536m
+    security_opt: ["no-new-privileges:true"]
+networks:
+  private:
+    internal: true
+  proxy:
+    external: true
+volumes:
+  postgres_data:

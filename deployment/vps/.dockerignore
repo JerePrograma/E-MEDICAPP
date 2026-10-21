@@ -1,0 +1,16 @@
+.git
+.runtime
+.tools
+.artifact-build
+outputs
+backend/target
+frontend/node_modules
+frontend/dist
+frontend/dist-android
+frontend/android
+frontend/test-results
+frontend/playwright-report
+.env
+.env.*
+data
+*.log
