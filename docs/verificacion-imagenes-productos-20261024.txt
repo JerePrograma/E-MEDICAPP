@@ -1,0 +1,60 @@
+E-MEDICAPP — corrección de fotos en la web pública
+Fecha: 24 de octubre de 2026.
+
+CAUSA COMPROBADA
+
+La publicación usa https://scalaris.com.ar/e-medicapp como base de API y
+conserva la sesión mediante X-Auth-Session. useApiImage sólo descargaba las
+imágenes mediante apiFetch cuando el servidor tenía otro origen. En el proxy
+del mismo origen generaba un img con URL directa, sin el encabezado de sesión.
+El servidor rechazaba esa solicitud y la interfaz mostraba la ilustración de
+la categoría aunque la foto estuviera guardada.
+
+La consulta pública de sólo lectura encontró 31 productos y 10 con foto.
+Una misma foto devolvió 401 sin sesión y 200 image/png con sesión, con firma
+PNG válida y 40.305 bytes. Los cuerpos JSON de 1.500.279 y 2.796.279 bytes
+llegaron a la validación del backend y devolvieron 400, igual que el control
+pequeño con versión negativa: no se observó un bloqueo 413 por tamaño.
+Las sondas usaron una versión inválida y un UUID inexistente, sin escribir
+productos. No se guardaron tokens en la evidencia.
+
+CORRECCIÓN Y ACEPTACIÓN
+
+ApiImage usa usesHeaderSessions, el mismo criterio que las demás solicitudes
+de API. Las fotos del proxy se descargan con apiFetch y se muestran mediante
+una URL blob. Se conserva el acceso autenticado y la liberación de esa URL.
+La carga y normalización del backend no requieren cambios ni migraciones.
+
+La regresión de navegador cubre proxy del mismo origen con ruta base y origen
+cruzado: exige X-Auth-Session, omite cookies del sitio, comprueba la foto tras
+recargar y mantiene la ilustración de respaldo ante 404 o contenido inválido.
+El recorrido existente cubre seleccionar, guardar, conservar, reemplazar y
+quitar fotos en una base y un directorio de documentos QA separados.
+
+VERIFICACIÓN LOCAL
+
+- Vitest: 47 pruebas aprobadas.
+- Playwright: 3 recorridos aprobados; runner aislado finalizó y detuvo su proceso.
+- Validación unitaria de imágenes y logos en backend: 9 pruebas aprobadas.
+- Proxy Cloudflare: 7 pruebas aprobadas.
+- Compilación TypeScript/Vite y empaquetado del JAR: correctos. Ese empaquetado
+  omitió las pruebas backend; los 9 casos anteriores se ejecutaron aparte.
+- Formato de los archivos modificados y git diff --check: correctos.
+
+El primer intento de navegador no pudo ejecutarse por falta de Chromium.
+Se instaló la versión requerida por Playwright y los tres recorridos pasaron
+en un nuevo escenario aislado: workflow-20261024230056126_4abcf506.json.
+
+EVIDENCIA
+
+.runtime/image-fix-20261024/public-http-probes.json: diagnóstico HTTP previo.
+.runtime/image-fix-20261024/public-before.png: fallo visible en el catálogo.
+.runtime/product-image-qa/: capturas de las pruebas aisladas.
+.runtime/workflow-*.json y verification-browser.log: resultado del runner QA.
+.runtime/image-fix-20261024/: evidencia final de publicación y verificación.
+
+La publicación debe comprobar el resultado de Actions, deployment.json.commit,
+el backend del VPS y la foto desde el enlace público. El respaldo y las
+huellas del catálogo antes/después permiten comprobar conservación de datos.
+Los resultados finales y la identidad de la entrega se registran en la
+evidencia local; este documento describe causa, alcance y aceptación.

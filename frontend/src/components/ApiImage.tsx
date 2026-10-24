@@ -1,13 +1,14 @@
 import { useEffect, useState } from 'react';
 import { Box, type SxProps, type Theme } from '@mui/material';
 import { apiFetch, apiUrl } from '../api';
-import { crossOriginBackend } from '../connection';
+import { usesHeaderSessions } from '../connection';
 
 export function useApiImage(path: string | null): string | null {
   const [image, setImage] = useState<{ path: string; url: string } | null>(null);
-  const remote = crossOriginBackend();
+  // A proxy with a base path also needs the session header on the frontend's own origin.
+  const headerSession = usesHeaderSessions();
   useEffect(() => {
-    if (!path || !remote || !path.startsWith('/api/')) return;
+    if (!path || !headerSession || !path.startsWith('/api/')) return;
     let active = true;
     let objectUrl: string | undefined;
     void apiFetch(path)
@@ -25,9 +26,9 @@ export function useApiImage(path: string | null): string | null {
       active = false;
       if (objectUrl) URL.revokeObjectURL(objectUrl);
     };
-  }, [path, remote]);
+  }, [path, headerSession]);
   if (!path) return null;
-  if (!remote || !path.startsWith('/api/')) return apiUrl(path);
+  if (!headerSession || !path.startsWith('/api/')) return apiUrl(path);
   return image?.path === path ? image.url : null;
 }
 

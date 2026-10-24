@@ -1,0 +1,81 @@
+E-MEDICAPP — evaluación del estándar Scalaris
+Fecha: 24/10/2026. Alcance: revisión de fuentes locales para la corrección de
+fotos de productos. No constituye una auditoría del VPS ni de soporte de versiones.
+
+PRODUCTO Y ACEPTACIÓN DE ESTA CORRECCIÓN
+
+Administración carga y conserva la foto de una presentación compartida; las
+personas autenticadas consultan las imágenes de productos activos en el catálogo.
+La corrección debe permitir ver la foto guardada tras recargar, tanto mediante
+el proxy público del mismo origen como desde otro origen; conservar validación,
+permisos, versión y datos. Verificar el recorrido en un escenario QA aislado y
+comprobar la publicación desde el enlace público, según AGENTS.md.
+
+HECHOS OBSERVADOS EN FUENTES LOCALES
+
+- Backend: pom.xml fija Java 25 y Spring Boot 4.1.1. Usa Spring MVC, Security,
+  JdbcClient y transacciones; Maven Wrapper fija Maven 3.9.16. Los paquetes por
+  función conforman un monolito modular. Coincide con el estándar de arquitectura.
+- Datos: PostgreSQL y Flyway, con migraciones V1–V18; clean está deshabilitado.
+  No hay JPA/Hibernate en pom.xml: no corresponde incorporar ddl-auto. La foto se
+  conserva en product.image_png mediante V18; este arreglo no requiere esquema.
+- Frontend: React 19.3.0, TypeScript 6.0.3 estricto, Ionic 9.0.8 y Capacitor 8.5.3,
+  fijados en package.json con lockfile. La necesidad híbrida se concreta en el
+  proyecto Android y su workflow; no se propone reemplazar esta base.
+- Entrega: compose.yaml y Dockerfile definen VPS Linux con Docker, PostgreSQL sin
+  puerto público, documentos persistentes y configuración secreta externa. Pages
+  prueba y compila la web mediante Actions; Deploy-Vps.ps1 respalda y despliega
+  la aplicación por SSH. El despliegue del backend sigue siendo un paso operado.
+- Permisos y datos: Access.requireBranchRole comprueba rol y pertenencia en el
+  servidor. CatalogService exige administración para modificar productos y
+  audita la acción. Las fotos usan endpoints autenticados; precios y existencias
+  permanecen por sucursal. La presentación y su imagen son compartidas por diseño.
+- Verificación disponible: JUnit, integración con PostgreSQL, Vitest y Playwright.
+  ProductImageIntegrationTest contiene ciclo de foto, roles y versiones;
+  product-image.spec.ts contiene el recorrido de interfaz. Su existencia no
+  acredita que las pruebas de esta intervención hayan terminado correctamente.
+
+BRECHAS, BENEFICIO, ESFUERZO Y RIESGO
+
+- El frontend distingue origen cruzado y sesiones por encabezado de forma
+  diferente al descargar imágenes (ApiImage.tsx frente a connection.ts). Unificar
+  el criterio y añadir regresión para proxy con ruta base tiene esfuerzo bajo,
+  valor inmediato y riesgo acotado a la descarga de recursos autenticados. No
+  debe abrirse el endpoint al público para resolver un problema de sesión.
+- Las dependencias npm y Maven están fijadas, pero las imágenes Docker utilizan
+  etiquetas de familia (postgres:17, node:24-bookworm-slim, Maven/Temurin 25), sin
+  digest. Fijarlas con un procedimiento de actualización mejoraría reproducción;
+  esfuerzo medio y riesgo de compatibilidad que merece un cambio independiente.
+- docs/decisiones-tecnicas.txt conserva PostgreSQL 18.6 y el esquema V1–V13,
+  mientras README y Compose describen PostgreSQL 17 y existen V1–V18. AGENTS.md y
+  docs/github-pages-demo.txt conservan además operación Windows histórica, frente
+  a README y docs/vps-hostinger.txt que describen VPS. Alinear documentación tiene
+  esfuerzo bajo y reduce errores operativos; no cambiar la base para hacerla
+  coincidir con documentos antiguos. La versión efectiva exige evidencia del VPS.
+- No se ha comprobado aquí restauración, custodia/copia externa, automatización
+  de backups, alertas ni métricas operativas. El script invoca un respaldo, lo
+  que no acredita restauración. Revisar con evidencia y objetivos propios tiene
+  esfuerzo medio y valor alto para operación; queda fuera del arreglo de fotos.
+
+RECOMENDACIÓN
+
+Conservar el stack y el monolito existentes. Resolver el defecto de sesión de
+las imágenes y entregar con pruebas proporcionales y evidencia pública. No hay
+beneficio identificado en reescribir, cambiar PostgreSQL, migrar a servicios ni
+modificar migraciones aplicadas por esta incidencia. Tratar reproducibilidad,
+documentación y operación como trabajo separado, sin atribuirles aprobación de
+ejecución ni resultados no verificados. Revisar esta evaluación si cambia el
+stack, el aislamiento o la forma de despliegue.
+
+FUENTES LOCALES CONSULTADAS EL 24/10/2026
+
+AGENTS.md; README.md; docs/decisiones-tecnicas.txt; docs/vps-hostinger.txt;
+backend/pom.xml; backend/.mvn/wrapper/maven-wrapper.properties;
+backend/src/main/resources/application.properties y db/migration/;
+backend/src/main/java/ar/emedicapp/common/Access.java;
+backend/src/main/java/ar/emedicapp/catalog/CatalogController.java y CatalogService.java;
+backend/src/test/java/ar/emedicapp/catalog/ProductImageIntegrationTest.java;
+frontend/package.json, package-lock.json y tsconfig.json;
+frontend/src/components/ApiImage.tsx; frontend/src/connection.ts;
+frontend/tests/product-image.spec.ts; .github/workflows/pages.yml y android.yml;
+deployment/vps/compose.yaml y Dockerfile; scripts/Deploy-Vps.ps1.

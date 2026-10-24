@@ -283,137 +283,155 @@ test('foto del producto: carga, persistencia, catálogo, reemplazo y eliminació
   }
 });
 
-test('foto del producto en otro origen: usa la sesión y muestra la ilustración si falla la imagen', async ({
-  page,
-  request,
-}) => {
-  const frontendOrigin = 'http://localhost:4175';
-  const backendOrigin = 'http://127.0.0.1:8083';
-  const session = 'qa-product-image-cross-origin';
-  const errors: string[] = [];
-  const imageRequests: { session?: string; cookie?: string }[] = [];
-  page.on('pageerror', (error) => errors.push(error.message));
-  await page.context().grantPermissions(['local-network-access'], { origin: frontendOrigin });
+for (const scenario of [
+  { name: 'otro origen', backend: 'http://127.0.0.1:8083' },
+  { name: 'proxy del mismo origen', backend: 'http://localhost:4175/e-medicapp' },
+]) {
+  test(`foto del producto en ${scenario.name}: usa la sesión y muestra la ilustración si falla la imagen`, async ({
+    page,
+    request,
+  }) => {
+    const frontendOrigin = 'http://localhost:4175';
+    const backendOrigin = scenario.backend;
+    const backendBasePath = new URL(backendOrigin).pathname.replace(/\/$/, '');
+    const session = 'qa-product-image-cross-origin';
+    const errors: string[] = [];
+    const imageRequests: { session?: string; cookie?: string }[] = [];
+    page.on('pageerror', (error) => errors.push(error.message));
+    await page.context().grantPermissions(['local-network-access'], { origin: frontendOrigin });
+    await page
+      .context()
+      .addCookies([{ name: 'surrounding-site', value: 'private-cookie', url: frontendOrigin }]);
 
-  // Read only static assets from the QA JAR; API requests use the other origin below.
-  await page.route(`${frontendOrigin}/**`, async (route) => {
-    const url = new URL(route.request().url());
-    if (url.pathname.startsWith('/api/')) {
-      await route.fulfill({ status: 404, body: 'Static frontend only' });
-      return;
-    }
-    const asset = await request.get(`${backendOrigin}${url.pathname}`);
-    await route.fulfill({ response: asset });
-  });
-  await page.addInitScript(
-    ({ backendOrigin, session }) => {
-      window.localStorage.setItem('emedicapp.backend-url', backendOrigin);
-      window.sessionStorage.setItem(`emedicapp.session:${backendOrigin}`, session);
-    },
-    { backendOrigin, session },
-  );
+    // Read only static assets from the QA JAR; API requests use the configured session endpoint.
+    await page.route(`${frontendOrigin}/**`, async (route) => {
+      const url = new URL(route.request().url());
+      if (url.pathname.startsWith('/api/')) {
+        await route.fulfill({ status: 404, body: 'Static frontend only' });
+        return;
+      }
+      const asset = await request.get(`http://127.0.0.1:8083${url.pathname}`);
+      await route.fulfill({ response: asset });
+    });
+    await page.addInitScript(
+      ({ backendOrigin, session }) => {
+        window.localStorage.setItem('emedicapp.backend-url', backendOrigin);
+        window.sessionStorage.setItem(`emedicapp.session:${backendOrigin}`, session);
+      },
+      { backendOrigin, session },
+    );
 
-  const makeProduct = (id: string, name: string) => ({
-    id,
-    code: `QA-${id}`,
-    name,
-    presentation: 'Caja de prueba',
-    requiresPrescription: false,
-    coldChain: false,
-    restricted: false,
-    active: true,
-    version: 1,
-    metadata: { catalogCategory: 'NON_PRESCRIPTION' },
-    imageUrl: `/api/catalog/products/${id}/image?v=1`,
-  });
-  const products = [
-    makeProduct('qa-photo', 'Producto con foto remota'),
-    makeProduct('qa-missing', 'Producto con foto no disponible'),
-    makeProduct('qa-invalid', 'Producto con foto dañada'),
-  ];
-  const png = (await raster(page, '#0c6780')).buffer;
-  await page.route(`${backendOrigin}/api/**`, async (route) => {
-    const current = route.request();
-    const path = new URL(current.url()).pathname;
-    const headers = {
-      'Access-Control-Allow-Origin': frontendOrigin,
-      'Access-Control-Allow-Headers': 'Accept, X-Auth-Session',
-      'Access-Control-Allow-Methods': 'GET, OPTIONS',
-    };
-    if (current.method() === 'OPTIONS') {
-      await route.fulfill({ status: 204, headers });
-      return;
-    }
-    if (path === '/api/bootstrap') {
-      await route.fulfill({ headers, json: { mode: 'DEMO' } });
-      return;
-    }
-    if (path === '/api/auth/me') {
-      await route.fulfill({
-        headers,
-        json: {
-          id: 'qa-buyer',
-          email: 'buyer@qa.invalid',
-          name: 'Comprador QA',
-          roles: ['BUYER'],
-          branchIds: [],
-        },
-      });
-      return;
-    }
-    if (path === '/api/catalog/products') {
-      await route.fulfill({ headers, json: products });
-      return;
-    }
-    if (path === '/api/catalog/promotions') {
-      await route.fulfill({ headers, json: [] });
-      return;
-    }
-    if (path.endsWith('/image')) {
-      imageRequests.push({
-        session: current.headers()['x-auth-session'],
-        cookie: current.headers().cookie,
-      });
-      if (path.includes('/qa-missing/')) {
-        await route.fulfill({ status: 404, headers, json: { detail: 'Foto no disponible.' } });
-      } else {
+    const makeProduct = (id: string, name: string) => ({
+      id,
+      code: `QA-${id}`,
+      name,
+      presentation: 'Caja de prueba',
+      requiresPrescription: false,
+      coldChain: false,
+      restricted: false,
+      active: true,
+      version: 1,
+      metadata: { catalogCategory: 'NON_PRESCRIPTION' },
+      imageUrl: `/api/catalog/products/${id}/image?v=1`,
+    });
+    const products = [
+      makeProduct('qa-photo', 'Producto con foto remota'),
+      makeProduct('qa-missing', 'Producto con foto no disponible'),
+      makeProduct('qa-invalid', 'Producto con foto dañada'),
+    ];
+    const png = (await raster(page, '#0c6780')).buffer;
+    await page.route(`${backendOrigin}/api/**`, async (route) => {
+      const current = route.request();
+      const path = new URL(current.url()).pathname.slice(backendBasePath.length);
+      const headers = {
+        'Access-Control-Allow-Origin': frontendOrigin,
+        'Access-Control-Allow-Headers': 'Accept, X-Auth-Session',
+        'Access-Control-Allow-Methods': 'GET, OPTIONS',
+      };
+      if (current.method() === 'OPTIONS') {
+        await route.fulfill({ status: 204, headers });
+        return;
+      }
+      if (path === '/api/bootstrap') {
+        await route.fulfill({ headers, json: { mode: 'DEMO' } });
+        return;
+      }
+      if (path === '/api/auth/me') {
         await route.fulfill({
           headers,
-          contentType: 'image/png',
-          body: path.includes('/qa-invalid/') ? Buffer.from('PNG inválido') : png,
+          json: {
+            id: 'qa-buyer',
+            email: 'buyer@qa.invalid',
+            name: 'Comprador QA',
+            roles: ['BUYER'],
+            branchIds: [],
+          },
         });
+        return;
       }
-      return;
-    }
-    await route.fulfill({ status: 404, headers });
-  });
-
-  await page.goto(`${frontendOrigin}/#/app/catalog`);
-  await expect(
-    page.getByRole('heading', { name: 'Catálogo', exact: true, level: 1 }),
-  ).toBeVisible();
-  const card = (product: Product) =>
-    page.locator('.MuiCard-root').filter({
-      has: page.getByRole('heading', { name: product.name, exact: true, level: 3 }),
+      if (path === '/api/catalog/products') {
+        await route.fulfill({ headers, json: products });
+        return;
+      }
+      if (path === '/api/catalog/promotions') {
+        await route.fulfill({ headers, json: [] });
+        return;
+      }
+      if (path.endsWith('/image')) {
+        imageRequests.push({
+          session: current.headers()['x-auth-session'],
+          cookie: current.headers().cookie,
+        });
+        if (current.headers()['x-auth-session'] !== session) {
+          await route.fulfill({ status: 401, headers, json: { detail: 'Sesión requerida.' } });
+          return;
+        }
+        if (path.includes('/qa-missing/')) {
+          await route.fulfill({ status: 404, headers, json: { detail: 'Foto no disponible.' } });
+        } else {
+          await route.fulfill({
+            headers,
+            contentType: 'image/png',
+            body: path.includes('/qa-invalid/') ? Buffer.from('PNG inválido') : png,
+          });
+        }
+        return;
+      }
+      await route.fulfill({ status: 404, headers });
     });
-  const photo = card(products[0]).getByRole('img', {
-    name: `Foto de ${products[0].name}`,
-    exact: true,
+
+    await page.goto(`${frontendOrigin}/#/app/catalog`);
+    await expect(
+      page.getByRole('heading', { name: 'Catálogo', exact: true, level: 1 }),
+    ).toBeVisible();
+    const card = (product: Product) =>
+      page.locator('.MuiCard-root').filter({
+        has: page.getByRole('heading', { name: product.name, exact: true, level: 3 }),
+      });
+    const photo = card(products[0]).getByRole('img', {
+      name: `Foto de ${products[0].name}`,
+      exact: true,
+    });
+    await expectLoadedPhoto(photo);
+    await expect(photo).toHaveAttribute('src', /^blob:http:\/\/localhost:4175\//);
+    for (const product of products.slice(1)) {
+      const fallback = card(product);
+      await fallback.scrollIntoViewIfNeeded();
+      await expect(fallback.getByRole('img', { name: `Foto de ${product.name}` })).toHaveCount(0);
+      await expect(fallback.locator('svg[aria-hidden="true"]')).toBeVisible();
+      await expect(fallback.getByRole('button', { name: 'Ver disponibilidad' })).toBeVisible();
+    }
+    await expect.poll(() => imageRequests.length).toBeGreaterThanOrEqual(3);
+    expect(imageRequests.every((image) => image.session === session && !image.cookie)).toBe(true);
+    const beforeReload = imageRequests.length;
+    await page.reload();
+    await expectLoadedPhoto(photo);
+    await expect.poll(() => imageRequests.length).toBeGreaterThan(beforeReload);
+    expect(imageRequests.every((image) => image.session === session && !image.cookie)).toBe(true);
+    expect(errors).toEqual([]);
+    await page.screenshot({
+      path: `${evidenceDirectory}/foto-catalogo-${scenario.name.replaceAll(' ', '-')}.png`,
+      fullPage: true,
+    });
   });
-  await expectLoadedPhoto(photo);
-  await expect(photo).toHaveAttribute('src', /^blob:http:\/\/localhost:4175\//);
-  for (const product of products.slice(1)) {
-    const fallback = card(product);
-    await fallback.scrollIntoViewIfNeeded();
-    await expect(fallback.getByRole('img', { name: `Foto de ${product.name}` })).toHaveCount(0);
-    await expect(fallback.locator('svg[aria-hidden="true"]')).toBeVisible();
-    await expect(fallback.getByRole('button', { name: 'Ver disponibilidad' })).toBeVisible();
-  }
-  await expect.poll(() => imageRequests.length).toBeGreaterThanOrEqual(3);
-  expect(imageRequests.every((image) => image.session === session && !image.cookie)).toBe(true);
-  expect(errors).toEqual([]);
-  await page.screenshot({
-    path: `${evidenceDirectory}/foto-catalogo-otro-origen.png`,
-    fullPage: true,
-  });
-});
+}
