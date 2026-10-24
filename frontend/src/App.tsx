@@ -162,8 +162,20 @@ function ConnectedApp({ onConnectionRequested }: { onConnectionRequested?: () =>
     <>
       <IonHeader className="ion-no-border">
         <IonToolbar className="application-toolbar">
-          <Toolbar sx={{ gap: 2, flexWrap: 'wrap', py: 1 }}>
-            <Typography variant="h6" color="primary" sx={{ fontWeight: 800, flexGrow: 1 }}>
+          <Toolbar
+            sx={{
+              gap: { xs: 1, sm: 2 },
+              minHeight: { xs: 56, sm: 64 },
+              px: { xs: 2, sm: 3 },
+              py: { xs: 0, sm: 1 },
+            }}
+          >
+            <Typography
+              variant="h6"
+              color="primary"
+              noWrap
+              sx={{ fontWeight: 800, flexGrow: 1, fontSize: { xs: '1rem', sm: '1.08rem' } }}
+            >
               E-MEDICAPP
             </Typography>
             {actor && (
@@ -175,9 +187,17 @@ function ConnectedApp({ onConnectionRequested }: { onConnectionRequested?: () =>
                   size="small"
                   variant="outlined"
                   label={actor.roles.map(label).join(' · ')}
-                  sx={{ maxWidth: 220 }}
+                  title={actor.roles.map(label).join(' · ')}
+                  sx={{
+                    maxWidth: { xs: 132, sm: 220 },
+                    height: { xs: 24, sm: 26 },
+                    fontSize: { xs: '0.65rem', sm: '0.7rem' },
+                    bgcolor: 'primary.light',
+                    borderColor: 'transparent',
+                  }}
                 />
                 <Button
+                  sx={{ minWidth: 48, px: 1 }}
                   onClick={async () => {
                     try {
                       await api('/api/auth/logout', { method: 'POST' });
@@ -207,8 +227,22 @@ function ConnectedApp({ onConnectionRequested }: { onConnectionRequested?: () =>
       </IonHeader>
       <IonContent id="application-content">
         {demo && (
-          <Alert severity="info" sx={{ borderRadius: 0 }}>
-            Demostración comercial. Personas, comercios, importes y comprobaciones de ejemplo.
+          <Alert
+            severity="info"
+            sx={{
+              borderRadius: 0,
+              px: { xs: 2, sm: 2 },
+              py: { xs: 0.25, sm: 0.75 },
+              fontSize: { xs: '0.73rem', sm: '0.875rem' },
+              '& .MuiAlert-icon': { fontSize: { xs: 18, sm: 22 }, mr: 1, py: 0.75 },
+            }}
+          >
+            <Box component="span" sx={{ display: { xs: 'inline', sm: 'none' } }}>
+              Demostración · Personas y datos de ejemplo.
+            </Box>
+            <Box component="span" sx={{ display: { xs: 'none', sm: 'inline' } }}>
+              Demostración comercial. Personas, comercios, importes y comprobaciones de ejemplo.
+            </Box>
           </Alert>
         )}
         {logoutError && <Alert severity="error">{logoutError}</Alert>}

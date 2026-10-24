@@ -16,21 +16,38 @@ export function PageHeader({
   return (
     <Stack
       direction={{ xs: 'column', sm: 'row' }}
-      spacing={2}
+      spacing={{ xs: 1.5, sm: 2 }}
       sx={{ justifyContent: 'space-between', alignItems: { sm: 'center' } }}
     >
-      <Box>
+      <Box sx={{ minWidth: 0 }}>
         <Typography variant="overline" color="primary">
           {eyebrow ?? 'Tu espacio de trabajo'}
         </Typography>
-        <Typography component="h1" variant="h4" sx={{ mb: 0.8 }}>
+        <Typography
+          component="h1"
+          variant="h4"
+          sx={{ mb: 0.8, fontSize: { xs: '1.5rem', sm: '1.8rem' } }}
+        >
           {title}
         </Typography>
-        <Typography color="text.secondary" sx={{ maxWidth: 650 }}>
+        <Typography
+          color="text.secondary"
+          sx={{ maxWidth: 650, fontSize: { xs: '0.875rem', sm: '1rem' } }}
+        >
           {description}
         </Typography>
       </Box>
-      {action && <Box sx={{ flexShrink: 0 }}>{action}</Box>}
+      {action && (
+        <Box
+          sx={{
+            flexShrink: 0,
+            width: { xs: '100%', sm: 'auto' },
+            '& > .MuiButton-root': { width: { xs: '100%', sm: 'auto' } },
+          }}
+        >
+          {action}
+        </Box>
+      )}
     </Stack>
   );
 }
@@ -77,7 +94,12 @@ export function MetricRow({
     >
       {metrics.map((metric) => (
         <Card key={metric.label}>
-          <CardContent sx={{ py: '18px !important' }}>
+          <CardContent
+            sx={{
+              px: { xs: 1.75, sm: 3 },
+              py: { xs: '14px !important', sm: '18px !important' },
+            }}
+          >
             <Typography variant="body2" color="text.secondary">
               {metric.label}
             </Typography>

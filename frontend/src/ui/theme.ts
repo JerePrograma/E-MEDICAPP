@@ -36,7 +36,13 @@ export const theme = createTheme({
     MuiButton: {
       defaultProps: { disableElevation: true },
       styleOverrides: {
-        root: { borderRadius: 10, minHeight: 40, paddingLeft: 16, paddingRight: 16 },
+        root: {
+          borderRadius: 10,
+          minHeight: 40,
+          paddingLeft: 16,
+          paddingRight: 16,
+          '@media (max-width:599.95px)': { minHeight: 44 },
+        },
         contained: { paddingTop: 10, paddingBottom: 10 },
         outlined: { borderColor: '#CDDBD3' },
       },
@@ -70,27 +76,57 @@ export const theme = createTheme({
     },
     MuiTextField: { defaultProps: { fullWidth: true } },
     MuiOutlinedInput: {
-      styleOverrides: { root: { borderRadius: 10, backgroundColor: '#FFFFFF' } },
+      styleOverrides: {
+        root: { borderRadius: 10, backgroundColor: '#FFFFFF', minWidth: 0 },
+        input: { '@media (max-width:599.95px)': { fontSize: 16 } },
+      },
     },
     MuiDialog: {
       styleOverrides: {
         paper: {
           borderRadius: 18,
           backgroundImage: 'none',
-          '@media (max-width:600px)': {
-            margin: 12,
-            width: 'calc(100% - 24px)',
-            maxHeight: 'calc(100% - 24px)',
+          '@media (max-width:599.95px)': {
+            margin: 8,
+            width: 'calc(100% - 16px)',
+            maxHeight: 'calc(100% - 16px)',
+          },
+          '&.MuiDialog-paperFullScreen': {
+            margin: 0,
+            width: '100%',
+            maxWidth: '100%',
+            height: '100%',
+            maxHeight: '100%',
+            borderRadius: 0,
           },
         },
       },
     },
     MuiDialogTitle: {
-      styleOverrides: { root: { padding: '24px 24px 18px', fontSize: '1.2rem', fontWeight: 700 } },
+      styleOverrides: {
+        root: {
+          padding: '24px 24px 18px',
+          fontSize: '1.2rem',
+          fontWeight: 700,
+          '@media (max-width:599.95px)': { padding: '16px', fontSize: '1.1rem' },
+        },
+      },
+    },
+    MuiDialogContent: {
+      styleOverrides: {
+        root: {
+          '@media (max-width:599.95px)': { paddingLeft: 16, paddingRight: 16, paddingBottom: 16 },
+        },
+      },
     },
     MuiDialogActions: {
       styleOverrides: {
-        root: { padding: '16px 24px 20px', borderTop: '1px solid #E1E7E1', gap: 8 },
+        root: {
+          padding: '16px 24px 20px',
+          borderTop: '1px solid #E1E7E1',
+          gap: 8,
+          '@media (max-width:599.95px)': { padding: '12px 16px', flexWrap: 'wrap' },
+        },
       },
     },
     MuiStepLabel: {

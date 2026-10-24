@@ -134,7 +134,12 @@ function PrescriptionBadge({ product }: { product: Product }) {
       variant="outlined"
       color={product.requiresPrescription ? 'default' : 'success'}
       label={product.requiresPrescription ? 'Requiere receta' : 'Sin requisito de receta'}
-      sx={{ alignSelf: 'flex-start', fontSize: 11, bgcolor: 'background.paper' }}
+      sx={{
+        alignSelf: 'flex-start',
+        fontSize: 11,
+        maxWidth: '100%',
+        bgcolor: 'background.paper',
+      }}
     />
   );
 }
@@ -158,7 +163,9 @@ function CategoryTile({
         flexDirection: 'column',
         alignItems: 'stretch',
         width: '100%',
-        borderRadius: 2.5,
+        minWidth: 0,
+        borderRadius: { xs: 2, sm: 2.5 },
+        scrollSnapAlign: 'start',
         '&.Mui-focusVisible': {
           outline: '3px solid',
           outlineColor: 'primary.main',
@@ -175,9 +182,10 @@ function CategoryTile({
           display: 'grid',
           placeItems: 'center',
           width: '100%',
-          aspectRatio: { xs: '1.4', sm: '1.75' },
+          height: { xs: 64, sm: 'auto' },
+          aspectRatio: { sm: '1.75' },
           bgcolor: item.value === 'PROMOTIONS' ? '#ffef63' : '#f1f2f3',
-          borderRadius: 2.5,
+          borderRadius: { xs: 2, sm: 2.5 },
           border: '2px solid',
           borderColor: selected ? 'primary.main' : 'transparent',
           transition: 'box-shadow .2s, border-color .2s',
@@ -236,10 +244,13 @@ function CategoryTile({
           display: 'block',
           textAlign: 'center',
           px: 0.5,
-          pt: { xs: 1, sm: 1.4 },
-          minHeight: { xs: 52, sm: 48 },
-          fontSize: { xs: 12, sm: 15 },
-          lineHeight: 1.4,
+          pt: { xs: 0.8, sm: 1.4 },
+          minHeight: { xs: 36, sm: 48 },
+          fontSize: { xs: 11.5, sm: 15 },
+          lineHeight: { xs: 1.25, sm: 1.4 },
+          overflowWrap: 'normal',
+          wordBreak: 'normal',
+          hyphens: 'none',
           fontWeight: selected ? 750 : 600,
           color: selected ? 'primary.main' : 'text.primary',
         }}
@@ -317,14 +328,18 @@ export function MarketplacePage({ actor }: { actor: Actor }) {
   }
 
   return (
-    <Stack spacing={3}>
+    <Stack spacing={{ xs: 2, sm: 3 }} sx={{ minWidth: 0 }}>
       <Stack
         direction="row"
-        spacing={2}
+        spacing={{ xs: 1, sm: 2 }}
         sx={{ justifyContent: 'space-between', alignItems: 'center' }}
       >
         <Box>
-          <Typography component="h1" variant="h4" sx={{ fontWeight: 750 }}>
+          <Typography
+            component="h1"
+            variant="h4"
+            sx={{ fontWeight: 750, fontSize: { xs: 26, sm: '1.8rem' } }}
+          >
             Catálogo
           </Typography>
           <Typography color="text.secondary" sx={{ mt: 0.7, display: { xs: 'none', sm: 'block' } }}>
@@ -335,7 +350,15 @@ export function MarketplacePage({ actor }: { actor: Actor }) {
           component={Link}
           to="/app/cart"
           variant="contained"
-          sx={{ flexShrink: 0, gap: 1, borderRadius: 10, px: { xs: 1.8, sm: 2.5 }, py: 1.3 }}
+          sx={{
+            flexShrink: 0,
+            gap: 0.8,
+            borderRadius: 10,
+            minHeight: 44,
+            px: { xs: 1.5, sm: 2.5 },
+            py: { xs: 0.8, sm: 1.3 },
+            fontSize: { xs: 13, sm: 14 },
+          }}
         >
           Mi carrito
           <Chip
@@ -355,7 +378,12 @@ export function MarketplacePage({ actor }: { actor: Actor }) {
             if (category === 'PROMOTIONS') setCategory('ALL');
           }}
           fullWidth
-          sx={{ '& .MuiOutlinedInput-root': { borderRadius: 10, bgcolor: '#f5f6f7' } }}
+          sx={{
+            '& .MuiOutlinedInput-root': {
+              borderRadius: { xs: 2.5, sm: 10 },
+              bgcolor: { xs: 'background.paper', sm: '#f5f6f7' },
+            },
+          }}
           slotProps={{
             input: {
               startAdornment: (
@@ -377,17 +405,22 @@ export function MarketplacePage({ actor }: { actor: Actor }) {
       </Box>
       <Box
         component="section"
-        sx={{ bgcolor: 'background.paper', borderRadius: 3, p: { xs: 2, sm: 3 } }}
+        sx={{
+          minWidth: 0,
+          bgcolor: { xs: 'transparent', sm: 'background.paper' },
+          borderRadius: 3,
+          p: { xs: 0, sm: 3 },
+        }}
       >
         <Stack
           direction="row"
-          spacing={2}
-          sx={{ justifyContent: 'space-between', alignItems: 'baseline', mb: 2.5 }}
+          spacing={1}
+          sx={{ justifyContent: 'space-between', alignItems: 'baseline', mb: { xs: 1, sm: 2.5 } }}
         >
           <Typography
             component="h2"
             variant="h5"
-            sx={{ fontSize: { xs: 20, sm: 24 }, fontWeight: 700 }}
+            sx={{ fontSize: { xs: 17, sm: 24 }, fontWeight: 700 }}
           >
             Categorías destacadas
           </Typography>
@@ -397,7 +430,7 @@ export function MarketplacePage({ actor }: { actor: Actor }) {
               setCategory('ALL');
               setSearch('');
             }}
-            sx={{ fontSize: 12, flexShrink: 0 }}
+            sx={{ fontSize: 12, flexShrink: 0, minHeight: 44, px: { xs: 1, sm: 2 } }}
           >
             Ver todos
           </Button>
@@ -408,8 +441,17 @@ export function MarketplacePage({ actor }: { actor: Actor }) {
           aria-label="Categorías del catálogo"
           sx={{
             display: 'grid',
-            gridTemplateColumns: 'repeat(3,minmax(0,1fr))',
-            gap: { xs: 1, sm: 2.5 },
+            gridTemplateColumns: {
+              xs: expandedCategories ? 'repeat(3,minmax(0,1fr))' : 'none',
+              sm: 'repeat(3,minmax(0,1fr))',
+            },
+            gridAutoFlow: { xs: expandedCategories ? 'row' : 'column', sm: 'row' },
+            gridAutoColumns: { xs: expandedCategories ? 'auto' : '92px', sm: 'auto' },
+            gap: { xs: 1.25, sm: 2.5 },
+            overflowX: { xs: expandedCategories ? 'visible' : 'auto', sm: 'visible' },
+            scrollSnapType: { xs: expandedCategories ? 'none' : 'x proximity', sm: 'none' },
+            scrollbarWidth: 'thin',
+            pb: { xs: expandedCategories ? 0 : 0.5, sm: 0 },
           }}
         >
           {featuredCategories.slice(0, expandedCategories ? 12 : 6).map((item) => (
@@ -424,12 +466,12 @@ export function MarketplacePage({ actor }: { actor: Actor }) {
             />
           ))}
         </Box>
-        <Box sx={{ textAlign: 'center', mt: 1 }}>
+        <Box sx={{ textAlign: { xs: 'left', sm: 'center' }, mt: { xs: 0, sm: 1 } }}>
           <Button
             aria-expanded={expandedCategories}
             aria-controls="catalog-category-grid"
             onClick={() => setExpandedCategories((previous) => !previous)}
-            sx={{ gap: 1.2, fontWeight: 650 }}
+            sx={{ gap: 1, fontWeight: 650, minHeight: 44, px: { xs: 0, sm: 2 } }}
           >
             {expandedCategories ? 'Menos categorías' : 'Más categorías'}
             <svg
@@ -456,7 +498,7 @@ export function MarketplacePage({ actor }: { actor: Actor }) {
           direction="row"
           spacing={1}
           useFlexGap
-          sx={{ flexWrap: 'wrap' }}
+          sx={{ flexWrap: 'wrap', '& .MuiChip-root': { minHeight: { xs: 44, sm: 32 } } }}
           aria-label="Filtros de medicamentos"
         >
           <Chip
@@ -513,15 +555,19 @@ export function MarketplacePage({ actor }: { actor: Actor }) {
         <>
           <Stack
             direction="row"
-            sx={{ alignItems: 'baseline', justifyContent: 'space-between', gap: 2 }}
+            sx={{ alignItems: 'baseline', justifyContent: 'space-between', gap: 1, minWidth: 0 }}
           >
-            <Typography component="h2" variant="h5">
+            <Typography component="h2" variant="h5" sx={{ fontSize: { xs: 19, sm: '1.35rem' } }}>
               {category === 'MEDICINES'
                 ? 'Medicamentos'
                 : (currentCategory?.label ?? 'Todos los productos')}
             </Typography>
             {catalog.data && (
-              <Typography variant="body2" color="text.secondary" sx={{ flexShrink: 0 }}>
+              <Typography
+                variant="body2"
+                color="text.secondary"
+                sx={{ flexShrink: 0, fontSize: { xs: 12, sm: 14 } }}
+              >
                 {visibleProducts.length} {visibleProducts.length === 1 ? 'producto' : 'productos'}
               </Typography>
             )}
@@ -542,7 +588,7 @@ export function MarketplacePage({ actor }: { actor: Actor }) {
                 sm: 'repeat(2,minmax(0,1fr))',
                 lg: 'repeat(3,minmax(0,1fr))',
               },
-              gap: 2.5,
+              gap: { xs: 1.5, sm: 2.5 },
             }}
           >
             {catalog.isPending &&
@@ -562,8 +608,13 @@ export function MarketplacePage({ actor }: { actor: Actor }) {
                 <Card
                   key={product.id}
                   sx={{
-                    display: 'flex',
-                    flexDirection: 'column',
+                    display: { xs: 'grid', sm: 'flex' },
+                    gridTemplateColumns: '96px minmax(0,1fr)',
+                    columnGap: 1.5,
+                    flexDirection: { sm: 'column' },
+                    minWidth: 0,
+                    p: { xs: 1.5, sm: 0 },
+                    borderRadius: { xs: '16px', sm: 1.75 },
                     transition: 'box-shadow .2s',
                     '&:hover': { boxShadow: '0 10px 28px #153a3210' },
                   }}
@@ -572,8 +623,12 @@ export function MarketplacePage({ actor }: { actor: Actor }) {
                     sx={{
                       bgcolor: product.imageUrl ? 'background.paper' : details.tint,
                       color: details.color,
-                      pt: product.imageUrl ? 3 : 0,
-                      minHeight: 155,
+                      pt: { xs: 0, sm: product.imageUrl ? 3 : 0 },
+                      minHeight: { xs: 116, sm: 155 },
+                      height: { xs: 116, sm: 'auto' },
+                      alignSelf: { xs: 'start', sm: 'stretch' },
+                      borderRadius: { xs: 2, sm: 0 },
+                      minWidth: 0,
                       position: 'relative',
                       display: 'grid',
                       placeItems: 'center',
@@ -583,6 +638,7 @@ export function MarketplacePage({ actor }: { actor: Actor }) {
                       variant="overline"
                       sx={{
                         position: 'absolute',
+                        display: { xs: 'none', sm: 'block' },
                         top: 14,
                         left: 18,
                         letterSpacing: '.08em',
@@ -591,17 +647,25 @@ export function MarketplacePage({ actor }: { actor: Actor }) {
                     >
                       {details.label}
                     </Typography>
-                    <Box sx={{ mt: 2 }}>
+                    <Box
+                      sx={{
+                        mt: { xs: 0, sm: 2 },
+                        width: { xs: '100%', sm: 'auto' },
+                        display: 'grid',
+                        placeItems: 'center',
+                        '& > svg': { width: { xs: 82, sm: 112 }, height: { xs: 82, sm: 112 } },
+                      }}
+                    >
                       <ProductImage
                         product={product}
                         fallback={<CategoryIllustration category={details.value} />}
                         sx={{
                           width: '100%',
                           maxWidth: 240,
-                          height: 125,
+                          height: { xs: 104, sm: 125 },
                           objectFit: 'contain',
                           display: 'block',
-                          p: 1,
+                          p: { xs: 0.5, sm: 1 },
                         }}
                       />
                     </Box>
@@ -611,40 +675,86 @@ export function MarketplacePage({ actor }: { actor: Actor }) {
                         label={`${cart.items[product.id]} en carrito`}
                         sx={{
                           position: 'absolute',
-                          bottom: 12,
-                          right: 12,
+                          bottom: { xs: -5, sm: 12 },
+                          right: { xs: 0, sm: 12 },
                           bgcolor: 'background.paper',
+                          border: { xs: '1px solid', sm: 'none' },
+                          borderColor: 'divider',
+                          fontSize: { xs: 10, sm: 11 },
                         }}
                       />
                     )}
                   </Box>
                   <CardContent
-                    sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column', gap: 1.3, p: 2.5 }}
+                    sx={{
+                      flexGrow: 1,
+                      minWidth: 0,
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: { xs: 0.8, sm: 1.3 },
+                      p: { xs: 0, sm: 2.5 },
+                      pb: { xs: 0, sm: 1.5 },
+                    }}
                   >
                     <PrescriptionBadge product={product} />
-                    <Typography component="h3" variant="h6" sx={{ fontSize: 17, lineHeight: 1.4 }}>
+                    <Typography
+                      component="h3"
+                      variant="h6"
+                      sx={{
+                        fontSize: { xs: 15, sm: 17 },
+                        lineHeight: { xs: 1.35, sm: 1.4 },
+                        overflowWrap: 'anywhere',
+                      }}
+                    >
                       {product.name}
                     </Typography>
-                    <Typography color="text.secondary" variant="body2" sx={{ flexGrow: 1 }}>
+                    <Typography
+                      color="text.secondary"
+                      variant="body2"
+                      sx={{
+                        flexGrow: 1,
+                        fontSize: { xs: 12.5, sm: 14 },
+                        lineHeight: { xs: 1.45, sm: 1.6 },
+                        overflowWrap: 'anywhere',
+                      }}
+                    >
                       {product.presentation}
                     </Typography>
-                    <Typography variant="caption" color="text.secondary">
+                    <Typography
+                      variant="caption"
+                      color="text.secondary"
+                      sx={{ fontSize: { xs: 11, sm: 12 }, lineHeight: 1.4 }}
+                    >
                       Precio y disponibilidad por sucursal
                     </Typography>
+                  </CardContent>
+                  <Box
+                    sx={{
+                      gridColumn: '1 / -1',
+                      px: { xs: 0, sm: 2.5 },
+                      pt: { xs: 1.5, sm: 0 },
+                      pb: { xs: 0, sm: 2.5 },
+                    }}
+                  >
                     <Stack direction="row" spacing={1}>
-                      <Button fullWidth variant="outlined" onClick={() => openProduct(product)}>
+                      <Button
+                        fullWidth
+                        variant="outlined"
+                        onClick={() => openProduct(product)}
+                        sx={{ minHeight: 44, fontSize: { xs: 13, sm: 14 }, minWidth: 0 }}
+                      >
                         Ver disponibilidad
                       </Button>
                       <Button
                         variant="contained"
                         aria-label={`Agregar ${product.name} al carrito`}
                         onClick={() => add(product)}
-                        sx={{ minWidth: 48, fontSize: 23, px: 1 }}
+                        sx={{ minWidth: 48, minHeight: 44, fontSize: 23, px: 1 }}
                       >
                         <span aria-hidden="true">＋</span>
                       </Button>
                     </Stack>
-                  </CardContent>
+                  </Box>
                 </Card>
               );
             })}
@@ -674,20 +784,24 @@ export function MarketplacePage({ actor }: { actor: Actor }) {
       <Dialog open={!!selected} onClose={() => setSelectedId('')} fullWidth maxWidth="md">
         {selected && (
           <>
-            <DialogTitle>{selected.name}</DialogTitle>
-            <DialogContent>
-              <Stack spacing={2.5} sx={{ pt: 1 }}>
+            <DialogTitle sx={{ overflowWrap: 'anywhere', lineHeight: 1.35 }}>
+              {selected.name}
+            </DialogTitle>
+            <DialogContent sx={{ px: { xs: 2, sm: 3 } }}>
+              <Stack spacing={{ xs: 2, sm: 2.5 }} sx={{ pt: 1, minWidth: 0 }}>
                 <ProductImage
                   product={selected}
                   sx={{
                     width: '100%',
-                    height: { xs: 180, sm: 240 },
+                    height: { xs: 156, sm: 240 },
                     objectFit: 'contain',
                     bgcolor: 'white',
                     borderRadius: 2,
                   }}
                 />
-                <Typography color="text.secondary">{selected.presentation}</Typography>
+                <Typography color="text.secondary" sx={{ overflowWrap: 'anywhere' }}>
+                  {selected.presentation}
+                </Typography>
                 <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: 'wrap' }}>
                   <PrescriptionBadge product={selected} />
                   {selected.coldChain && (
@@ -708,7 +822,7 @@ export function MarketplacePage({ actor }: { actor: Actor }) {
                 <Stack
                   direction={{ xs: 'column', sm: 'row' }}
                   spacing={2}
-                  sx={{ alignItems: { sm: 'flex-start' } }}
+                  sx={{ alignItems: { sm: 'flex-start' }, '& .MuiButton-root': { minHeight: 48 } }}
                 >
                   <TextField
                     label="Cantidad a agregar"
@@ -721,7 +835,7 @@ export function MarketplacePage({ actor }: { actor: Actor }) {
                         ? 'Elegí entre 1 y 100 unidades.'
                         : 'Unidades de esta presentación'
                     }
-                    slotProps={{ htmlInput: { min: 1, max: 100, step: 1 } }}
+                    slotProps={{ htmlInput: { min: 1, max: 100, step: 1, inputMode: 'numeric' } }}
                     sx={{ width: { sm: 180 } }}
                   />
                   <Button
@@ -738,8 +852,12 @@ export function MarketplacePage({ actor }: { actor: Actor }) {
                 </Stack>
                 <Divider />
                 <Stack
-                  direction="row"
-                  sx={{ justifyContent: 'space-between', alignItems: 'center', gap: 2 }}
+                  direction={{ xs: 'column', sm: 'row' }}
+                  sx={{
+                    justifyContent: 'space-between',
+                    alignItems: { xs: 'flex-start', sm: 'center' },
+                    gap: { xs: 0.5, sm: 2 },
+                  }}
                 >
                   <Typography component="h3" variant="h6">
                     Disponibilidad por sucursal
@@ -747,6 +865,7 @@ export function MarketplacePage({ actor }: { actor: Actor }) {
                   <Button
                     disabled={availability.isFetching}
                     onClick={() => void availability.refetch()}
+                    sx={{ minHeight: 44, px: { xs: 0, sm: 2 } }}
                   >
                     Actualizar
                   </Button>
@@ -775,7 +894,7 @@ export function MarketplacePage({ actor }: { actor: Actor }) {
                     role="group"
                     aria-labelledby={`product-offer-${selected.id}-${offer.branch.id}`}
                   >
-                    <CardContent>
+                    <CardContent sx={{ minWidth: 0 }}>
                       <Stack spacing={1.2}>
                         <Typography variant="overline" color="text.secondary">
                           {offer.chainName}
@@ -784,13 +903,16 @@ export function MarketplacePage({ actor }: { actor: Actor }) {
                           component="h4"
                           variant="h6"
                           id={`product-offer-${selected.id}-${offer.branch.id}`}
+                          sx={{ overflowWrap: 'anywhere' }}
                         >
                           {offer.branch.name}
                         </Typography>
-                        <Typography variant="body2">{offer.branch.address}</Typography>
+                        <Typography variant="body2" sx={{ overflowWrap: 'anywhere' }}>
+                          {offer.branch.address}
+                        </Typography>
                         <Stack
-                          direction="row"
-                          spacing={2}
+                          direction={{ xs: 'column', sm: 'row' }}
+                          spacing={{ xs: 0.5, sm: 2 }}
                           sx={{ justifyContent: 'space-between', alignItems: 'baseline' }}
                         >
                           <Typography variant="h6" color="primary">
@@ -809,7 +931,11 @@ export function MarketplacePage({ actor }: { actor: Actor }) {
                           }).format(new Date(offer.observedAt))}{' '}
                           · hora de Mendoza
                         </Typography>
-                        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
+                        <Stack
+                          direction={{ xs: 'column', sm: 'row' }}
+                          spacing={1}
+                          sx={{ '& .MuiButton-root': { minHeight: 44 } }}
+                        >
                           <Button
                             variant="outlined"
                             onClick={() => setFocusedBranch(offer.branch.id)}
@@ -869,7 +995,9 @@ export function MarketplacePage({ actor }: { actor: Actor }) {
               </Stack>
             </DialogContent>
             <DialogActions>
-              <Button onClick={() => setSelectedId('')}>Cerrar</Button>
+              <Button onClick={() => setSelectedId('')} sx={{ minHeight: 44 }}>
+                Cerrar
+              </Button>
             </DialogActions>
           </>
         )}

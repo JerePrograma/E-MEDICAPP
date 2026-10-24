@@ -19,6 +19,7 @@ import {
   Tabs,
   TextField,
   Typography,
+  useMediaQuery,
 } from '@mui/material';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { api, dateTime, money } from '../api';
@@ -96,6 +97,7 @@ type InvoiceIssue = {
 };
 
 export function AdminPage({ actor }: { actor: Actor }) {
+  const compactEditor = useMediaQuery('(max-width:599.95px)');
   const cache = useQueryClient();
   const globalAdmin = actor.roles.includes('ADMIN');
   const [tab, setTab] = useState(globalAdmin ? 0 : 2);
@@ -104,6 +106,7 @@ export function AdminPage({ actor }: { actor: Actor }) {
   const [evidenceBusy, setEvidenceBusy] = useState(false);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
+  const [showSummary, setShowSummary] = useState(false);
   const query = useQuery({
     queryKey: ['adminOverview'],
     queryFn: () => api<Overview>('/api/admin/overview'),
@@ -194,12 +197,30 @@ export function AdminPage({ actor }: { actor: Actor }) {
               sx={{ justifyContent: 'space-between' }}
               spacing={2}
             >
-              <Box>
-                <Typography sx={{ fontWeight: 650 }}>{item.title}</Typography>
+              <Box sx={{ minWidth: 0 }}>
+                <Typography
+                  sx={{
+                    fontWeight: 650,
+                    overflowWrap: 'anywhere',
+                    fontSize: { xs: '0.9rem', sm: '1rem' },
+                  }}
+                >
+                  {item.title}
+                </Typography>
                 <Box sx={{ mt: 1 }}>{item.detail}</Box>
                 {item.active === false && <Chip size="small" label="Inactivo" sx={{ mt: 1 }} />}
               </Box>
-              <Button onClick={item.onEdit}>Modificar</Button>
+              <Button
+                sx={{
+                  alignSelf: { xs: 'flex-end', sm: 'center' },
+                  flexShrink: 0,
+                  px: 2,
+                  bgcolor: { xs: 'primary.light', sm: 'transparent' },
+                }}
+                onClick={item.onEdit}
+              >
+                Modificar
+              </Button>
             </Stack>
           </CardContent>
         </Card>
@@ -207,44 +228,62 @@ export function AdminPage({ actor }: { actor: Actor }) {
     </Stack>
   );
   return (
-    <Stack spacing={3}>
+    <Stack spacing={{ xs: 2, sm: 3 }}>
       <PageHeader
         eyebrow={globalAdmin ? 'Gestión de la red' : 'Gestión de tu sucursal'}
         title="Administración"
         description="Configurá la red y el negocio. Cada cambio conserva su responsable y las condiciones de las compras ya aceptadas."
       />
-      <MetricRow
-        metrics={
-          globalAdmin
-            ? [
-                {
-                  label: 'Sucursales',
-                  value: data.branches.length,
-                  hint: `${data.chains.length} cadenas registradas`,
-                },
-                {
-                  label: 'Presentaciones',
-                  value: data.products.filter((x) => x.active).length,
-                  hint: 'Disponibles en el catálogo',
-                },
-                {
-                  label: 'Suscripciones vigentes',
-                  value: data.subscriptions.filter((x) => x.status === 'ACTIVE').length,
-                },
-                {
-                  label: 'Permisos activos',
-                  value: data.memberships.filter((x) => x.active).length,
-                },
-              ]
-            : [
-                { label: 'Sucursales a tu cargo', value: data.branches.length },
-                {
-                  label: 'Permisos activos',
-                  value: data.memberships.filter((x) => x.active).length,
-                },
-              ]
-        }
-      />
+      <Button
+        variant="outlined"
+        aria-expanded={showSummary}
+        aria-controls="admin-summary"
+        onClick={() => setShowSummary(!showSummary)}
+        sx={{
+          display: { xs: 'flex', sm: 'none' },
+          justifyContent: 'space-between',
+          bgcolor: 'background.paper',
+        }}
+      >
+        Resumen de la gestión{' '}
+        <Box component="span" aria-hidden="true">
+          {showSummary ? '−' : '+'}
+        </Box>
+      </Button>
+      <Box id="admin-summary" sx={{ display: { xs: showSummary ? 'block' : 'none', sm: 'block' } }}>
+        <MetricRow
+          metrics={
+            globalAdmin
+              ? [
+                  {
+                    label: 'Sucursales',
+                    value: data.branches.length,
+                    hint: `${data.chains.length} cadenas registradas`,
+                  },
+                  {
+                    label: 'Presentaciones',
+                    value: data.products.filter((x) => x.active).length,
+                    hint: 'Disponibles en el catálogo',
+                  },
+                  {
+                    label: 'Suscripciones vigentes',
+                    value: data.subscriptions.filter((x) => x.status === 'ACTIVE').length,
+                  },
+                  {
+                    label: 'Permisos activos',
+                    value: data.memberships.filter((x) => x.active).length,
+                  },
+                ]
+              : [
+                  { label: 'Sucursales a tu cargo', value: data.branches.length },
+                  {
+                    label: 'Permisos activos',
+                    value: data.memberships.filter((x) => x.active).length,
+                  },
+                ]
+          }
+        />
+      </Box>
       {query.error && (
         <Alert severity="warning">
           No se pudo actualizar la administración. Los datos que estás editando se conservan.
@@ -291,6 +330,7 @@ export function AdminPage({ actor }: { actor: Actor }) {
         onChange={(_, value: number) => setTab(value)}
         variant="scrollable"
         scrollButtons="auto"
+        allowScrollButtonsMobile
         aria-label="Secciones de administración"
         sx={{
           bgcolor: 'background.paper',
@@ -560,10 +600,30 @@ export function AdminPage({ actor }: { actor: Actor }) {
         }}
         fullWidth
         maxWidth="sm"
+        fullScreen={compactEditor}
+        aria-labelledby="admin-editor-heading"
       >
-        <DialogTitle>
-          {editor?.value ? 'Modificar' : 'Agregar'}{' '}
-          {editor ? titles[editor.kind].toLocaleLowerCase('es-AR') : ''}
+        <DialogTitle
+          sx={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: 1,
+            borderBottom: '1px solid',
+            borderColor: 'divider',
+          }}
+        >
+          <Typography component="span" variant="inherit" id="admin-editor-heading">
+            {editor?.value ? 'Modificar' : 'Agregar'}{' '}
+            {editor ? titles[editor.kind].toLocaleLowerCase('es-AR') : ''}
+          </Typography>
+          <Button
+            sx={{ flexShrink: 0 }}
+            disabled={busy || evidenceBusy}
+            onClick={() => setEditor(null)}
+          >
+            Cerrar
+          </Button>
         </DialogTitle>
         <DialogContent>
           {error && (
@@ -608,9 +668,6 @@ export function AdminPage({ actor }: { actor: Actor }) {
               globalAdmin={globalAdmin}
             />
           )}
-          <Button sx={{ mt: 1 }} disabled={busy || evidenceBusy} onClick={() => setEditor(null)}>
-            Cerrar
-          </Button>
         </DialogContent>
       </Dialog>
     </Stack>

@@ -1,6 +1,7 @@
 E-MEDICAPP — evaluación del estándar Scalaris
 Fecha: 24/10/2026. Alcance: revisión de fuentes locales para la corrección de
-fotos de productos. No constituye una auditoría del VPS ni de soporte de versiones.
+fotos de productos y adaptación del navegador móvil. No constituye una auditoría
+del VPS ni de soporte de versiones.
 
 PRODUCTO Y ACEPTACIÓN DE ESTA CORRECCIÓN
 
@@ -10,6 +11,9 @@ La corrección debe permitir ver la foto guardada tras recargar, tanto mediante
 el proxy público del mismo origen como desde otro origen; conservar validación,
 permisos, versión y datos. Verificar el recorrido en un escenario QA aislado y
 comprobar la publicación desde el enlace público, según AGENTS.md.
+La adaptación móvil agrega navegación accesible sin cortes, ingreso visible,
+catálogo compacto y edición de productos utilizable a 360, 390 y 430 píxeles,
+conservando los flujos y la distribución de escritorio.
 
 HECHOS OBSERVADOS EN FUENTES LOCALES
 
@@ -37,11 +41,12 @@ HECHOS OBSERVADOS EN FUENTES LOCALES
 
 BRECHAS, BENEFICIO, ESFUERZO Y RIESGO
 
-- El frontend distingue origen cruzado y sesiones por encabezado de forma
-  diferente al descargar imágenes (ApiImage.tsx frente a connection.ts). Unificar
-  el criterio y añadir regresión para proxy con ruta base tiene esfuerzo bajo,
-  valor inmediato y riesgo acotado a la descarga de recursos autenticados. No
-  debe abrirse el endpoint al público para resolver un problema de sesión.
+- La incidencia de sesión de imágenes quedó corregida en 86609c7 mediante el
+  criterio usesHeaderSessions y la regresión del proxy con ruta base. Las fotos
+  conservan el acceso autenticado. La adaptación móvil actual sólo cambia la
+  presentación; su beneficio es acercar productos y formularios a la primera
+  pantalla. Esfuerzo bajo a medio, con riesgo de superponer controles o cortar
+  contenido: validar navegación, diálogos, scroll interno de Ionic y escritorio.
 - Las dependencias npm y Maven están fijadas, pero las imágenes Docker utilizan
   etiquetas de familia (postgres:17, node:24-bookworm-slim, Maven/Temurin 25), sin
   digest. Fijarlas con un procedimiento de actualización mejoraría reproducción;
@@ -59,8 +64,8 @@ BRECHAS, BENEFICIO, ESFUERZO Y RIESGO
 
 RECOMENDACIÓN
 
-Conservar el stack y el monolito existentes. Resolver el defecto de sesión de
-las imágenes y entregar con pruebas proporcionales y evidencia pública. No hay
+Conservar el stack y el monolito existentes. Mantener el criterio de sesión de
+las imágenes y completar la adaptación móvil con pruebas y evidencia pública. No hay
 beneficio identificado en reescribir, cambiar PostgreSQL, migrar a servicios ni
 modificar migraciones aplicadas por esta incidencia. Tratar reproducibilidad,
 documentación y operación como trabajo separado, sin atribuirles aprobación de

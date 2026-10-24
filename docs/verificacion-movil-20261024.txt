@@ -1,0 +1,55 @@
+E-MEDICAPP — adaptación para navegador de celular
+Fecha: 24 de octubre de 2026.
+
+PROBLEMA OBSERVADO
+
+La revisión de la publicación a 390 × 844 mostró navegación superior recortada
+con scroll horizontal, varias franjas de cabecera y categorías que desplazaban
+los productos fuera de la primera pantalla. En ingreso, la explicación precedía
+al formulario. Los formularios de administración perdían ancho útil por márgenes
+y rellenos de escritorio. Fuente: navegador público y fuentes locales del proyecto.
+
+CAMBIOS
+
+- Cabecera y aviso DEMO compactos en celular; la identificación de demostración
+  sigue visible. Navegación inferior con iconos, etiquetas y espacio para el área
+  segura; las cuentas con más de cinco destinos acceden al resto mediante Más.
+- Categorías iniciales en una fila compacta y ampliación a las doce categorías
+  existentes. Tarjetas móviles con imagen lateral, nombre completo y acciones
+  táctiles. El detalle permite consultar cantidades y disponibilidad sin cortes.
+- Ingreso antes de los tres pasos explicativos en móvil. En escritorio se
+  conservan las dos columnas y las explicaciones completas.
+- Resumen administrativo desplegable en móvil, pestañas con controles de
+  desplazamiento y editor a pantalla completa, con Cerrar visible en la cabecera.
+- Campos de 16 píxeles en móvil, botones de al menos 44 píxeles y márgenes
+  compactos de diálogo. Se conserva la descarga autenticada de fotos.
+
+ACEPTACIÓN Y VERIFICACIÓN
+
+Comprobar a 360, 390 y 430 × 844 que ingreso y primeras acciones sean accesibles,
+no exista desbordamiento lateral del documento, del scroll de Ionic o del editor,
+y la navegación permanezca disponible al desplazarse. Comprobar también
+escritorio a 1440 × 1000 y el recorrido aislado de carga y conservación de fotos.
+La suite mobile-layout.spec.ts usa una API simulada y no escribe en la demo.
+Las pruebas de fotos usan la base y documentos separados del runner existente.
+
+Resultados locales: 47 pruebas Vitest aprobadas, 12 casos de distribución e
+interacción responsive aprobados y 3 recorridos reales de fotos aprobados en
+PostgreSQL aislado. Compilación y formato correctos. La revisión independiente
+detectó el bloqueo potencial del menú al pasar a escritorio; se cierra al
+cambiar de breakpoint y se agregó la comprobación correspondiente.
+
+EVIDENCIA
+
+.runtime/mobile-layout-20261024/: capturas, diagnóstico y publicación final.
+frontend/tests/mobile-layout.spec.ts: geometría, interacción, errores y reintento.
+frontend/tests/product-image.spec.ts: recorrido de imágenes y sesiones.
+
+La entrega debe confirmar Actions, el commit en deployment.json tanto del enlace
+público como del VPS, salud del backend y revisión visual del navegador público.
+Los resultados y la identidad exacta del despliegue se conservan en la evidencia
+local para no generar un commit adicional sólo por registrar su propio SHA.
+
+Esta verificación de tamaños en Chromium no acredita un ensayo en dispositivos
+físicos ni en todos los navegadores móviles. No se cambia el stack, la base, las
+migraciones ni los requisitos de negocio por esta adaptación visual.

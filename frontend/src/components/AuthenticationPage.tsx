@@ -213,11 +213,13 @@ export function AuthenticationPage({ demo, onLogin }: { demo: boolean; onLogin: 
         p: { xs: 2, md: 5 },
         display: 'grid',
         gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' },
-        gap: { xs: 3, md: 7 },
+        gridTemplateRows: { md: 'min-content 1fr' },
+        columnGap: { xs: 2, md: 7 },
+        rowGap: { xs: 2, md: 3 },
         alignItems: 'start',
       }}
     >
-      <Stack spacing={3} sx={{ py: { xs: 1, md: 5 } }}>
+      <Stack spacing={{ xs: 1, md: 3 }} sx={{ pt: { xs: 0.5, md: 5 } }}>
         <Typography variant="overline" color="primary">
           Farmacias conectadas · Mendoza
         </Typography>
@@ -225,50 +227,29 @@ export function AuthenticationPage({ demo, onLogin }: { demo: boolean; onLogin: 
           component="h1"
           variant="h3"
           sx={{
-            fontSize: { xs: '2.1rem', md: '3rem' },
+            fontSize: { xs: '1.75rem', md: '3rem' },
             fontWeight: 720,
             letterSpacing: '-.04em',
             maxWidth: 420,
           }}
         >
-          Tu farmacia,
-          <br />
+          Tu farmacia, <Box component="br" sx={{ display: { xs: 'none', md: 'block' } }} />
           más cerca.
         </Typography>
-        <Typography color="text.secondary" sx={{ maxWidth: 400, fontSize: '1.05rem' }}>
-          Elegí tus medicamentos, recibí una propuesta y seguí la compra hasta la entrega o el
-          retiro.
+        <Typography
+          color="text.secondary"
+          sx={{ maxWidth: 400, fontSize: { xs: '0.875rem', md: '1.05rem' } }}
+        >
+          Elegí tus productos y seguí tu compra hasta la entrega o el retiro.
         </Typography>
-        <Stack spacing={2} sx={{ pt: 1 }}>
-          {[
-            'La farmacia confirma el precio y la disponibilidad.',
-            'Aceptás las condiciones antes de pagar.',
-            'Pagás directamente a cada farmacia.',
-          ].map((text, i) => (
-            <Stack key={text} direction="row" spacing={2} sx={{ alignItems: 'center' }}>
-              <Box
-                sx={{
-                  width: 30,
-                  height: 30,
-                  borderRadius: '50%',
-                  bgcolor: 'primary.light',
-                  color: 'primary.main',
-                  display: 'grid',
-                  placeItems: 'center',
-                  flexShrink: 0,
-                  fontWeight: 700,
-                }}
-              >
-                {i + 1}
-              </Box>
-              <Typography variant="body2">{text}</Typography>
-            </Stack>
-          ))}
-        </Stack>
       </Stack>
-      <Card>
-        <CardContent sx={{ p: { xs: 3, md: 4 } }}>
-          <Stack component="form" spacing={2.5} onSubmit={(event) => void submit(event)}>
+      <Card sx={{ gridColumn: { md: 2 }, gridRow: { md: '1 / span 2' } }}>
+        <CardContent sx={{ p: { xs: 2.25, md: 4 }, '&:last-child': { pb: { xs: 2.25, md: 4 } } }}>
+          <Stack
+            component="form"
+            spacing={{ xs: 2, md: 2.5 }}
+            onSubmit={(event) => void submit(event)}
+          >
             <Box>
               <Typography component="h2" variant="h5">
                 {titles[mode]}
@@ -432,6 +413,40 @@ export function AuthenticationPage({ demo, onLogin }: { demo: boolean; onLogin: 
           </Stack>
         </CardContent>
       </Card>
+      <Stack
+        spacing={2}
+        sx={{
+          gridColumn: { md: 1 },
+          gridRow: { md: 2 },
+          pt: 1,
+          pb: { xs: 1, md: 5 },
+        }}
+      >
+        {[
+          'La farmacia confirma el precio y la disponibilidad.',
+          'Aceptás las condiciones antes de pagar.',
+          'Pagás directamente a cada farmacia.',
+        ].map((text, i) => (
+          <Stack key={text} direction="row" spacing={2} sx={{ alignItems: 'center' }}>
+            <Box
+              sx={{
+                width: 30,
+                height: 30,
+                borderRadius: '50%',
+                bgcolor: 'primary.light',
+                color: 'primary.main',
+                display: 'grid',
+                placeItems: 'center',
+                flexShrink: 0,
+                fontWeight: 700,
+              }}
+            >
+              {i + 1}
+            </Box>
+            <Typography variant="body2">{text}</Typography>
+          </Stack>
+        ))}
+      </Stack>
     </Box>
   );
 }
