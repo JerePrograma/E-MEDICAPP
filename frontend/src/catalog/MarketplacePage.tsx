@@ -450,7 +450,8 @@ export function MarketplacePage({ actor }: { actor: Actor }) {
             gap: { xs: 1.25, sm: 2.5 },
             overflowX: { xs: expandedCategories ? 'visible' : 'auto', sm: 'visible' },
             scrollSnapType: { xs: expandedCategories ? 'none' : 'x proximity', sm: 'none' },
-            scrollbarWidth: 'thin',
+            scrollbarWidth: 'none',
+            '&::-webkit-scrollbar': { display: 'none' },
             pb: { xs: expandedCategories ? 0 : 0.5, sm: 0 },
           }}
         >
