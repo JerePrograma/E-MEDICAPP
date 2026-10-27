@@ -586,7 +586,7 @@ export function CreatePurchase({
                     key={x.id}
                     role="group"
                     aria-label={`${x.name} · ${x.presentation}`}
-                    sx={{ p: 2, border: '1px solid #dfe8e7', borderRadius: 2 }}
+                    sx={{ p: 2, border: '1px solid #d7e3ed', borderRadius: 2 }}
                   >
                     <Typography sx={{ fontWeight: 650 }}>{x.name}</Typography>
                     <Typography variant="body2" color="text.secondary">

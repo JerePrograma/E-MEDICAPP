@@ -171,7 +171,7 @@ function CategoryTile({
           outlineColor: 'primary.main',
           outlineOffset: 4,
         },
-        '&:hover .catalog-category-image': { boxShadow: '0 4px 15px #253d3714' },
+        '&:hover .catalog-category-image': { boxShadow: '0 4px 15px #0b1f3314' },
       }}
     >
       <Box
@@ -617,7 +617,7 @@ export function MarketplacePage({ actor }: { actor: Actor }) {
                     p: { xs: 1.5, sm: 0 },
                     borderRadius: { xs: '16px', sm: 1.75 },
                     transition: 'box-shadow .2s',
-                    '&:hover': { boxShadow: '0 10px 28px #153a3210' },
+                    '&:hover': { boxShadow: '0 10px 28px #0b1f3310' },
                   }}
                 >
                   <Box

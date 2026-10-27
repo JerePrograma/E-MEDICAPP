@@ -84,3 +84,41 @@ frontend/package.json, package-lock.json y tsconfig.json;
 frontend/src/components/ApiImage.tsx; frontend/src/connection.ts;
 frontend/tests/product-image.spec.ts; .github/workflows/pages.yml y android.yml;
 deployment/vps/compose.yaml y Dockerfile; scripts/Deploy-Vps.ps1.
+
+REVISIÓN ACOTADA DE IDENTIDAD VISUAL — 27/10/2026
+
+Alcance: recuperar la gama azul original de Scalaris en la demo de E-MEDICAPP.
+Fuente de identidad comprobada en scalaris/public/styles.css del workspace:
+azul #145cdb, navy #0b1f33, celeste #53c9f4, fondo #eef5fa, texto secundario
+#496479 y borde #d7e3ed. El hover del botón corporativo utiliza #104bb5.
+
+Hechos de código revisados el 27/10/2026: frontend/package.json conserva React
+19.3.0, TypeScript 6.0.3, MUI 9.4.0, Ionic 9.0.8 y Capacitor 8.5.3; tsconfig.json
+mantiene strict. backend/pom.xml conserva Java 25, Spring Boot 4.1.1, JDBC,
+PostgreSQL y Flyway. Esta intervención no modifica esas versiones, el backend,
+los permisos, datos ni migraciones. La base temática MUI/Ionic existente permite
+resolver el cambio en presentación, sin una migración tecnológica adicional.
+
+Se sustituyen la marca verde/teal y sus tintes de interfaz por el azul de Scalaris:
+tema MUI, variables Ionic coherentes con sus valores RGB, metadato theme-color,
+marcadores y leyenda del mapa, bordes y sombras. Se conservan los estados verdes
+de éxito y la identificación multicolor de categorías, que expresan significado
+funcional. El contraste calculado de #145cdb sobre blanco es 5,86:1; sobre
+#eef5fa es 5,32:1. #496479 sobre #eef5fa alcanza 5,64:1. Son comprobaciones de
+pares de colores; no equivalen a una auditoría completa de accesibilidad.
+
+Beneficio: consistencia de marca entre el sitio corporativo y la demo.
+Esfuerzo bajo; riesgo limitado a contraste, componentes personalizados o estilos
+que no hereden el tema. Recomendación: conservar el stack y centralizar la marca
+en los temas existentes. La revisión no acredita soporte de versiones ni estado
+operativo del VPS; las brechas generales de la evaluación anterior siguen vigentes.
+
+Verificaciones ejecutadas en frontend con Node 24.18.0: npm run build aprobado
+(TypeScript y Vite), npm test aprobado (8 archivos, 47 pruebas). git diff --check
+aprobado. Vite advierte un chunk mayor de 500 kB; no impide la compilación.
+No se ejecutó aquí una revisión visual en navegador, CI, publicación ni pruebas
+de backend. Los resultados locales no acreditan una versión pública actualizada.
+
+Fuentes de esta revisión: frontend/package.json y tsconfig.json; backend/pom.xml;
+frontend/src/ui/theme.ts e ionic.css; frontend/index.html; estilos de LocationPicker,
+Workspace, CreatePurchase y MarketplacePage; README.md y .github/workflows/pages.yml.

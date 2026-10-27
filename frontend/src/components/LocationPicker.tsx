@@ -220,7 +220,7 @@ export function LocationPicker({
       else
         marker.current = L.circleMarker(point, {
           radius: 10,
-          color: '#14766f',
+          color: '#145cdb',
           fillOpacity: 0.8,
         }).addTo(map.current);
       map.current.panTo(point);
@@ -266,7 +266,7 @@ export function LocationPicker({
           height: 280,
           borderRadius: 2,
           overflow: 'hidden',
-          border: '1px solid #dfe8e7',
+          border: '1px solid #d7e3ed',
           zIndex: 0,
         }}
       />

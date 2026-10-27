@@ -2,11 +2,11 @@ import { createTheme } from '@mui/material';
 
 export const theme = createTheme({
   palette: {
-    primary: { main: '#176B5B', dark: '#104D43', light: '#E9F3EE' },
-    secondary: { main: '#41566B' },
-    background: { default: '#F5F6F3', paper: '#FFFFFF' },
-    text: { primary: '#24332E', secondary: '#66746D' },
-    divider: '#E1E7E1',
+    primary: { main: '#145CDB', dark: '#104BB5', light: '#EEF5FA' },
+    secondary: { main: '#496479' },
+    background: { default: '#EEF5FA', paper: '#FFFFFF' },
+    text: { primary: '#0B1F33', secondary: '#496479' },
+    divider: '#D7E3ED',
     success: { main: '#257A57' },
     warning: { main: '#976216' },
     error: { main: '#AD4141' },
@@ -29,7 +29,7 @@ export const theme = createTheme({
         html: { scrollBehavior: 'smooth' },
         body: { minWidth: 320 },
         'button, a, input, select, textarea': { WebkitTapHighlightColor: 'transparent' },
-        ':focus-visible': { outline: '3px solid #68A494', outlineOffset: 3 },
+        ':focus-visible': { outline: '3px solid #145CDB', outlineOffset: 3 },
         '@media (prefers-reduced-motion: reduce)': { html: { scrollBehavior: 'auto' } },
       },
     },
@@ -44,13 +44,13 @@ export const theme = createTheme({
           '@media (max-width:599.95px)': { minHeight: 44 },
         },
         contained: { paddingTop: 10, paddingBottom: 10 },
-        outlined: { borderColor: '#CDDBD3' },
+        outlined: { borderColor: '#D7E3ED' },
       },
     },
     MuiPaper: { defaultProps: { elevation: 0 } },
     MuiCard: {
       styleOverrides: {
-        root: { border: '1px solid #E1E7E1', boxShadow: '0 2px 7px rgba(36,51,46,0.025)' },
+        root: { border: '1px solid #D7E3ED', boxShadow: '0 2px 7px rgba(11,31,51,0.025)' },
       },
     },
     MuiCardContent: {
@@ -123,7 +123,7 @@ export const theme = createTheme({
       styleOverrides: {
         root: {
           padding: '16px 24px 20px',
-          borderTop: '1px solid #E1E7E1',
+          borderTop: '1px solid #D7E3ED',
           gap: 8,
           '@media (max-width:599.95px)': { padding: '12px 16px', flexWrap: 'wrap' },
         },
@@ -140,8 +140,8 @@ export const theme = createTheme({
     MuiTab: { styleOverrides: { root: { textTransform: 'none', minHeight: 48, fontWeight: 620 } } },
     MuiTableCell: {
       styleOverrides: {
-        head: { fontWeight: 700, color: '#66746D', background: '#F8FAF7', fontSize: '0.75rem' },
-        root: { borderColor: '#E1E7E1' },
+        head: { fontWeight: 700, color: '#496479', background: '#EEF5FA', fontSize: '0.75rem' },
+        root: { borderColor: '#D7E3ED' },
       },
     },
   },

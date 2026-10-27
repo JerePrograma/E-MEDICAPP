@@ -12,8 +12,8 @@
   height: 14px;
   content: '';
   background: white;
-  border-right: 2px solid #14766f;
-  border-bottom: 2px solid #14766f;
+  border-right: 2px solid #145cdb;
+  border-bottom: 2px solid #145cdb;
   transform: rotate(45deg);
 }
 
@@ -30,7 +30,7 @@
   padding: 5px;
   overflow: hidden;
   background: white;
-  border: 2px solid #14766f;
+  border: 2px solid #145cdb;
   border-radius: 12px;
   box-shadow: 0 2px 6px #0003;
 }
@@ -45,7 +45,7 @@
 }
 
 .emedicapp-branch-marker__fallback {
-  color: #14766f;
+  color: #145cdb;
   font:
     700 36px/1 Arial,
     sans-serif;
@@ -56,7 +56,7 @@
 }
 
 .emedicapp-branch-marker:focus-visible {
-  outline: 3px solid #1b4e85;
+  outline: 3px solid #104bb5;
   outline-offset: 3px;
   border-radius: 12px;
 }
@@ -66,9 +66,9 @@
   width: 18px;
   height: 18px;
   place-items: center;
-  color: #14766f;
+  color: #145cdb;
   background: white;
-  border: 1px solid #14766f;
+  border: 1px solid #145cdb;
   border-radius: 4px;
   font:
     700 18px/1 Arial,
@@ -81,8 +81,8 @@
   width: 12px;
   height: 12px;
   margin-right: 4px;
-  background: #14766fcc;
-  border: 2px solid #14766f;
+  background: #145cdbcc;
+  border: 2px solid #145cdb;
   border-radius: 50%;
   vertical-align: middle;
 }

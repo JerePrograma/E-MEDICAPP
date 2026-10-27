@@ -119,7 +119,7 @@ export function Workspace({ actor, children }: { actor: Actor; children: ReactNo
           pt: { xs: 0.75, md: 4 },
           pb: { xs: 'max(6px, env(safe-area-inset-bottom, 0px))', md: 4 },
           bgcolor: { xs: 'background.paper', md: 'transparent' },
-          boxShadow: { xs: '0 -4px 20px #24332e08', md: 'none' },
+          boxShadow: { xs: '0 -4px 20px #0b1f3308', md: 'none' },
         }}
       >
         <Box sx={{ position: { md: 'sticky' }, top: 104 }}>
